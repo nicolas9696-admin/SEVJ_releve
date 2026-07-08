@@ -85,6 +85,12 @@ textarea{min-height:70px; resize:vertical}
 .majo.on{display:block}
 .cond{display:none}
 .cond.on{display:block}
+/* ---------- Photos ---------- */
+.photo-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px}
+.photo-grid .ph{position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:var(--bg)}
+.photo-grid .ph img{width:100%; height:100%; object-fit:cover; display:block}
+.photo-grid .ph button{position:absolute; top:4px; right:4px; width:24px; height:24px; border:none; border-radius:7px;
+  background:rgba(176,42,42,.9); color:#fff; font-size:15px; font-weight:700; cursor:pointer; line-height:1}
 /* ---------- Footer bar ---------- */
 .bar{
   position:fixed; left:0; right:0; bottom:0; z-index:60; background:#fff;
@@ -280,6 +286,17 @@ textarea{min-height:70px; resize:vertical}
     </div>
   </section>
 
+  <!-- 7. Photos -->
+  <section class="card">
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg></span> Photos</h2>
+    <div class="body">
+      <p class="hint">Photos du chantier (tableau, tracé, existant…) — incluses dans le PDF.</p>
+      <input id="photoInput" type="file" accept="image/*" capture="environment" multiple style="display:none">
+      <button class="add" id="photoBtn" style="border-style:solid">📷 Ajouter des photos</button>
+      <div id="photoGrid" class="photo-grid"></div>
+    </div>
+  </section>
+
 </main>
 
 <div class="bar">
@@ -292,6 +309,7 @@ textarea{min-height:70px; resize:vertical}
   <div class="sheet">
     <div class="sheet-hd">
       <span class="t">Fiche informative</span>
+      <button class="dl" id="shareBtn" style="display:none">📤 Partager</button>
       <button class="dl" id="printBtn">Télécharger PDF</button>
       <button class="x" id="closeOut">Fermer</button>
     </div>
@@ -339,6 +357,7 @@ const OFFRE_CONTACTS = [
   {name:"Gabriel H.", email:"gabriel.hodel@sevj.ch"},
   {name:"André M.",   email:"andre.meylan@sevj.ch"},
   {name:"Norbert R.", email:"norbert.racine@sevj.ch"},
+  {name:"Nicolas W. (test)", email:"nicolas9696@gmail.com"},
 ];
 
 /* Option lists */
@@ -453,7 +472,7 @@ function addRemarque(){
 
 /* conditional field logic + remove button */
 function wire(r){
-  r.querySelector('.rm').onclick = ()=> r.remove();
+  r.querySelector('.rm').onclick = ()=>{ r.remove(); if(window.scheduleSave) scheduleSave(); };
   r.querySelectorAll('select[data-f], input[data-f]').forEach(inp=>{
     inp.addEventListener('change', ()=>applyCond(r));
     inp.addEventListener('input', ()=>applyCond(r));
@@ -668,6 +687,40 @@ function tempsTxt(d){
   return `${d.jours||'?'} jour(s) · ${d.monteurs||'?'} monteur(s)${t?` (${t} h)`:''}${d.apprenti?' · apprenti possible':''}`;
 }
 
+/* ================= Photos ================= */
+let PHOTOS = [];   // [{data:'data:image/jpeg;base64,…'}]
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const img=new Image(); const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const MAX=1400; let {width:w,height:h}=img;
+      if(w>h && w>MAX){ h=Math.round(h*MAX/w); w=MAX; }
+      else if(h>MAX){ w=Math.round(w*MAX/h); h=MAX; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg',0.62));
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(); };
+    img.src=url;
+  });
+}
+async function addPhotos(files){
+  for(const f of files){ if(!f.type.startsWith('image/')) continue;
+    try{ const data=await compressImage(f); PHOTOS.push({data}); }catch(e){}
+  }
+  renderPhotos(); saveDraft();
+}
+function renderPhotos(){
+  const g=$('#photoGrid'); g.innerHTML='';
+  PHOTOS.forEach((p,i)=>{
+    const d=el('div','ph');
+    d.innerHTML=`<img src="${p.data}"><button title="Supprimer" data-i="${i}">×</button>`;
+    d.querySelector('button').onclick=()=>{ PHOTOS.splice(i,1); renderPhotos(); saveDraft(); };
+    g.appendChild(d);
+  });
+}
+
 /* ================= Sortie / export ================= */
 function generate(){
   const d=collect();
@@ -759,6 +812,27 @@ function buildPDFDoc(d){
   const w=doc.getTextWidth(pdfSafe('Fiche établie par : '));
   doc.setFont('helvetica','bold'); doc.setTextColor(...CLR.navy);
   doc.text(pdfSafe(d.user?d.user.name:'-'), M+w, y+2);
+  y+=10;
+
+  /* Photos (2 colonnes) */
+  if(PHOTOS.length){
+    if(y>H-55){ doc.addPage(); y=16; }
+    heading('Photos');
+    const gap=6, colW=(CW-gap)/2;
+    let col=0, rowY=y, rowH=0;
+    PHOTOS.forEach(p=>{
+      let ratio=0.75;
+      try{ const pr=doc.getImageProperties(p.data); ratio=pr.height/pr.width; }catch(e){}
+      let iw=colW, ih=colW*ratio;
+      if(ih>95){ ih=95; iw=ih/ratio; }              // limite hauteur, garde le ratio
+      if(col===0 && rowY+ih>H-14){ doc.addPage(); rowY=16; rowH=0; }
+      try{ doc.addImage(p.data,'JPEG', M+col*(colW+gap), rowY, iw, ih); }catch(e){}
+      rowH=Math.max(rowH,ih);
+      col++;
+      if(col===2){ col=0; rowY+=rowH+gap; rowH=0; }
+    });
+    y = rowY + (col===1 ? rowH+gap : 0);
+  }
 
   /* Pied de page : pagination */
   const pc=doc.getNumberOfPages();
@@ -808,12 +882,65 @@ function sendMail(){
              +'&body='+encodeURIComponent(body);
   window.location.href = href;
 }
-
-/* ================= Persistance légère (brouillon) ================= */
-const DRAFT='sevj_draft';
-function saveDraft(){
-  try{ localStorage.setItem(DRAFT, JSON.stringify(collect())); }catch(e){}
+/* Partage natif : PDF en pièce jointe via le menu du téléphone */
+async function sharePDF(){
+  if(!window.jspdf){ alert("Librairie PDF non chargée."); return; }
+  const d = window._lastData || collect();
+  const name=(($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+'.pdf';
+  const blob = buildPDFDoc(d).output('blob');
+  const file = new File([blob], name, {type:'application/pdf'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:'Fiche '+(d.ref||''), text:'Fiche informative '+(d.ref||'')}); }
+    catch(e){ /* annulé par l'utilisateur */ }
+  } else {
+    buildPDFDoc(d).save(name);
+    alert("Partage direct indisponible sur cet appareil : le PDF a été téléchargé, tu peux le joindre manuellement.");
+  }
 }
+
+/* ================= Persistance (brouillon auto) ================= */
+const DRAFT='sevj_draft_v2', DRAFT_PHOTOS='sevj_draft_photos_v2';
+const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#heures'];
+const D_CHECK=['#vendredi','#apprenti'];
+const D_CONT=[['#chemins',()=>addChemin()],['#cables',()=>addCable()],['#apps',()=>addApp()],
+              ['#boites',()=>addBoite()],['#disj',()=>addDisj()],['#remarques',()=>addRemarque()]];
+let _saveT=null;
+function scheduleSave(){ clearTimeout(_saveT); _saveT=setTimeout(saveDraft,500); }
+function rowState(r){ const o={}; r.querySelectorAll('[data-f]').forEach(e=>{ o[e.dataset.f]= e.type==='checkbox'?e.checked:e.value; }); return o; }
+function saveDraft(){
+  try{
+    const d={simple:{}, checks:{}, rows:{}, ref:$('#ref').value, refEdited};
+    D_SIMPLE.forEach(s=>d.simple[s]=$(s).value);
+    D_CHECK.forEach(s=>d.checks[s]=$(s).checked);
+    D_CONT.forEach(([sel])=> d.rows[sel]=[...document.querySelectorAll(sel+' .row')].map(rowState));
+    localStorage.setItem(DRAFT, JSON.stringify(d));
+  }catch(e){}
+  try{ localStorage.setItem(DRAFT_PHOTOS, JSON.stringify(PHOTOS)); }catch(e){ /* quota : photos non sauvées */ }
+}
+function restoreDraft(){
+  let d; try{ d=JSON.parse(localStorage.getItem(DRAFT)); }catch(e){}
+  try{ const p=JSON.parse(localStorage.getItem(DRAFT_PHOTOS)); if(Array.isArray(p)) PHOTOS=p; }catch(e){}
+  if(PHOTOS.length) renderPhotos();
+  if(!d) return false;
+  D_SIMPLE.forEach(s=>{ if(d.simple&&d.simple[s]!=null) $(s).value=d.simple[s]; });
+  D_CHECK.forEach(s=>{ if(d.checks&&d.checks[s]!=null) $(s).checked=d.checks[s]; });
+  D_CONT.forEach(([sel,add])=>{
+    const rows=d.rows&&d.rows[sel]; if(!rows) return;
+    document.querySelector(sel).innerHTML='';
+    rows.forEach(state=>{
+      add();
+      const r=document.querySelector(sel+' .row:last-child');
+      const g=r.querySelector('[data-f="genre"]');       // appareil : genre pilote la liste modèle
+      if(g && state.genre!=null){ g.value=state.genre; applyCond(r); }
+      Object.entries(state).forEach(([f,v])=>{ const e=r.querySelector(`[data-f="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=v; else e.value=v; } });
+      applyCond(r);
+    });
+  });
+  if(d.ref!=null) $('#ref').value=d.ref;
+  refEdited=!!d.refEdited;
+  return true;
+}
+function clearDraft(){ try{ localStorage.removeItem(DRAFT); localStorage.removeItem(DRAFT_PHOTOS); }catch(e){} }
 
 /* ================= Init ================= */
 function init(){
@@ -824,7 +951,7 @@ function init(){
   addChemin(); addCable(); addApp(); addBoite(); addDisj(); addRemarque();
 
   document.querySelectorAll('.add[data-add]').forEach(b=>{
-    b.onclick=()=>({cable:addCable,chemin:addChemin,app:addApp,boite:addBoite,disj:addDisj,remarque:addRemarque}[b.dataset.add]());
+    b.onclick=()=>{ ({cable:addCable,chemin:addChemin,app:addApp,boite:addBoite,disj:addDisj,remarque:addRemarque}[b.dataset.add])(); scheduleSave(); };
   });
   $('#loginBtn').onclick=doLogin;
   $('#logoutBtn').onclick=doLogout;
@@ -834,17 +961,35 @@ function init(){
   $('#printBtn').onclick=downloadPDF;
   $('#mailBtn').onclick=sendMail;
   $('#calcCableBtn').onclick=calcCable;
-  $('#resetBtn').onclick=()=>{ if(confirm('Vider tout le formulaire ?')) location.reload(); };
+  $('#resetBtn').onclick=()=>{ if(confirm('Vider tout le formulaire ? Le brouillon enregistré sera effacé.')){ clearDraft(); location.reload(); } };
+
+  // Photos
+  $('#photoBtn').onclick=()=>$('#photoInput').click();
+  $('#photoInput').addEventListener('change',e=>{ addPhotos([...e.target.files]); e.target.value=''; });
+
+  // Partage natif (seulement si l'appareil sait partager un fichier)
+  try{ if(navigator.canShare && navigator.canShare({files:[new File([new Blob()],'t.pdf',{type:'application/pdf'})]})){ $('#shareBtn').style.display=''; } }catch(e){}
+  $('#shareBtn').onclick=sharePDF;
 
   ['#chantier','#date'].forEach(s=>$(s).addEventListener('input',buildRef));
-  $('#ref').addEventListener('input',()=>refEdited=true);
+  $('#ref').addEventListener('input',()=>{refEdited=true;});
 
   // recalcul heures auto
   ['#jours','#monteurs','#vendredi'].forEach(s=>$(s).addEventListener('input',()=>{
     const d={jours:$('#jours').value,monteurs:$('#monteurs').value,vendredi:$('#vendredi').checked,heures:''};
     $('#heures').value=totalHeures(d);
   }));
-  $('#heures').value=totalHeures({jours:'1',monteurs:'1',vendredi:false,heures:''});
+
+  // Auto-sauvegarde : toute saisie déclenche une sauvegarde différée
+  document.querySelector('main').addEventListener('input', scheduleSave);
+  document.querySelector('main').addEventListener('change', scheduleSave);
+
+  // Restauration du brouillon (sinon on garde les lignes par défaut)
+  const restored = restoreDraft();
+  if(!restored){ $('#heures').value=totalHeures({jours:'1',monteurs:'1',vendredi:false,heures:''}); }
+
+  // Service worker (mode hors-ligne)
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
