@@ -105,6 +105,10 @@ textarea{min-height:70px; resize:vertical}
 .majo.on{display:block}
 .cond{display:none}
 .cond.on{display:block}
+/* ---------- Total main d'œuvre ---------- */
+.mo-total{margin-top:12px; padding:10px 12px; background:var(--bg); border:1px solid var(--line);
+  border-radius:10px; font-size:14px; color:var(--navy)}
+.mo-total b{font-size:16px}
 /* ---------- Photos ---------- */
 .photo-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px}
 .photo-grid .ph{position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:var(--bg)}
@@ -156,23 +160,12 @@ textarea{min-height:70px; resize:vertical}
 #fiche ul{margin:6px 0; padding-left:20px} #fiche li{margin:3px 0}
 #fiche .sig{margin-top:22px; font-size:13px} #fiche .sig b{color:var(--navy)}
 #fiche .empty{color:var(--mut); font-style:italic; font-size:12px}
-/* ---------- Barre d'envoi mail ---------- */
-.send-bar{
-  display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-  padding:11px 15px; background:var(--bg); border-bottom:1px solid var(--line);
-}
-.send-bar label{font-size:13px; font-weight:600; color:var(--navy)}
-.send-bar select{flex:1; min-width:150px; padding:9px 8px}
-.send-bar button{
-  border:none; background:var(--navy); color:#fff; font-weight:700; font-size:14px;
-  padding:10px 14px; border-radius:10px; cursor:pointer;
-}
 @media print{
   body *{visibility:hidden}
   #outputOverlay,#outputOverlay *{visibility:visible}
   #outputOverlay{position:absolute; inset:0; background:#fff}
   .sheet{margin:0; max-width:none; box-shadow:none}
-  .sheet-hd,.send-bar{display:none!important}
+  .sheet-hd{display:none!important}
   @page{margin:14mm}
 }
 </style>
@@ -286,15 +279,17 @@ textarea{min-height:70px; resize:vertical}
   <section class="card req" data-req="temps">
     <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span> Temps &amp; main d'œuvre</h2>
     <div class="body">
-      <p class="hint">Indique le nombre de <b>jours</b> (1 jour = 8 h 30, vendredi 7 h 45) → les heures se calculent seules.
-      Pour un <b>petit travail</b>, laisse Jours vide et saisis directement le <b>total heures</b>.</p>
+      <p class="hint">Indique le <b>nombre de personnes</b> et la <b>durée sur site</b> — en jours (1 jour = 8 h 30,
+      vendredi 7 h 45) <b>ou</b>, pour un petit travail, directement en heures. Le <b>total de main d'œuvre</b>
+      (heures-homme) se calcule tout seul : durée × personnes.</p>
       <div class="grid-3">
-        <div><label class="fld" for="jours">Jours</label><input id="jours" type="number" min="0" step="0.5" placeholder="ex : 1"></div>
-        <div><label class="fld" for="monteurs">Monteurs</label><input id="monteurs" type="number" min="1" step="1" value="1"></div>
-        <div><label class="fld" for="heures">Total heures</label><input id="heures" type="number" min="0" step="0.25" placeholder="ex : 2"></div>
+        <div><label class="fld" for="monteurs">Personnes</label><input id="monteurs" type="number" min="1" step="1" placeholder="ex : 2"></div>
+        <div><label class="fld" for="jours">Durée : jours</label><input id="jours" type="number" min="0" step="0.5" placeholder="ex : 1"></div>
+        <div><label class="fld" for="dureeH">ou heures sur site</label><input id="dureeH" type="number" min="0" step="0.25" placeholder="ex : 2"></div>
       </div>
       <div class="chk"><input id="vendredi" type="checkbox"><label for="vendredi">Journée(s) du vendredi (7 h 45)</label></div>
       <div class="chk"><input id="apprenti" type="checkbox"><label for="apprenti">Apprenti possible sur ce chantier</label></div>
+      <div class="mo-total">→ Total main d'œuvre : <b id="moTotal">—</b></div>
     </div>
   </section>
 
@@ -330,14 +325,9 @@ textarea{min-height:70px; resize:vertical}
   <div class="sheet">
     <div class="sheet-hd">
       <span class="t">Fiche informative</span>
-      <button class="dl" id="shareBtn" style="display:none">📤 Partager</button>
+      <button class="dl" id="shareBtn">📤 Partager (PDF)</button>
       <button class="dl" id="printBtn">Télécharger PDF</button>
       <button class="x" id="closeOut">Fermer</button>
-    </div>
-    <div class="send-bar">
-      <label for="mailTo">Envoyer l'offre à :</label>
-      <select id="mailTo"></select>
-      <button id="mailBtn">✉ Envoyer par mail</button>
     </div>
     <div class="sheet-body"><div id="fiche"></div></div>
   </div>
@@ -368,17 +358,6 @@ const COLLABORATORS = [
   {name:"Nicolas W.",     ini:"NW",  appr:false, hash:"322dceb11b30a169b6b092e34edd293fa8d2492940bf758aeff21cb6f27f1aa4"},
   {name:"Nathan Y.",      ini:"NY",  appr:true,  hash:"567c8b707a4c234293761c90c5b659c16cf20bce209654ce4cbff354caaa0734"},
   {name:"Bastien Z.",     ini:"BZ",  appr:false, hash:"5ffae342642b80b86ab97eed3988259c791c53ab5855fe646183e8668e7af8b5"},
-];
-
-/* =========================================================================
-   CONFIG — Personnes qui établissent les offres (destinataires du mail)
-   Remplace les noms et adresses e-mail ci-dessous par les vraies.
-   ========================================================================= */
-const OFFRE_CONTACTS = [
-  {name:"Gabriel H.", email:"gabriel.hodel@sevj.ch"},
-  {name:"André M.",   email:"andre.meylan@sevj.ch"},
-  {name:"Norbert R.", email:"norbert.racine@sevj.ch"},
-  {name:"Nicolas W. (test)", email:"nicolas9696@gmail.com"},
 ];
 
 /* Option lists */
@@ -560,8 +539,16 @@ function doLogout(){
 function reqOk(kind){
   if(kind==='collab')   return !!currentUser;
   if(kind==='chantier') return $('#chantier').value.trim()!=='';
-  if(kind==='temps')    return parseFloat($('#heures').value)>0 && parseFloat($('#monteurs').value)>0;
+  if(kind==='temps'){ const d={jours:$('#jours').value, dureeH:$('#dureeH').value, vendredi:$('#vendredi').checked};
+    return parseFloat($('#monteurs').value)>0 && onsiteHours(d)>0; }
   return true;
+}
+/* Met à jour l'affichage du total de main d'œuvre + validation */
+function updateMO(){
+  const d={jours:$('#jours').value, dureeH:$('#dureeH').value, monteurs:$('#monteurs').value, vendredi:$('#vendredi').checked};
+  const t=totalHeures(d);
+  $('#moTotal').textContent = t? t+' h' : '—';
+  updateReq();
 }
 function updateReq(){
   let all=true;
@@ -634,7 +621,7 @@ function collect(){
   return {
     ref:$('#ref').value, chantier:$('#chantier').value.trim(), objet:$('#objet').value.trim(),
     lieu:$('#lieu').value.trim(), date:$('#date').value,
-    jours:$('#jours').value, monteurs:$('#monteurs').value, heures:$('#heures').value,
+    jours:$('#jours').value, monteurs:$('#monteurs').value, dureeH:$('#dureeH').value,
     vendredi:$('#vendredi').checked, apprenti:$('#apprenti').checked,
     cables, chemins, apps, boites, disj, rem, user:currentUser
   };
@@ -717,24 +704,26 @@ function groupChemins(list){
   return [...map.values()].map(o=>({label:o.label, long:o.any?String(Math.round(o.long*100)/100):''}));
 }
 function heuresParJour(d){return d.vendredi?7.75:8.5;}
-function totalHeures(d){
-  if(d.heures) return d.heures;
-  const j=parseFloat(d.jours)||0, m=parseFloat(d.monteurs)||1;
-  const t=j*heuresParJour(d)*m; return t? (Math.round(t*100)/100) : '';
-}
+/* Durée passée sur site (heures), par personne */
+function onsiteHours(d){ return (parseFloat(d.jours)||0)*heuresParJour(d) + (parseFloat(d.dureeH)||0); }
+/* Total de main d'œuvre (heures-homme) = durée sur site × personnes */
+function totalHeures(d){ const t=onsiteHours(d)*(parseFloat(d.monteurs)||1); return t? Math.round(t*100)/100 : ''; }
 function hasJours(d){ return d.jours && parseFloat(d.jours)>0; }
-function tempsTxt(d){
-  const t=totalHeures(d); const bits=[];
-  if(t) bits.push(t+' h');
-  if(hasJours(d)) bits.push(d.jours+' j');
-  bits.push((d.monteurs||'1')+' monteur(s)');
-  if(d.apprenti) bits.push('apprenti possible');
-  return bits.join(' · ');
+function dureeSurSite(d){
+  const b=[]; if(hasJours(d)) b.push(d.jours+' j'); if(d.dureeH && parseFloat(d.dureeH)>0) b.push(d.dureeH+' h');
+  return b.join(' + ');
 }
-/* Ligne « Intervention sur site » du descriptif (gère les petits travaux sans jours) */
+function tempsTxt(d){
+  const t=totalHeures(d), parts=[(d.monteurs||'1')+' monteur(s)'];
+  const dur=dureeSurSite(d); if(dur) parts.push(dur+' sur site');
+  if(t) parts.push('total '+t+' h');
+  if(d.apprenti) parts.push('apprenti possible');
+  return parts.join(' · ');
+}
+/* Ligne « Main d'œuvre » du descriptif — personnes + durée sur site explicites */
 function tempsDesc(d){
-  let s='Intervention sur site — '+(d.monteurs||'1')+' monteur(s)';
-  if(hasJours(d)) s+=' ('+d.jours+' j)';
+  let s='Main d\'œuvre sur site — '+(d.monteurs||'1')+' monteur(s)';
+  const dur=dureeSurSite(d); if(dur) s+=' · '+dur;
   if(d.apprenti) s+=' — apprenti possible';
   return s;
 }
@@ -896,44 +885,6 @@ function buildPDFDoc(d){
   return doc;
 }
 
-/* ---- Version texte de la fiche (corps du mail) ---- */
-function buildMailText(d){
-  const L=[]; const line=s=>L.push(s);
-  line('FICHE INFORMATIVE');
-  line('Réf. '+(d.ref||'—'));
-  if(d.lieu||d.date) line((d.lieu||'')+(d.lieu?', le ':'')+frDate(d.date));
-  line('');
-  if(d.objet) line('Objet : '+d.objet);
-  line('');
-  const chGroup=groupChemins(d.chemins.filter(c=>!c.existant));
-  if(chGroup.length){ line('CHEMINEMENT :');
-    chGroup.forEach(c=>line('  - '+c.label+(c.long?(' — '+c.long+' m'):''))); line(''); }
-  if(d.cables.length){ line('CÂBLES / FILS :');
-    d.cables.forEach(c=>line('  - '+cableLabel(c)+(c.long?(' — '+c.long+' m'):''))); line(''); }
-  if(d.apps.length){ line('PRISES / INTERRUPTEURS :');
-    d.apps.forEach(a=>line('  - '+a.qte+'× '+a.genre+' '+a.modele+' '+a.montage)); line(''); }
-  if(d.boites.length){ line('BOÎTES :');
-    d.boites.forEach(b=>line('  - '+b.qte+'× boîte '+b.modele)); line(''); }
-  if(d.disj.length){ line('DISJONCTEURS :');
-    d.disj.forEach(x=>line('  - '+x.qte+'× courbe '+x.courbe+' '+x.amp+' A'+(x.ddr==='Avec DDR'?' + DDR':'')+' · '+x.marque)); line(''); }
-  line('TEMPS ESTIMÉ : '+tempsTxt(d));
-  line('');
-  if(d.rem.length){ line('REMARQUES :'); d.rem.forEach(r=>line('  - '+r)); line(''); }
-  line('Fiche établie par : '+(d.user?d.user.name:'—'));
-  line('');
-  line('(Fiche générée avec l\'application de relevé SEVJ — pensez à joindre le PDF si nécessaire.)');
-  return L.join('\r\n');
-}
-function sendMail(){
-  const d = window._lastData || collect();
-  const c = OFFRE_CONTACTS[+$('#mailTo').value] || OFFRE_CONTACTS[0];
-  const subject = 'Fiche informative — '+(d.ref||'relevé chantier');
-  const body = buildMailText(d);
-  const href = 'mailto:'+encodeURIComponent(c.email)
-             +'?subject='+encodeURIComponent(subject)
-             +'&body='+encodeURIComponent(body);
-  window.location.href = href;
-}
 /* Partage natif : PDF en pièce jointe via le menu du téléphone */
 async function sharePDF(){
   if(!window.jspdf){ alert("Librairie PDF non chargée."); return; }
@@ -952,7 +903,7 @@ async function sharePDF(){
 
 /* ================= Persistance (brouillon auto) ================= */
 const DRAFT='sevj_draft_v2', DRAFT_PHOTOS='sevj_draft_photos_v2';
-const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#heures'];
+const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#dureeH'];
 const D_CHECK=['#vendredi','#apprenti'];
 const D_CONT=[['#chemins',()=>addChemin()],['#cables',()=>addCable()],['#apps',()=>addApp()],
               ['#boites',()=>addBoite()],['#disj',()=>addDisj()],['#remarques',()=>addRemarque()]];
@@ -999,7 +950,6 @@ function init(){
   $('#logoImg').src=LOGO;
   $('#date').value=new Date().toISOString().slice(0,10);
   initCollab();
-  OFFRE_CONTACTS.forEach((c,i)=>$('#mailTo').insertAdjacentHTML('beforeend',`<option value="${i}">${c.name}</option>`));
   // Sections vides au départ : l'utilisateur ajoute les lignes via les boutons « + ».
 
   // Sections repliables : fermées par défaut. Les sections obligatoires (.req) restent ouvertes.
@@ -1018,7 +968,6 @@ function init(){
   $('#genBtn').onclick=generate;
   $('#closeOut').onclick=()=>$('#outputOverlay').classList.remove('on');
   $('#printBtn').onclick=downloadPDF;
-  $('#mailBtn').onclick=sendMail;
   $('#calcCableBtn').onclick=calcCable;
   $('#resetBtn').onclick=()=>{ if(confirm('Vider tout le formulaire ? Le brouillon enregistré sera effacé.')){ clearDraft(); location.reload(); } };
 
@@ -1026,26 +975,18 @@ function init(){
   $('#photoBtn').onclick=()=>$('#photoInput').click();
   $('#photoInput').addEventListener('change',e=>{ addPhotos([...e.target.files]); e.target.value=''; });
 
-  // Partage natif (seulement si l'appareil sait partager un fichier)
-  try{ if(navigator.canShare && navigator.canShare({files:[new File([new Blob()],'t.pdf',{type:'application/pdf'})]})){ $('#shareBtn').style.display=''; } }catch(e){}
+  // Partage : envoie le PDF en pièce jointe (menu du téléphone) ; sinon téléchargement
   $('#shareBtn').onclick=sharePDF;
 
   ['#chantier','#date'].forEach(s=>$(s).addEventListener('input',buildRef));
   $('#ref').addEventListener('input',()=>{refEdited=true;});
 
-  // Validation des champs obligatoires (rouge / vert)
-  ['#chantier','#heures','#monteurs'].forEach(s=>$(s).addEventListener('input',updateReq));
+  // Validation du chantier
+  $('#chantier').addEventListener('input',updateReq);
 
-  // Heures calculées depuis les jours — uniquement si des jours sont saisis
-  // (sinon on laisse la saisie directe des heures pour les petits travaux)
-  ['#jours','#monteurs','#vendredi'].forEach(s=>$(s).addEventListener('input',()=>{
-    const j=parseFloat($('#jours').value);
-    if(!isNaN(j) && j>0){
-      const d={jours:$('#jours').value,monteurs:$('#monteurs').value,vendredi:$('#vendredi').checked,heures:''};
-      $('#heures').value=totalHeures(d);
-    }
-    updateReq();
-  }));
+  // Temps : total de main d'œuvre recalculé à chaque saisie (durée × personnes)
+  ['#monteurs','#jours','#dureeH'].forEach(s=>$(s).addEventListener('input',updateMO));
+  $('#vendredi').addEventListener('change',updateMO);
 
   // Auto-sauvegarde : toute saisie déclenche une sauvegarde différée
   document.querySelector('main').addEventListener('input', scheduleSave);
@@ -1053,7 +994,7 @@ function init(){
 
   // Restauration du brouillon éventuel
   restoreDraft();
-  updateReq();
+  updateMO();
 
   // Service worker (mode hors-ligne)
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
