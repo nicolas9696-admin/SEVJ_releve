@@ -28,7 +28,7 @@ header{
   padding:10px 14px; box-shadow:0 2px 8px rgba(0,0,0,.18);
 }
 .hdr-row{display:flex; align-items:center; gap:12px; max-width:760px; margin:0 auto}
-.hdr-row img{height:34px; width:auto; background:#fff; border-radius:8px; padding:5px 8px}
+.hdr-row img{height:50px; width:auto; background:#fff; border-radius:10px; padding:6px 10px}
 .hdr-ref{flex:1; text-align:right; max-width:340px}
 .hdr-ref label{display:block; font-size:11px; opacity:.75; letter-spacing:.5px; text-transform:uppercase}
 .hdr-ref input{
@@ -49,9 +49,10 @@ main{max-width:760px; margin:0 auto; padding:14px}
   border-bottom:1px solid var(--line); display:flex; align-items:center; gap:9px;
 }
 .card>h2 .n{
-  background:var(--navy); color:#fff; width:24px; height:24px; border-radius:50%;
-  display:inline-flex; align-items:center; justify-content:center; font-size:13px; flex:0 0 auto;
+  background:var(--navy); color:#fff; width:30px; height:30px; border-radius:9px;
+  display:inline-flex; align-items:center; justify-content:center; font-size:14px; flex:0 0 auto;
 }
+.card>h2 .n svg{width:18px; height:18px; display:block}
 .card .body{padding:14px 15px}
 .hint{font-size:12px; color:var(--mut); margin:2px 0 12px}
 /* ---------- Fields ---------- */
@@ -187,7 +188,7 @@ textarea{min-height:70px; resize:vertical}
 
   <!-- Chantier -->
   <section class="card">
-    <h2><span class="n">i</span> Chantier</h2>
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span> Chantier</h2>
     <div class="body">
       <label class="fld" for="chantier">Nom générique du chantier</label>
       <input id="chantier" type="text" placeholder="ex : Borne HalleC Sud" autocomplete="off">
@@ -204,7 +205,7 @@ textarea{min-height:70px; resize:vertical}
 
   <!-- 1. Cheminement -->
   <section class="card">
-    <h2><span class="n">1</span> Cheminement</h2>
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6a4 4 0 0 1 0 8H7a4 4 0 0 0 0 8h13"/></svg></span> Cheminement</h2>
     <div class="body">
       <p class="hint">Type de canalisation, longueur, existant ou à poser. Travail en hauteur (&gt; 3.50 m) → majoration 1.5× du câble.
       Les cheminements <b>déjà existants</b> ne figurent pas dans le rapport, mais leur longueur compte pour le calcul du câble.</p>
@@ -217,7 +218,7 @@ textarea{min-height:70px; resize:vertical}
 
   <!-- 2. Câbles -->
   <section class="card">
-    <h2><span class="n">2</span> Câbles / Fils</h2>
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v5a4 4 0 0 0 8 0V3"/><path d="M8 3v3M12 3v3"/><path d="M10 12v3a5 5 0 0 0 5 5h2"/></svg></span> Câbles / Fils</h2>
     <div class="body">
       <p class="hint">Section en mm² (standard CH), type, et longueur à commander. Pour un <b>fil</b>, indiquer le nombre de conducteurs.</p>
       <div id="cables"></div>
@@ -227,7 +228,7 @@ textarea{min-height:70px; resize:vertical}
 
   <!-- 3. Appareillage -->
   <section class="card">
-    <h2><span class="n">3</span> Prises &amp; interrupteurs</h2>
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="12" r="1.4" fill="#fff"/><circle cx="15" cy="12" r="1.4" fill="#fff"/></svg></span> Prises &amp; interrupteurs</h2>
     <div class="body">
       <p class="hint">Modèle, quantité, et montage apparent (AP) ou encastré (ENC).</p>
       <div id="apps"></div>
@@ -235,9 +236,19 @@ textarea{min-height:70px; resize:vertical}
     </div>
   </section>
 
-  <!-- 4. Disjoncteurs -->
+  <!-- Boîtes -->
   <section class="card">
-    <h2><span class="n">4</span> Disjoncteurs</h2>
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/><path d="M12 12v8"/></svg></span> Boîtes</h2>
+    <div class="body">
+      <p class="hint">Boîtes de dérivation : modèle AP9 ou AP10 (ou autre à préciser) et quantité.</p>
+      <div id="boites"></div>
+      <button class="add" data-add="boite">＋ Ajouter une boîte</button>
+    </div>
+  </section>
+
+  <!-- Disjoncteurs -->
+  <section class="card">
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M12 7v5"/><circle cx="12" cy="16" r="1.3" fill="#fff"/></svg></span> Disjoncteurs</h2>
     <div class="body">
       <p class="hint">Courbe, intensité, différentiel (DDR) et marque souhaitée.</p>
       <div id="disj"></div>
@@ -247,7 +258,7 @@ textarea{min-height:70px; resize:vertical}
 
   <!-- 5. Temps -->
   <section class="card">
-    <h2><span class="n">5</span> Temps &amp; main d'œuvre</h2>
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span> Temps &amp; main d'œuvre</h2>
     <div class="body">
       <p class="hint">1 journée = 8 h 30 (vendredi 7 h 45).</p>
       <div class="grid-3">
@@ -262,7 +273,7 @@ textarea{min-height:70px; resize:vertical}
 
   <!-- 6. Remarques -->
   <section class="card">
-    <h2><span class="n">6</span> Remarques</h2>
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 16.5h6"/></svg></span> Remarques</h2>
     <div class="body">
       <div id="remarques"></div>
       <button class="add" data-add="remarque">＋ Ajouter une remarque</button>
@@ -293,6 +304,8 @@ textarea{min-height:70px; resize:vertical}
   </div>
 </div>
 
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js"></script>
 <script>
 /* =========================================================================
    CONFIG — Collaborateurs
@@ -336,7 +349,8 @@ const CHEM_T   = ["Tube TIT","Tube ALU","Canal","Tube THFWG","Chemin de câble"]
 const PRISE_M  = ["T13","T15","T23","T25","CEE16A","CEE32A","CEE63A"];
 const INTER_M  = ["sch3","sch6","sch3 + prise","sch3+3","spécifique…"];
 const AMP       = ["6","8","10","13","16","20","25","32","40","63","autre…"];
-const MARQUE   = ["Schneider","ABB","ABB smissline","Hager"];
+const MARQUE   = ["Schneider","ABB","ABB smissline","Hager","À préciser…"];
+const BOITE_T  = ["AP9","AP10","À préciser…"];
 
 /* ---------- helpers ---------- */
 const $  = s => document.querySelector(s);
@@ -414,8 +428,21 @@ function addDisj(){
     <div class="grid" style="margin-top:10px">
       <div><label class="fld">Différentiel (DDR)</label><select data-f="ddr"><option>Sans DDR</option><option>Avec DDR</option></select></div>
       <div><label class="fld">Marque</label><select data-f="marque">${opts(MARQUE)}</select></div>
-    </div>`;
+    </div>
+    <div class="cond" data-c="marque" style="margin-top:10px"><label class="fld">Préciser la marque</label><input data-f="marqueautre" type="text" placeholder="marque / référence"></div>`;
   wire(r); $('#disj').appendChild(r);
+}
+function addBoite(){
+  const r = el('div','row'); const id=++uid;
+  r.innerHTML = `
+    <button class="rm" title="Supprimer">×</button>
+    <div class="tag">Boîte</div>
+    <div class="grid">
+      <div><label class="fld">Modèle</label><select data-f="modele">${opts(BOITE_T)}</select></div>
+      <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="1" step="1" value="1"></div>
+    </div>
+    <div class="cond" data-c="boite" style="margin-top:10px"><label class="fld">Préciser le modèle</label><input data-f="modautre" type="text" placeholder="ex : boîte étanche 100×100"></div>`;
+  wire(r); $('#boites').appendChild(r);
 }
 function addRemarque(){
   const r = el('div','row'); r.style.background='#fff';
@@ -443,6 +470,10 @@ function applyCond(r){
   // câble : champ "Nombre" seulement pour un Fil
   show('[data-c="filn"]',    val('type')==='Fil');
   show('[data-c="nbautre"]', val('type')==='Fil' && val('nb')==='plus…');
+  // disjoncteur : marque à préciser
+  show('[data-c="marque"]',  val('marque')==='À préciser…');
+  // boîte : modèle à préciser
+  show('[data-c="boite"]',   val('modele')==='À préciser…');
   // appareil: modèle liste selon genre + spécifique
   const genre = r.querySelector('[data-f="genre"]');
   if(genre){
@@ -528,12 +559,17 @@ function collect(){
             existant:(g(r,'etat')||'').startsWith('Déjà')};
   }).filter(c=>c.long||c.type);
   const apps=[...document.querySelectorAll('#apps .row')].map(r=>{
-    let m=g(r,'modele'); if(m==='spécifique…') m=g(r,'specv')||'spécifique';
-    return {genre:g(r,'genre'), modele:m, qte:g(r,'qte')||'1', montage:g(r,'montage')};
+    let m=g(r,'modele'); if(m==='spécifique…') m=g(r,'specv')||'Spécifique';
+    return {genre:g(r,'genre'), modele:m, qte:g(r,'qte')||'1', montage:montageCode(g(r,'montage'))};
   }).filter(a=>a.modele);
+  const boites=[...document.querySelectorAll('#boites .row')].map(r=>{
+    let m=g(r,'modele'); if(m==='À préciser…') m=g(r,'modautre')||'À préciser';
+    return {modele:m, qte:g(r,'qte')||'1'};
+  }).filter(b=>b.modele);
   const disj=[...document.querySelectorAll('#disj .row')].map(r=>{
     let a=g(r,'amp'); if(a==='autre…') a=g(r,'ampautre')||'?';
-    return {courbe:g(r,'courbe'), amp:a, qte:g(r,'qte')||'1', ddr:g(r,'ddr'), marque:g(r,'marque')};
+    let mq=g(r,'marque'); if(mq==='À préciser…') mq=g(r,'marqueautre')||'À préciser';
+    return {courbe:g(r,'courbe'), amp:a, qte:g(r,'qte')||'1', ddr:g(r,'ddr'), marque:mq};
   }).filter(d=>d.amp);
   const rem=[...document.querySelectorAll('#remarques .row')].map(r=>g(r,'txt')).filter(Boolean);
   return {
@@ -541,9 +577,11 @@ function collect(){
     lieu:$('#lieu').value.trim(), date:$('#date').value,
     jours:$('#jours').value, monteurs:$('#monteurs').value, heures:$('#heures').value,
     vendredi:$('#vendredi').checked, apprenti:$('#apprenti').checked,
-    cables, chemins, apps, disj, rem, user:currentUser
+    cables, chemins, apps, boites, disj, rem, user:currentUser
   };
 }
+/* AP / ENC sans parenthèses */
+function montageCode(m){ return (m||'').split(' ')[0]; }
 
 /* ================= Génération de la fiche ================= */
 function frDate(iso){
@@ -566,34 +604,38 @@ function buildFiche(d){
   if(d.objet) L.push(`<p class="obj"><b>Objet :</b> ${esc(d.objet)}</p>`);
   L.push(`<p class="obj" style="color:#666">Document informatif décrivant le tracé, les fournitures et les travaux relevés sur site, à l'attention de la personne chargée d'établir l'offre.</p>`);
 
-  /* Cheminements retenus dans le rapport : uniquement ceux à réaliser (pas les existants) */
-  const chWork = d.chemins.filter(c=>!c.existant);
+  /* Cheminements du rapport : uniquement ceux à réaliser (pas les existants), identiques additionnés */
+  const chGroup = groupChemins(d.chemins.filter(c=>!c.existant));
 
   /* ---- Caractéristiques (synthèse) ---- */
   L.push(`<h3>Caractéristiques</h3><table class="kv">`);
   const cabTxt = d.cables.length? d.cables.map(c=>`${cableLabel(c)}${c.long?` — ${c.long} m`:''}`).join('<br>') : '<span class="empty">—</span>';
-  const chTxt  = chWork.length? chWork.map(c=>chemLabel(c)).join('<br>') : '<span class="empty">—</span>';
-  const apTxt  = d.apps.length? d.apps.map(a=>`${a.qte}× ${a.modele} (${a.montage.replace(/ .*/,'')})`).join('<br>') : '<span class="empty">—</span>';
-  const dsTxt  = d.disj.length? d.disj.map(x=>`${x.qte}× courbe ${x.courbe} ${x.amp}A ${x.ddr==='Avec DDR'?'+ DDR':''} · ${x.marque}`).join('<br>') : '<span class="empty">—</span>';
-  L.push(row2('Câble(s)',cabTxt));
+  const chTxt  = chGroup.length? chGroup.map(c=>`${c.label}${c.long?` — ${c.long} m`:''}`).join('<br>') : '<span class="empty">—</span>';
+  const apTxt  = d.apps.length? d.apps.map(a=>`${a.qte}× ${a.modele} ${a.montage}`).join('<br>') : '<span class="empty">—</span>';
+  const boTxt  = d.boites.length? d.boites.map(b=>`${b.qte}× ${b.modele}`).join('<br>') : '<span class="empty">—</span>';
+  const dsTxt  = d.disj.length? d.disj.map(x=>`${x.qte}× courbe ${x.courbe} ${x.amp} A${x.ddr==='Avec DDR'?' + DDR':''} · ${x.marque}`).join('<br>') : '<span class="empty">—</span>';
+  L.push(row2('Câble(s) / fil(s)',cabTxt));
   L.push(row2('Cheminement',chTxt));
   L.push(row2('Appareillage',apTxt));
+  L.push(row2('Boîtes',boTxt));
   L.push(row2('Protection',dsTxt));
   L.push(row2('Temps',tempsTxt(d)));
   L.push(`</table>`);
 
   /* ---- Descriptif des travaux ---- */
   L.push(`<h3>Descriptif des travaux</h3><table><tr><th>Désignation</th><th class="q">Qté</th><th class="u">Unité</th></tr>`);
-  if(chWork.length){ L.push(secRow('Cheminement'));
-    chWork.forEach(c=> L.push(itemRow(chemLabel(c,true), c.long||'', 'm'))); }
+  if(chGroup.length){ L.push(secRow('Cheminement'));
+    chGroup.forEach(c=> L.push(itemRow(c.label, c.long||'', 'm'))); }
   if(d.cables.length){ L.push(secRow('Câblage'));
     d.cables.forEach(c=> L.push(itemRow(cableLabel(c), c.long||'', 'm'))); }
   if(d.apps.length){ L.push(secRow('Appareillage'));
     d.apps.forEach(a=> L.push(itemRow(`${a.genre} ${a.modele} — ${a.montage}`, a.qte, 'pce'))); }
+  if(d.boites.length){ L.push(secRow('Boîtes de dérivation'));
+    d.boites.forEach(b=> L.push(itemRow(`Boîte ${b.modele}`, b.qte, 'pce'))); }
   if(d.disj.length){ L.push(secRow('Tableau / protections'));
-    d.disj.forEach(x=> L.push(itemRow(`Disjoncteur courbe ${x.courbe} ${x.amp}A${x.ddr==='Avec DDR'?' + DDR':''} — ${x.marque}`, x.qte, 'pce'))); }
+    d.disj.forEach(x=> L.push(itemRow(`Disjoncteur courbe ${x.courbe} ${x.amp} A${x.ddr==='Avec DDR'?' + DDR':''} — ${x.marque}`, x.qte, 'pce'))); }
   L.push(secRow('Temps estimé'));
-  L.push(itemRow(`Intervention sur site — ${d.jours||'?'} j à ${d.monteurs||'?'} monteur(s)${d.apprenti?' (apprenti possible)':''}`, totalHeures(d), 'h'));
+  L.push(itemRow(`Intervention sur site — ${d.jours||'?'} j à ${d.monteurs||'?'} monteur(s)${d.apprenti?' — apprenti possible':''}`, totalHeures(d), 'h'));
   L.push(`</table>`);
 
   /* ---- Remarques ---- */
@@ -616,12 +658,19 @@ function chemLabel(c,full){
   let s=c.type;
   if(c.canal && c.dim) s+=` ${c.dim}`;
   if(c.thfwg) s+= c.uv&&/Oui/.test(c.uv)?' (résistant UV)':' (non UV)';
-  const parts=[];
-  if(c.etat) parts.push(c.etat.startsWith('Déjà')?'existant':'à poser');
-  if(c.haut) parts.push('travail en hauteur >3.50m — majoration 1.5×');
-  if(full && parts.length) s+= ' — '+parts.join(', ');
-  else if(!full && c.etat && c.etat.startsWith('Déjà')) s+=' (existant)';
+  if(full && c.haut) s+= ' — travail en hauteur > 3.50 m (majoration 1.5×)';
   return s;
+}
+/* Additionne les cheminements identiques (même libellé) */
+function groupChemins(list){
+  const map=new Map();
+  list.forEach(c=>{
+    const key=chemLabel(c,true);
+    const cur=map.get(key)||{label:key, long:0, any:false};
+    const v=parseFloat(c.long); if(!isNaN(v)){ cur.long+=v; cur.any=true; }
+    map.set(key,cur);
+  });
+  return [...map.values()].map(o=>({label:o.label, long:o.any?String(Math.round(o.long*100)/100):''}));
 }
 function heuresParJour(d){return d.vendredi?7.75:8.5;}
 function totalHeures(d){
@@ -642,6 +691,117 @@ function generate(){
   window._lastData=d;
 }
 
+/* ---- PDF direct (jsPDF), pagination propre, pas de page blanche ---- */
+const CLR={navy:[31,59,91], navy2:[62,97,136], bg:[234,240,246], line:[201,212,224], sec:[242,246,251], ink:[43,43,43], mut:[110,110,110]};
+function pdfSafe(s){ return String(s==null?'':s).replace(/[—–]/g,'-').replace(/→/g,'->').replace(/œ/g,'oe').replace(/[’‘]/g,"'"); }
+function downloadPDF(){
+  if(!window.jspdf){ alert("Librairie PDF non chargée. Vérifie le dossier « vendor »."); return; }
+  const d = window._lastData || collect();
+  const doc = buildPDFDoc(d);
+  doc.save((($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+'.pdf');
+}
+function buildPDFDoc(d){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const M=14, W=210, H=297, CW=W-2*M;
+  const sanitize = data => { if(data.cell) data.cell.text = data.cell.text.map(pdfSafe); };
+
+  /* En-tête : logo + bloc titre */
+  const ratio=398/183, logoW=50, logoH=logoW/ratio;
+  try{ doc.addImage(LOGO,'PNG',M,12,logoW,logoH); }catch(e){}
+  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...CLR.navy2);
+  doc.text('FICHE INFORMATIVE', W-M, 18, {align:'right'});
+  doc.setFontSize(11); doc.setTextColor(...CLR.navy);
+  doc.text(pdfSafe('Réf. '+(d.ref||'-')), W-M, 24.5, {align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...CLR.mut);
+  doc.text(pdfSafe((d.lieu?d.lieu+', le ':'')+frDate(d.date)), W-M, 29.5, {align:'right'});
+  let y=Math.max(12+logoH, 31)+4;
+  doc.setDrawColor(...CLR.navy); doc.setLineWidth(0.5); doc.line(M,y,W-M,y); y+=6;
+
+  /* Objet + intro */
+  if(d.objet){ doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...CLR.navy);
+    const ot=doc.splitTextToSize(pdfSafe('Objet : '+d.objet), CW); doc.text(ot,M,y); y+=ot.length*4.8+1.5; }
+  doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(...CLR.mut);
+  const intro=doc.splitTextToSize(pdfSafe("Document informatif décrivant le tracé, les fournitures et les travaux relevés sur site, à l'attention de la personne chargée d'établir l'offre."), CW);
+  doc.text(intro,M,y); y+=intro.length*3.9+3;
+
+  const heading = t => {
+    if(y>H-30){ doc.addPage(); y=16; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setTextColor(...CLR.navy);
+    doc.text(pdfSafe(t),M,y); y+=1.5;
+    doc.setDrawColor(...CLR.line); doc.setLineWidth(0.2); doc.line(M,y,W-M,y); y+=3;
+  };
+
+  /* Caractéristiques */
+  const chGroup = groupChemins(d.chemins.filter(c=>!c.existant));
+  const val = arr => arr.length? arr.join('\n') : '-';
+  heading('Caractéristiques');
+  doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+    styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top'},
+    columnStyles:{0:{cellWidth:44, fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold'}, 1:{cellWidth:CW-44}},
+    didParseCell:sanitize,
+    body:[
+      ['Câble(s) / fil(s)', val(d.cables.map(c=>cableLabel(c)+(c.long?' - '+c.long+' m':'')))],
+      ['Cheminement',       val(chGroup.map(c=>c.label+(c.long?' - '+c.long+' m':'')))],
+      ['Appareillage',      val(d.apps.map(a=>a.qte+'x '+a.modele+' '+a.montage))],
+      ['Boîtes',            val(d.boites.map(b=>b.qte+'x '+b.modele))],
+      ['Protection',        val(d.disj.map(x=>x.qte+'x courbe '+x.courbe+' '+x.amp+' A'+(x.ddr==='Avec DDR'?' + DDR':'')+' · '+x.marque))],
+      ['Temps',             tempsTxt(d)],
+    ],
+  });
+  y=doc.lastAutoTable.finalY+7;
+
+  /* Descriptif des travaux */
+  heading('Descriptif des travaux');
+  const secStyle={fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
+  const body=[];
+  const sec=t=>body.push([{content:t, colSpan:3, styles:secStyle}]);
+  const item=(des,q,u)=>body.push([des, String(q), u]);
+  if(chGroup.length){ sec('Cheminement'); chGroup.forEach(c=>item(c.label, c.long||'', 'm')); }
+  if(d.cables.length){ sec('Câblage'); d.cables.forEach(c=>item(cableLabel(c), c.long||'', 'm')); }
+  if(d.apps.length){ sec('Appareillage'); d.apps.forEach(a=>item(a.genre+' '+a.modele+' - '+a.montage, a.qte, 'pce')); }
+  if(d.boites.length){ sec('Boîtes de dérivation'); d.boites.forEach(b=>item('Boîte '+b.modele, b.qte, 'pce')); }
+  if(d.disj.length){ sec('Tableau / protections'); d.disj.forEach(x=>item('Disjoncteur courbe '+x.courbe+' '+x.amp+' A'+(x.ddr==='Avec DDR'?' + DDR':'')+' - '+x.marque, x.qte, 'pce')); }
+  sec('Temps estimé');
+  item('Intervention sur site - '+(d.jours||'?')+' j à '+(d.monteurs||'?')+' monteur(s)'+(d.apprenti?' - apprenti possible':''), totalHeures(d), 'h');
+  doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+    styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top'},
+    headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+    columnStyles:{0:{cellWidth:CW-38}, 1:{cellWidth:19, halign:'center'}, 2:{cellWidth:19, halign:'center'}},
+    head:[['Désignation','Qté','Unité']], body, didParseCell:sanitize,
+  });
+  y=doc.lastAutoTable.finalY+7;
+
+  /* Remarques */
+  heading('Remarques');
+  if(d.rem.length){
+    doc.autoTable({ startY:y, theme:'plain', margin:{left:M,right:M},
+      styles:{fontSize:9, cellPadding:{top:0.6,bottom:0.6,left:0,right:0}, textColor:CLR.ink},
+      columnStyles:{0:{cellWidth:CW}}, didParseCell:sanitize,
+      body:d.rem.map(r=>[{content:'•  '+r}]),
+    });
+    y=doc.lastAutoTable.finalY+6;
+  } else { doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...CLR.mut);
+    doc.text('Aucune remarque.',M,y); y+=6; }
+
+  /* Signature */
+  if(y>H-24){ doc.addPage(); y=16; }
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...CLR.ink);
+  doc.text(pdfSafe('Fiche établie par : '), M, y+2);
+  const w=doc.getTextWidth(pdfSafe('Fiche établie par : '));
+  doc.setFont('helvetica','bold'); doc.setTextColor(...CLR.navy);
+  doc.text(pdfSafe(d.user?d.user.name:'-'), M+w, y+2);
+
+  /* Pied de page : pagination */
+  const pc=doc.getNumberOfPages();
+  for(let i=1;i<=pc;i++){ doc.setPage(i);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(150,150,150);
+    doc.text(pdfSafe('SEVJ · '+(d.ref||'Relevé chantier')), M, H-8);
+    doc.text(i+' / '+pc, W-M, H-8, {align:'right'});
+  }
+  return doc;
+}
+
 /* ---- Version texte de la fiche (corps du mail) ---- */
 function buildMailText(d){
   const L=[]; const line=s=>L.push(s);
@@ -651,15 +811,17 @@ function buildMailText(d){
   line('');
   if(d.objet) line('Objet : '+d.objet);
   line('');
-  const chWork=d.chemins.filter(c=>!c.existant);
-  if(chWork.length){ line('CHEMINEMENT :');
-    chWork.forEach(c=>line('  - '+chemLabel(c,true)+(c.long?(' — '+c.long+' m'):''))); line(''); }
+  const chGroup=groupChemins(d.chemins.filter(c=>!c.existant));
+  if(chGroup.length){ line('CHEMINEMENT :');
+    chGroup.forEach(c=>line('  - '+c.label+(c.long?(' — '+c.long+' m'):''))); line(''); }
   if(d.cables.length){ line('CÂBLES / FILS :');
     d.cables.forEach(c=>line('  - '+cableLabel(c)+(c.long?(' — '+c.long+' m'):''))); line(''); }
   if(d.apps.length){ line('PRISES / INTERRUPTEURS :');
-    d.apps.forEach(a=>line('  - '+a.qte+'× '+a.genre+' '+a.modele+' ('+a.montage+')')); line(''); }
+    d.apps.forEach(a=>line('  - '+a.qte+'× '+a.genre+' '+a.modele+' '+a.montage)); line(''); }
+  if(d.boites.length){ line('BOÎTES :');
+    d.boites.forEach(b=>line('  - '+b.qte+'× boîte '+b.modele)); line(''); }
   if(d.disj.length){ line('DISJONCTEURS :');
-    d.disj.forEach(x=>line('  - '+x.qte+'× courbe '+x.courbe+' '+x.amp+'A'+(x.ddr==='Avec DDR'?' + DDR':'')+' · '+x.marque)); line(''); }
+    d.disj.forEach(x=>line('  - '+x.qte+'× courbe '+x.courbe+' '+x.amp+' A'+(x.ddr==='Avec DDR'?' + DDR':'')+' · '+x.marque)); line(''); }
   line('TEMPS ESTIMÉ : '+tempsTxt(d));
   line('');
   if(d.rem.length){ line('REMARQUES :'); d.rem.forEach(r=>line('  - '+r)); line(''); }
@@ -691,17 +853,17 @@ function init(){
   $('#date').value=new Date().toISOString().slice(0,10);
   initCollab();
   OFFRE_CONTACTS.forEach((c,i)=>$('#mailTo').insertAdjacentHTML('beforeend',`<option value="${i}">${c.name}</option>`));
-  addCable(); addChemin(); addApp(); addDisj(); addRemarque();
+  addChemin(); addCable(); addApp(); addBoite(); addDisj(); addRemarque();
 
   document.querySelectorAll('.add[data-add]').forEach(b=>{
-    b.onclick=()=>({cable:addCable,chemin:addChemin,app:addApp,disj:addDisj,remarque:addRemarque}[b.dataset.add]());
+    b.onclick=()=>({cable:addCable,chemin:addChemin,app:addApp,boite:addBoite,disj:addDisj,remarque:addRemarque}[b.dataset.add]());
   });
   $('#loginBtn').onclick=doLogin;
   $('#logoutBtn').onclick=doLogout;
   $('#pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   $('#genBtn').onclick=generate;
   $('#closeOut').onclick=()=>$('#outputOverlay').classList.remove('on');
-  $('#printBtn').onclick=()=>window.print();
+  $('#printBtn').onclick=downloadPDF;
   $('#mailBtn').onclick=sendMail;
   $('#calcCableBtn').onclick=calcCable;
   $('#resetBtn').onclick=()=>{ if(confirm('Vider tout le formulaire ?')) location.reload(); };
