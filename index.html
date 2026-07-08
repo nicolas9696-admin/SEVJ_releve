@@ -410,7 +410,7 @@ function addApp(){
     <div class="cond" data-c="spec" style="margin-top:10px"><label class="fld">Préciser modèle</label><input data-f="specv" type="text" placeholder="modèle spécifique"></div>
     <div class="grid" style="margin-top:10px">
       <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="1" step="1" value="1"></div>
-      <div><label class="fld">Montage</label><select data-f="montage"><option>AP (apparent)</option><option>ENC (encastré)</option></select></div>
+      <div><label class="fld">Montage</label><select data-f="montage"><option>AP</option><option>ENC</option></select></div>
     </div>`;
   wire(r); $('#apps').appendChild(r);
 }
@@ -607,21 +607,6 @@ function buildFiche(d){
   /* Cheminements du rapport : uniquement ceux à réaliser (pas les existants), identiques additionnés */
   const chGroup = groupChemins(d.chemins.filter(c=>!c.existant));
 
-  /* ---- Caractéristiques (synthèse) ---- */
-  L.push(`<h3>Caractéristiques</h3><table class="kv">`);
-  const cabTxt = d.cables.length? d.cables.map(c=>`${cableLabel(c)}${c.long?` — ${c.long} m`:''}`).join('<br>') : '<span class="empty">—</span>';
-  const chTxt  = chGroup.length? chGroup.map(c=>`${c.label}${c.long?` — ${c.long} m`:''}`).join('<br>') : '<span class="empty">—</span>';
-  const apTxt  = d.apps.length? d.apps.map(a=>`${a.qte}× ${a.modele} ${a.montage}`).join('<br>') : '<span class="empty">—</span>';
-  const boTxt  = d.boites.length? d.boites.map(b=>`${b.qte}× ${b.modele}`).join('<br>') : '<span class="empty">—</span>';
-  const dsTxt  = d.disj.length? d.disj.map(x=>`${x.qte}× courbe ${x.courbe} ${x.amp} A${x.ddr==='Avec DDR'?' + DDR':''} · ${x.marque}`).join('<br>') : '<span class="empty">—</span>';
-  L.push(row2('Câble(s) / fil(s)',cabTxt));
-  L.push(row2('Cheminement',chTxt));
-  L.push(row2('Appareillage',apTxt));
-  L.push(row2('Boîtes',boTxt));
-  L.push(row2('Protection',dsTxt));
-  L.push(row2('Temps',tempsTxt(d)));
-  L.push(`</table>`);
-
   /* ---- Descriptif des travaux ---- */
   L.push(`<h3>Descriptif des travaux</h3><table><tr><th>Désignation</th><th class="q">Qté</th><th class="u">Unité</th></tr>`);
   if(chGroup.length){ L.push(secRow('Cheminement'));
@@ -732,24 +717,7 @@ function buildPDFDoc(d){
     doc.setDrawColor(...CLR.line); doc.setLineWidth(0.2); doc.line(M,y,W-M,y); y+=3;
   };
 
-  /* Caractéristiques */
   const chGroup = groupChemins(d.chemins.filter(c=>!c.existant));
-  const val = arr => arr.length? arr.join('\n') : '-';
-  heading('Caractéristiques');
-  doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
-    styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top'},
-    columnStyles:{0:{cellWidth:44, fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold'}, 1:{cellWidth:CW-44}},
-    didParseCell:sanitize,
-    body:[
-      ['Câble(s) / fil(s)', val(d.cables.map(c=>cableLabel(c)+(c.long?' - '+c.long+' m':'')))],
-      ['Cheminement',       val(chGroup.map(c=>c.label+(c.long?' - '+c.long+' m':'')))],
-      ['Appareillage',      val(d.apps.map(a=>a.qte+'x '+a.modele+' '+a.montage))],
-      ['Boîtes',            val(d.boites.map(b=>b.qte+'x '+b.modele))],
-      ['Protection',        val(d.disj.map(x=>x.qte+'x courbe '+x.courbe+' '+x.amp+' A'+(x.ddr==='Avec DDR'?' + DDR':'')+' · '+x.marque))],
-      ['Temps',             tempsTxt(d)],
-    ],
-  });
-  y=doc.lastAutoTable.finalY+7;
 
   /* Descriptif des travaux */
   heading('Descriptif des travaux');
