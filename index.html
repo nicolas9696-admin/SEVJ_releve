@@ -90,12 +90,42 @@ textarea{min-height:70px; resize:vertical}
 .chk{display:flex; align-items:center; gap:9px; font-size:14px; padding:8px 0}
 .chk input{width:20px; height:20px; flex:0 0 auto}
 /* ---------- Repeatable rows ---------- */
-.row{border:1px solid var(--line); border-radius:12px; padding:12px; margin:0 0 11px; position:relative; background:#fbfdff}
+.row{border:1px solid var(--line); border-left:5px solid var(--navy2); border-radius:12px;
+  padding:12px; margin:0 0 18px; position:relative; background:#fbfdff;
+  box-shadow:0 1px 4px rgba(31,59,91,.06)}
+.row + .add{margin-top:4px}
 .row .rm{
   position:absolute; top:8px; right:8px; border:none; background:#f3e2e2; color:var(--danger);
   width:28px; height:28px; border-radius:8px; font-size:17px; font-weight:700; cursor:pointer;
 }
-.row .tag{font-size:11px; font-weight:700; color:var(--navy2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px}
+.row .tag{display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--navy2);
+  text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; padding:3px 11px; border-radius:20px}
+input.auto{background:var(--bg); color:var(--navy); font-weight:700}
+/* ---------- Pièces ---------- */
+.room{border:1px solid var(--line); border-radius:14px; margin:0 0 16px; overflow:hidden; background:#fff;
+  box-shadow:0 2px 8px rgba(31,59,91,.08)}
+.room-hd{display:flex; align-items:center; gap:10px; background:var(--navy); color:#fff; padding:10px 12px}
+.room-hd .rn-ico{flex:0 0 auto; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.15); border-radius:8px; font-size:15px}
+.room-hd input{flex:1; border:none; border-radius:8px; padding:8px 10px; font-size:15px; font-weight:700;
+  background:rgba(255,255,255,.14); color:#fff}
+.room-hd input::placeholder{color:rgba(255,255,255,.6)}
+.room-hd .room-rm{flex:0 0 auto; border:none; background:rgba(255,255,255,.16); color:#fff;
+  width:34px; height:34px; border-radius:9px; font-size:18px; font-weight:700; cursor:pointer}
+.room-body{padding:12px}
+.sub{margin:0 0 14px}
+.sub>h4{margin:0 0 8px; font-size:13px; color:var(--navy); display:flex; align-items:center; gap:7px;
+  border-bottom:1px solid var(--line); padding-bottom:5px}
+.sub>h4 .si{width:16px; height:16px; flex:0 0 auto}
+.sub .add{padding:9px; font-size:13px}
+/* ---------- Sélecteur mode export ---------- */
+.modeswitch{display:inline-flex; background:rgba(255,255,255,.15); border-radius:9px; padding:2px}
+.modeswitch button{border:none; background:transparent; color:#fff; font-weight:700; font-size:12px;
+  padding:7px 10px; border-radius:7px; cursor:pointer}
+.modeswitch button.on{background:#fff; color:var(--navy)}
+#fiche .room-title{color:var(--navy2); font-weight:700; font-size:14px; margin:16px 0 2px; letter-spacing:.5px;
+  text-transform:uppercase; border-bottom:2px solid var(--navy2); padding-bottom:3px}
+#fiche .names{color:var(--mut); font-style:italic}
 .add{
   width:100%; padding:12px; border:2px dashed var(--navy2); background:#fff; color:var(--navy);
   border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; margin-top:2px;
@@ -219,60 +249,20 @@ textarea{min-height:70px; resize:vertical}
         <div><label class="fld" for="lieu">Lieu</label><input id="lieu" type="text" value="Le Sentier"></div>
         <div><label class="fld" for="date">Date</label><input id="date" type="date"></div>
       </div>
+      <div class="chk" style="margin-top:12px"><input id="tabAmiante" type="checkbox"><label for="tabAmiante">Tableau (TAB) en amiante</label></div>
     </div>
   </section>
 
-  <!-- 1. Cheminement -->
-  <section class="card">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6a4 4 0 0 1 0 8H7a4 4 0 0 0 0 8h13"/></svg></span> Cheminement</h2>
+  <!-- Pièces / zones -->
+  <section class="card" id="roomsCard">
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-6h6v6"/></svg></span> Pièces / zones</h2>
     <div class="body">
-      <p class="hint">Type de canalisation, longueur, existant ou à poser. Travail en hauteur (&gt; 3.50 m) → majoration 1.5× du câble.
-      Les cheminements <b>déjà existants</b> ne figurent pas dans le rapport, mais leur longueur compte pour le calcul du câble.</p>
-      <div id="chemins"></div>
-      <button class="add" data-add="chemin">＋ Ajouter un cheminement</button>
-      <button class="add" id="calcCableBtn" style="border-style:solid; margin-top:8px">🧮 Calculer la longueur de câble</button>
-      <div class="hint" id="calcMsg" style="margin:8px 0 0"></div>
-    </div>
-  </section>
-
-  <!-- 2. Câbles -->
-  <section class="card">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v5a4 4 0 0 0 8 0V3"/><path d="M8 3v3M12 3v3"/><path d="M10 12v3a5 5 0 0 0 5 5h2"/></svg></span> Câbles / Fils</h2>
-    <div class="body">
-      <p class="hint">Section en mm² (standard CH), type, et longueur à commander. Pour un <b>fil</b>, indiquer le nombre de conducteurs.</p>
-      <div id="cables"></div>
-      <button class="add" data-add="cable">＋ Ajouter un câble / fil</button>
-    </div>
-  </section>
-
-  <!-- 3. Appareillage -->
-  <section class="card">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="12" r="1.4" fill="#fff"/><circle cx="15" cy="12" r="1.4" fill="#fff"/></svg></span> Prises &amp; interrupteurs</h2>
-    <div class="body">
-      <p class="hint">Modèle, quantité, et montage apparent (AP) ou encastré (ENC).</p>
-      <div id="apps"></div>
-      <button class="add" data-add="app">＋ Ajouter un appareil</button>
-    </div>
-  </section>
-
-  <!-- Boîtes -->
-  <section class="card">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/><path d="M12 12v8"/></svg></span> Boîtes</h2>
-    <div class="body">
-      <p class="hint">Boîtes de dérivation : modèle AP9 ou AP10 (ou autre à préciser) et quantité.</p>
-      <div id="boites"></div>
-      <button class="add" data-add="boite">＋ Ajouter une boîte</button>
-    </div>
-  </section>
-
-  <!-- Disjoncteurs -->
-  <section class="card">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M12 7v5"/><circle cx="12" cy="16" r="1.3" fill="#fff"/></svg></span> Disjoncteurs</h2>
-    <div class="body">
-      <p class="hint">Courbe, intensité, différentiel (DDR) et marque souhaitée.</p>
-      <div id="disj"></div>
-      <button class="add" data-add="disj">＋ Ajouter un disjoncteur</button>
-      <div class="chk" style="margin-top:10px"><input id="tabAmiante" type="checkbox"><label for="tabAmiante">Tableau (TAB) en amiante</label></div>
+      <p class="hint">Crée une <b>pièce</b> (ex : Cuisine, Salle de bain…), puis ajoute dedans ses cheminements,
+      câbles/fils, prises, boîtes et disjoncteurs. La longueur des câbles se calcule automatiquement
+      à partir des cheminements <b>de la même pièce</b>. Chaque article peut recevoir un <b>nom</b>
+      (affiché dans l'export détaillé).</p>
+      <div id="rooms"></div>
+      <button class="add" id="addRoomBtn" style="border-style:solid">🏠 Ajouter une pièce</button>
     </div>
   </section>
 
@@ -325,9 +315,13 @@ textarea{min-height:70px; resize:vertical}
 <div class="overlay" id="outputOverlay">
   <div class="sheet">
     <div class="sheet-hd">
-      <span class="t">Fiche informative</span>
-      <button class="dl" id="shareBtn">📤 Partager (PDF)</button>
-      <button class="dl" id="printBtn">Télécharger PDF</button>
+      <span class="t">Fiche</span>
+      <div class="modeswitch" id="modeSwitch">
+        <button data-mode="detail" class="on">Détaillé</button>
+        <button data-mode="global">Global</button>
+      </div>
+      <button class="dl" id="shareBtn">📤 PDF</button>
+      <button class="dl" id="printBtn">Télécharger</button>
       <button class="x" id="closeOut">Fermer</button>
     </div>
     <div class="sheet-body"><div id="fiche"></div></div>
@@ -386,11 +380,12 @@ window.hashPw = hashPw; // utilitaire console
 let uid = 0;
 
 /* ================= Repeatable builders ================= */
-function addCable(){
-  const r = el('div','row'); const id=++uid;
+function addCable(cont){
+  const r = el('div','row');
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Câble / Fil</div>
+    <div style="margin-bottom:10px"><label class="fld">Nom (optionnel)</label><input data-f="name" type="text" placeholder="ex : Alim four"></div>
     <div class="grid" style="margin-bottom:10px">
       <div><label class="fld">Type</label><select data-f="type">${opts(CABLE_T)}</select></div>
       <div class="cond" data-c="phase"><label class="fld">Phase</label><select data-f="phase"><option>Mono</option><option>Tri</option></select></div>
@@ -405,17 +400,18 @@ function addCable(){
       <div class="cond" data-c="nbautre"><label class="fld">Préciser nombre</label><input data-f="nbautre2" type="text" placeholder="ex : 12x"></div>
     </div>
     <div style="margin-top:10px">
-      <label class="fld">Cheminements empruntés (pour la longueur par section)</label>
+      <label class="fld">Cheminements empruntés (pour la longueur)</label>
       <div class="links-list" data-links-list></div>
       <input type="hidden" data-f="links">
     </div>`;
-  wire(r); $('#cables').appendChild(r); syncChemLinks();
+  wire(r); cont.appendChild(r); syncChemLinks();
 }
-function addChemin(){
-  const r = el('div','row'); const id=++uid;
+function addChemin(cont){
+  const r = el('div','row');
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Cheminement</div>
+    <div style="margin-bottom:10px"><label class="fld">Nom (optionnel)</label><input data-f="name" type="text" placeholder="ex : Trémie cuisine"></div>
     <div class="grid">
       <div><label class="fld">Type</label><select data-f="type">${opts(CHEM_T)}</select></div>
       <div><label class="fld">Longueur (m)</label><input data-f="long" type="number" min="0" step="0.5" placeholder="0"></div>
@@ -426,13 +422,14 @@ function addChemin(){
     <div class="cond" data-c="bergmann" style="margin-top:8px; color:var(--danger); font-weight:600; font-size:12px">⚠ Tube Bergmann : forcément existant — tirage compliqué (signalé en remarque dans l'export).</div>
     <div class="chk"><input type="checkbox" data-f="haut"><label>Travail en hauteur (&gt; 3.50 m)</label></div>
     <div class="majo" data-m>⚠ Majoration 1.5× du prix du câble</div>`;
-  wire(r); $('#chemins').appendChild(r); syncChemLinks();
+  wire(r); cont.appendChild(r); syncChemLinks();
 }
-function addApp(){
-  const r = el('div','row'); const id=++uid;
+function addApp(cont){
+  const r = el('div','row');
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Appareil</div>
+    <div style="margin-bottom:10px"><label class="fld">Nom (optionnel)</label><input data-f="name" type="text" placeholder="ex : Prise plan de travail"></div>
     <div class="grid">
       <div><label class="fld">Genre</label><select data-f="genre"><option>Prise</option><option>Interrupteur</option></select></div>
       <div><label class="fld">Modèle</label><select data-f="modele">${opts(PRISE_M)}</select></div>
@@ -443,13 +440,14 @@ function addApp(){
       <div><label class="fld">Montage</label><select data-f="montage"><option>AP</option><option>ENC</option></select></div>
       <div><label class="fld">Gamme</label><select data-f="gamme">${opts(GAMME)}</select></div>
     </div>`;
-  wire(r); $('#apps').appendChild(r);
+  wire(r); cont.appendChild(r); syncChemLinks();
 }
-function addDisj(){
-  const r = el('div','row'); const id=++uid;
+function addDisj(cont){
+  const r = el('div','row');
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Disjoncteur</div>
+    <div style="margin-bottom:10px"><label class="fld">Nom (optionnel)</label><input data-f="name" type="text" placeholder="ex : Départ four"></div>
     <div class="grid-3">
       <div><label class="fld">Courbe</label><select data-f="courbe"><option>B</option><option selected>C</option><option>D</option></select></div>
       <div><label class="fld">Intensité (A)</label><select data-f="amp">${opts(AMP,"16")}</select></div>
@@ -465,34 +463,70 @@ function addDisj(){
     <div class="cond" data-c="um1" style="margin-top:8px">
       <div class="chk" style="padding:4px 0"><input type="checkbox" data-f="um1"><label>Ajouter un 1UM (mono avec DDR)</label></div>
     </div>`;
-  wire(r); $('#disj').appendChild(r);
+  wire(r); cont.appendChild(r); syncChemLinks();
 }
-function addBoite(){
-  const r = el('div','row'); const id=++uid;
+function addBoite(cont){
+  const r = el('div','row');
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Boîte</div>
+    <div style="margin-bottom:10px"><label class="fld">Nom (optionnel)</label><input data-f="name" type="text" placeholder="ex : Dérivation plafond"></div>
     <div class="grid">
       <div><label class="fld">Modèle</label><select data-f="modele">${opts(BOITE_T)}</select></div>
       <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="1" step="1" value="1"></div>
     </div>
     <div class="cond" data-c="boite" style="margin-top:10px"><label class="fld">Préciser le modèle</label><input data-f="modautre" type="text" placeholder="ex : boîte étanche 100×100"></div>`;
-  wire(r); $('#boites').appendChild(r);
+  wire(r); cont.appendChild(r); syncChemLinks();
 }
 function addRemarque(){
-  const r = el('div','row'); r.style.background='#fff';
+  const r = el('div','row');
   r.innerHTML = `<button class="rm" title="Supprimer">×</button>
+    <div class="tag">Remarque</div>
     <textarea data-f="txt" placeholder="Remarque libre…"></textarea>`;
-  wire(r); $('#remarques').appendChild(r);
+  wire(r); $('#remarques').appendChild(r); syncChemLinks();
+}
+
+/* ================= Pièces ================= */
+const ROOM_ADDERS = {chemins:addChemin, cables:addCable, apps:addApp, boites:addBoite, disj:addDisj};
+function subBlock(key,title,btn){
+  return `<div class="sub">
+    <h4>${title}</h4>
+    <div data-sub="${key}"></div>
+    <button class="add" data-addsub="${key}">${btn}</button>
+  </div>`;
+}
+function addRoom(name){
+  const room = el('div','room'); room.setAttribute('data-room','');
+  room.innerHTML = `
+    <div class="room-hd">
+      <span class="rn-ico">🏠</span>
+      <input class="room-name" data-room-name type="text" placeholder="Nom de la pièce (ex : Cuisine)" value="${esc(name||'')}">
+      <button class="room-rm" title="Supprimer la pièce">×</button>
+    </div>
+    <div class="room-body">
+      ${subBlock('chemins','Cheminement','＋ Cheminement')}
+      ${subBlock('cables','Câbles / Fils','＋ Câble / fil')}
+      ${subBlock('apps','Prises & interrupteurs','＋ Appareil')}
+      ${subBlock('boites','Boîtes','＋ Boîte')}
+      ${subBlock('disj','Disjoncteurs','＋ Disjoncteur')}
+    </div>`;
+  room.querySelector('.room-rm').onclick=()=>{
+    if(confirm('Supprimer cette pièce et tout son contenu ?')){ room.remove(); syncChemLinks(); scheduleSave(); }
+  };
+  room.querySelectorAll('[data-addsub]').forEach(b=>{
+    b.onclick=()=>{ const cont=b.parentElement.querySelector('[data-sub]'); ROOM_ADDERS[b.dataset.addsub](cont); scheduleSave(); };
+  });
+  room.querySelector('[data-room-name]').addEventListener('input',scheduleSave);
+  $('#rooms').appendChild(room);
+  return room;
 }
 
 /* conditional field logic + remove button */
 function wire(r){
-  const isChem = !!r.closest('#chemins');
   r.querySelector('.rm').onclick = ()=>{ r.remove(); if(window.scheduleSave) scheduleSave(); syncChemLinks(); };
   r.querySelectorAll('select[data-f], input[data-f]').forEach(inp=>{
-    inp.addEventListener('change', ()=>{ applyCond(r); if(isChem) syncChemLinks(); });
-    inp.addEventListener('input',  ()=>{ applyCond(r); if(isChem) syncChemLinks(); });
+    inp.addEventListener('change', ()=>{ applyCond(r); if(r.closest('[data-sub="chemins"]')) syncChemLinks(); });
+    inp.addEventListener('input',  ()=>{ applyCond(r); if(r.closest('[data-sub="chemins"]')) syncChemLinks(); });
   });
   applyCond(r);
 }
@@ -538,31 +572,45 @@ function applyCond(r){
   if(h){ const m=r.querySelector('[data-m]'); if(m) m.classList.toggle('on',h.checked); }
 }
 
-/* ===== Liaison câble <-> cheminements (longueur par section) ===== */
-function renumberChemins(){
-  [...document.querySelectorAll('#chemins .row .tag')].forEach((t,i)=> t.textContent='Cheminement #'+(i+1));
+/* ===== Liaison câble <-> cheminements (par pièce) ===== */
+/* Numérote les articles au sein de chaque sous-section de chaque pièce (+ remarques). */
+function renumberRows(){
+  document.querySelectorAll('#rooms [data-sub], #remarques').forEach(cont=>{
+    [...cont.children].filter(r=>r.classList.contains('row')).forEach((r,i)=>{
+      const t=r.querySelector('.tag'); if(!t) return;
+      const base = t.dataset.base || (t.dataset.base = t.textContent.replace(/\s*#\d+$/,''));
+      t.textContent = base+' #'+(i+1);
+    });
+  });
 }
-/* (Re)construit la liste de cases « cheminements empruntés » d'un câble,
-   en conservant les sélections déjà faites (référencées par position). */
+/* Cheminements de la pièce d'un câble */
+function roomChemins(cableRow){
+  const room=cableRow.closest('[data-room]');
+  return room ? [...room.querySelectorAll('[data-sub="chemins"] .row')] : [];
+}
+/* (Re)construit la liste de cases « cheminements empruntés » d'un câble (pièce courante),
+   en conservant les sélections déjà faites (référencées par position dans la pièce). */
 function buildLinksFor(cableRow){
   const wrap=cableRow.querySelector('[data-links-list]'), hidden=cableRow.querySelector('[data-f="links"]');
   if(!wrap||!hidden) return;
   const selected=new Set((hidden.value||'').split(',').filter(x=>x!==''));
-  const chem=[...document.querySelectorAll('#chemins .row')];
-  if(!chem.length){ wrap.innerHTML='<div class="hint" style="margin:2px 0 0">Aucun cheminement pour l’instant — ajoute-en dans la section Cheminement.</div>'; return; }
+  const chem=roomChemins(cableRow);
+  if(!chem.length){ wrap.innerHTML='<div class="hint" style="margin:2px 0 0">Aucun cheminement dans cette pièce — ajoute-en ci-dessus.</div>'; return; }
   wrap.innerHTML = chem.map((r,i)=>{
     const t=r.querySelector('[data-f="type"]'); const type=t?t.value:'';
+    const nm=r.querySelector('[data-f="name"]'); const name=nm&&nm.value?'«'+nm.value+'» ':'';
     const e=r.querySelector('[data-f="long"]'); const long=e&&e.value?e.value+' m':'—';
-    return `<label class="chk" style="padding:4px 0"><input type="checkbox" data-lk="${i}"${selected.has(String(i))?' checked':''}><span>#${i+1} · ${esc(type)} · ${esc(long)}</span></label>`;
+    return `<label class="chk" style="padding:4px 0"><input type="checkbox" data-lk="${i}"${selected.has(String(i))?' checked':''}><span>#${i+1} · ${esc(name)}${esc(type)} · ${esc(long)}</span></label>`;
   }).join('');
   wrap.querySelectorAll('input[data-lk]').forEach(cb=> cb.addEventListener('change',()=>{
     hidden.value=[...wrap.querySelectorAll('input[data-lk]')].filter(x=>x.checked).map(x=>x.dataset.lk).join(',');
-    scheduleSave();
+    recalcCableLengths(); scheduleSave();
   }));
 }
 function syncChemLinks(){
-  renumberChemins();
-  document.querySelectorAll('#cables .row').forEach(buildLinksFor);
+  renumberRows();
+  document.querySelectorAll('[data-sub="cables"] .row').forEach(buildLinksFor);
+  recalcCableLengths();
 }
 
 /* ================= Login ================= */
@@ -627,78 +675,63 @@ function buildRef(){
   $('#ref').value = `${ini}_${d}_${nom}`;
 }
 
-/* ================= Calcul longueur de câble ================= */
-/* Marge de raccordement ajoutée à chaque câble */
-const MARGE_CABLE = 1.5;
+/* ================= Longueur de câble automatique ================= */
+const MARGE_CABLE = 3;   // marge de réserve (m) ajoutée à chaque câble lié à des cheminements
 function chemLen(r){ const e=r.querySelector('[data-f="long"]'); const v=e?parseFloat(e.value):NaN; return isNaN(v)?0:v; }
-/* Deux modes :
-   - si des câbles sont liés à des cheminements -> longueur par section (Σ des cheminements liés + marge)
-   - sinon -> comportement historique : Σ de tous les cheminements + marge -> 1er câble */
-function calcCable(){
-  const msg=$('#calcMsg');
-  const chem=[...document.querySelectorAll('#chemins .row')];
-  const cables=[...document.querySelectorAll('#cables .row')];
-  const linked=cables.filter(c=>{ const l=c.querySelector('[data-f="links"]'); return l && l.value.trim()!==''; });
-
-  if(linked.length){
-    const parts=[];
-    cables.forEach((c,ci)=>{
-      const l=c.querySelector('[data-f="links"]'); const idxs=(l?l.value:'').split(',').filter(x=>x!=='');
-      if(!idxs.length) return;
+/* Pour chaque câble lié à des cheminements, remplit sa longueur automatiquement
+   (Σ des cheminements cochés + marge). Le Tube Bergmann (existant) est bien compté ici,
+   même s'il ne figure pas dans le descriptif des cheminements. Un câble sans liaison
+   reste saisissable à la main. */
+function recalcCableLengths(){
+  document.querySelectorAll('[data-sub="cables"] .row').forEach(c=>{
+    const chem=roomChemins(c);   // cheminements de la même pièce
+    const l=c.querySelector('[data-f="links"]'), long=c.querySelector('[data-f="long"]');
+    if(!long) return;
+    const idxs=(l?l.value:'').split(',').filter(x=>x!=='');
+    if(idxs.length){
       let s=0; idxs.forEach(i=>{ const r=chem[+i]; if(r) s+=chemLen(r); });
-      const total=Math.round((s+MARGE_CABLE)*100)/100;
-      const cab=c.querySelector('[data-f="long"]'); if(cab) cab.value=total;
-      const mm=c.querySelector('[data-f="mm2"]'); const sec=mm?mm.value:'';
-      parts.push(`câble ${ci+1} (${sec} mm²) = <b>${total} m</b>`);
-    });
-    scheduleSave();
-    msg.innerHTML = parts.length
-      ? `Longueur par section (Σ cheminements liés + ${MARGE_CABLE} m de marge) : ${parts.join(' · ')}.`
-      : 'Aucun cheminement lié à un câble — coche les cheminements dans chaque câble.';
-    return;
-  }
-
-  /* --- mode historique : Σ tous les cheminements -> 1er câble --- */
-  let sum=0, n=0;
-  chem.forEach(r=>{ const e=r.querySelector('[data-f="long"]'); const v=e?parseFloat(e.value):NaN; if(!isNaN(v)){ sum+=v; n++; } });
-  if(!n){ msg.textContent='Aucune longueur de cheminement saisie.'; return; }
-  const total=Math.round((sum+MARGE_CABLE)*100)/100;
-  if(!cables.length) addCable();
-  const cab=document.querySelector('#cables .row [data-f="long"]');
-  if(cab) cab.value=total;
-  scheduleSave();
-  msg.innerHTML=`Σ ${n} cheminement(s) = <b>${Math.round(sum*100)/100} m</b> + ${MARGE_CABLE} m de marge = <b>${total} m</b> → reporté dans le 1<sup>er</sup> câble. <i>(Astuce : coche les cheminements dans chaque câble pour une longueur par section.)</i>`;
+      long.value = Math.round((s+MARGE_CABLE)*100)/100;
+      long.readOnly = true; long.classList.add('auto');
+    } else {
+      long.readOnly = false; long.classList.remove('auto');
+    }
+  });
 }
 
 /* ================= Collecte des données ================= */
 function collect(){
   const g = (r,f)=>{const e=r.querySelector(`[data-f="${f}"]`); return e?(e.type==='checkbox'?e.checked:e.value.trim()):'';};
-  const cables=[...document.querySelectorAll('#cables .row')].map(r=>{
+  const getCables = root => [...root.querySelectorAll('[data-sub="cables"] .row')].map(r=>{
     let s=g(r,'mm2'); if(s==='autre…') s=g(r,'mm2autre')||'?';
     const fil = g(r,'type')==='Fil';
     let nb=g(r,'nb'); if(nb==='plus…') nb=g(r,'nbautre2')||'?';
-    return {mm2:s, type:g(r,'type'), long:g(r,'long'), fil, nb, phase:g(r,'phase')};
+    return {name:g(r,'name'), mm2:s, type:g(r,'type'), long:g(r,'long'), fil, nb, phase:g(r,'phase')};
   }).filter(c=>c.long||c.mm2);
-  const chemins=[...document.querySelectorAll('#chemins .row')].map(r=>{
-    const t=g(r,'type');
-    const berg=t==='Tube Bergmann';
-    return {type:t, long:g(r,'long'), dim:g(r,'dim'), uv:g(r,'uv'),
+  const getChemins = root => [...root.querySelectorAll('[data-sub="chemins"] .row')].map(r=>{
+    const t=g(r,'type'); const berg=t==='Tube Bergmann';
+    return {name:g(r,'name'), type:t, long:g(r,'long'), dim:g(r,'dim'), uv:g(r,'uv'),
             etat:g(r,'etat'), haut:g(r,'haut'), canal:t==='Canal', thfwg:t==='Tube THFWG', bergmann:berg,
             existant:(g(r,'etat')||'').startsWith('Déjà') || berg};
   }).filter(c=>c.long||c.type);
-  const apps=[...document.querySelectorAll('#apps .row')].map(r=>{
+  const getApps = root => [...root.querySelectorAll('[data-sub="apps"] .row')].map(r=>{
     let m=g(r,'modele'); if(m==='spécifique…') m=g(r,'specv')||'Spécifique';
-    return {genre:g(r,'genre'), modele:m, qte:g(r,'qte')||'1', montage:montageCode(g(r,'montage')), gamme:g(r,'gamme')};
+    return {name:g(r,'name'), genre:g(r,'genre'), modele:m, qte:g(r,'qte')||'1', montage:montageCode(g(r,'montage')), gamme:g(r,'gamme')};
   }).filter(a=>a.modele);
-  const boites=[...document.querySelectorAll('#boites .row')].map(r=>{
+  const getBoites = root => [...root.querySelectorAll('[data-sub="boites"] .row')].map(r=>{
     let m=g(r,'modele'); if(m==='À préciser…') m=g(r,'modautre')||'À préciser';
-    return {modele:m, qte:g(r,'qte')||'1'};
+    return {name:g(r,'name'), modele:m, qte:g(r,'qte')||'1'};
   }).filter(b=>b.modele);
-  const disj=[...document.querySelectorAll('#disj .row')].map(r=>{
+  const getDisj = root => [...root.querySelectorAll('[data-sub="disj"] .row')].map(r=>{
     let a=g(r,'amp'); if(a==='autre…') a=g(r,'ampautre')||'?';
     let mq=g(r,'marque'); if(mq==='À préciser…') mq=g(r,'marqueautre')||'À préciser';
-    return {courbe:g(r,'courbe'), amp:a, qte:g(r,'qte')||'1', ddr:g(r,'ddr'), marque:mq, phase:g(r,'phase'), um1:g(r,'um1')};
+    return {name:g(r,'name'), courbe:g(r,'courbe'), amp:a, qte:g(r,'qte')||'1', ddr:g(r,'ddr'), marque:mq, phase:g(r,'phase'), um1:g(r,'um1')};
   }).filter(d=>d.amp);
+
+  const rooms=[...document.querySelectorAll('#rooms .room')].map((room,i)=>({
+    name:(room.querySelector('[data-room-name]').value||'').trim() || ('Pièce '+(i+1)),
+    chemins:getChemins(room), cables:getCables(room), apps:getApps(room), boites:getBoites(room), disj:getDisj(room)
+  })).filter(rm=> rm.chemins.length||rm.cables.length||rm.apps.length||rm.boites.length||rm.disj.length);
+
   const rem=[...document.querySelectorAll('#remarques .row')].map(r=>g(r,'txt')).filter(Boolean);
   return {
     ref:$('#ref').value, chantier:$('#chantier').value.trim(), objet:$('#objet').value.trim(),
@@ -706,7 +739,7 @@ function collect(){
     jours:$('#jours').value, monteurs:$('#monteurs').value, dureeH:$('#dureeH').value,
     vendredi:$('#vendredi').checked, apprenti:$('#apprenti').checked,
     tabAmiante:$('#tabAmiante').checked,
-    cables, chemins, apps, boites, disj, rem, user:currentUser
+    rooms, rem, user:currentUser
   };
 }
 /* AP / ENC sans parenthèses */
@@ -720,7 +753,8 @@ function frDate(iso){
 }
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-function buildFiche(d){
+function buildFiche(d, mode){
+  mode = mode==='global' ? 'global' : 'detail';
   const L=[];
   L.push(`<div class="doc-hd">
     <img src="${LOGO}" alt="SEVJ">
@@ -733,24 +767,29 @@ function buildFiche(d){
   if(d.objet) L.push(`<p class="obj"><b>Objet :</b> ${esc(d.objet)}</p>`);
   L.push(`<p class="obj" style="color:#666">Document informatif décrivant le tracé, les fournitures et les travaux relevés sur site, à l'attention de la personne chargée d'établir l'offre.</p>`);
 
-  /* Cheminements du rapport : uniquement ceux à réaliser (pas les existants), identiques additionnés */
-  const chGroup = groupChemins(d.chemins.filter(c=>!c.existant));
+  const rooms=d.rooms||[];
+  if(mode==='detail'){
+    L.push(`<h3>Descriptif par pièce</h3>`);
+    let shown=0;
+    rooms.forEach(room=>{
+      const agg=aggregate(room);
+      if(!(agg.chemins.length||agg.cables.length||agg.apps.length||agg.boites.length||agg.disj.length)) return;
+      shown++;
+      L.push(`<div class="room-title">${esc(room.name)}</div>`);
+      L.push(`<table><tr><th>Désignation</th><th class="q">Qté</th><th class="u">Unité</th></tr>`);
+      pushSections(L, agg);
+      L.push(`</table>`);
+    });
+    if(!shown) L.push('<p class="empty">Aucune pièce saisie.</p>');
+  } else {
+    L.push(`<h3>Descriptif des travaux — global (toutes pièces additionnées)</h3>`);
+    L.push(`<table><tr><th>Désignation</th><th class="q">Qté</th><th class="u">Unité</th></tr>`);
+    pushSections(L, aggregate(mergeRooms(rooms)));
+    L.push(`</table>`);
+  }
 
-  /* ---- Descriptif des travaux ---- */
-  L.push(`<h3>Descriptif des travaux</h3><table><tr><th>Désignation</th><th class="q">Qté</th><th class="u">Unité</th></tr>`);
-  if(chGroup.length){ L.push(secRow('Cheminement'));
-    chGroup.forEach(c=> L.push(itemRow(c.label, c.long||'', 'm'))); }
-  if(d.cables.length){ L.push(secRow('Câblage'));
-    d.cables.forEach(c=> L.push(itemRow(cableLabel(c), c.long||'', 'm'))); }
-  if(d.apps.length){ L.push(secRow('Appareillage'));
-    d.apps.forEach(a=> L.push(itemRow(appLabel(a), a.qte, 'pce', a.gamme==='EDIZIO.due'))); }
-  if(d.boites.length){ L.push(secRow('Boîtes de dérivation'));
-    d.boites.forEach(b=> L.push(itemRow(`Boîte ${b.modele}`, b.qte, 'pce'))); }
-  if(d.disj.length){ L.push(secRow('Tableau / protections'));
-    d.disj.forEach(x=> L.push(itemRow(disjLabel(x), x.qte, 'pce'))); }
-  L.push(secRow('Temps estimé'));
-  L.push(itemRow(tempsDesc(d), totalHeures(d), 'h'));
-  L.push(`</table>`);
+  /* ---- Temps (global, une seule fois) ---- */
+  pushTemps(L, d);
 
   /* ---- Remarques (auto en rouge + manuelles) ---- */
   L.push(`<h3>Remarques</h3>`);
@@ -762,10 +801,58 @@ function buildFiche(d){
   L.push(`<p class="sig">Fiche établie par : <b>${esc(d.user?d.user.name:'—')}</b></p>`);
   return L.join('');
 }
+/* Rendu des sections d'un agrégat dans le tableau HTML */
+function pushSections(L, agg){
+  const dwn=o=> esc(o.label)+(o.names&&o.names.length?` <span class="names">(${o.names.map(esc).join(', ')})</span>`:'');
+  if(agg.chemins.length){ L.push(secRow('Cheminement')); agg.chemins.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'm', o.red))); }
+  if(agg.cables.length){ L.push(secRow('Câblage')); agg.cables.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'm', o.red))); }
+  if(agg.apps.length){ L.push(secRow('Appareillage')); agg.apps.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
+  if(agg.boites.length){ L.push(secRow('Boîtes de dérivation')); agg.boites.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
+  if(agg.disj.length){ L.push(secRow('Tableau / protections')); agg.disj.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
+}
+function pushTemps(L,d){
+  L.push('<h3>Temps estimé</h3><table><tr><th>Désignation</th><th class="q">Qté</th><th class="u">Unité</th></tr>');
+  L.push(itemRow(tempsDesc(d), totalHeures(d), 'h'));
+  L.push('</table>');
+}
 function row2(k,v){return `<tr><td>${k}</td><td>${v}</td></tr>`;}
 function secRow(t){return `<tr class="sec-row"><td colspan="3">${esc(t)}</td></tr>`;}
 function itemRow(des,q,u,red){const s=red?' style="color:#b02a2a;font-weight:600"':'';
   return `<tr><td${s}>${esc(des)}</td><td class="q"${s}>${esc(String(q))}</td><td class="u"${s}>${esc(u)}</td></tr>`;}
+/* variante : la désignation est déjà du HTML (pour afficher les noms en italique) */
+function itemRowH(desHTML,q,u,red){const s=red?' style="color:#b02a2a;font-weight:600"':'';
+  return `<tr><td${s}>${desHTML}</td><td class="q"${s}>${esc(String(q))}</td><td class="u"${s}>${esc(u)}</td></tr>`;}
+/* Regroupe une liste d'articles identiques (même libellé spec), somme la quantité,
+   collecte les noms distincts, et marque rouge si au moins un l'est. */
+function groupItems(list, labelFn, qtyFn, redFn){
+  const map=new Map();
+  (list||[]).forEach(it=>{
+    const key=labelFn(it);
+    const cur=map.get(key)||{label:key, qty:0, any:false, names:new Set(), red:false};
+    const q=parseFloat(qtyFn(it)); if(!isNaN(q)){ cur.qty+=q; cur.any=true; }
+    if(it.name) cur.names.add(it.name);
+    if(redFn&&redFn(it)) cur.red=true;
+    map.set(key,cur);
+  });
+  return [...map.values()].map(o=>({label:o.label, qty:o.any?String(Math.round(o.qty*100)/100):'', names:[...o.names], red:o.red}));
+}
+/* Agrège les articles d'un ensemble {chemins,cables,apps,boites,disj} */
+function aggregate(items){
+  return {
+    chemins: groupItems(items.chemins.filter(c=>!c.existant), c=>chemLabel(c,true), c=>c.long),
+    cables:  groupItems(items.cables, cableLabel, c=>c.long),
+    apps:    groupItems(items.apps, appLabel, a=>a.qte, a=>a.gamme==='EDIZIO.due'),
+    boites:  groupItems(items.boites, b=>'Boîte '+b.modele, b=>b.qte),
+    disj:    groupItems(items.disj, x=>disjLabel(x), x=>x.qte),
+  };
+}
+/* Fusionne toutes les pièces en un seul ensemble (mode global) */
+function mergeRooms(rooms){
+  const all={chemins:[],cables:[],apps:[],boites:[],disj:[]};
+  (rooms||[]).forEach(r=>{ all.chemins.push(...r.chemins); all.cables.push(...r.cables);
+    all.apps.push(...r.apps); all.boites.push(...r.boites); all.disj.push(...r.disj); });
+  return all;
+}
 function cableLabel(c){
   if(c.fil) return `${c.nb||'?'} fil ${c.mm2} mm²`;
   const pref = c.phase==='Tri' ? '5x' : '3x';   // mono = 3×section, tri = 5×section
@@ -778,8 +865,12 @@ function disjLabel(x,dash){ const d=dash||'—';
 function allRemarks(d){
   const out=[];
   if(d.tabAmiante) out.push({txt:"⚠ Tableau (TAB) en amiante — intervention sous précautions amiante à prévoir.", red:true});
-  (d.chemins||[]).forEach(c=>{ if(c.bergmann)
-    out.push({txt:"⚠ Tube Bergmann existant"+(c.long?" ("+c.long+" m)":"")+" — tirage compliqué à prévoir.", red:true}); });
+  (d.rooms||[]).forEach(room=>{
+    (room.chemins||[]).forEach(c=>{ if(c.bergmann){
+      const loc=[room.name, c.long?c.long+' m':''].filter(Boolean).join(', ');
+      out.push({txt:"⚠ Tube Bergmann existant"+(loc?" ("+loc+")":"")+" — tirage compliqué à prévoir.", red:true});
+    }});
+  });
   (d.rem||[]).forEach(t=> out.push({txt:t, red:false}));
   return out;
 }
@@ -861,23 +952,49 @@ function renderPhotos(){
 }
 
 /* ================= Sortie / export ================= */
-function generate(){
-  const d=collect();
-  $('#fiche').innerHTML = buildFiche(d);
-  $('#outputOverlay').classList.add('on');
+let EXPORT_MODE = 'detail';   // 'detail' | 'global'
+function renderFiche(){
+  const d = window._lastData || collect();
   window._lastData=d;
+  $('#fiche').innerHTML = buildFiche(d, EXPORT_MODE);
+}
+function generate(){
+  window._lastData = collect();
+  renderFiche();
+  $('#outputOverlay').classList.add('on');
+}
+function setExportMode(m){
+  EXPORT_MODE = (m==='global'?'global':'detail');
+  document.querySelectorAll('#modeSwitch button').forEach(b=> b.classList.toggle('on', b.dataset.mode===EXPORT_MODE));
+  renderFiche();
 }
 
 /* ---- PDF direct (jsPDF), pagination propre, pas de page blanche ---- */
 const CLR={navy:[31,59,91], navy2:[62,97,136], bg:[234,240,246], line:[201,212,224], sec:[242,246,251], ink:[43,43,43], mut:[110,110,110], danger:[176,42,42]};
 function pdfSafe(s){ return String(s==null?'':s).replace(/[—–]/g,'-').replace(/→/g,'->').replace(/œ/g,'oe').replace(/[’‘]/g,"'").replace(/⚠/g,'/!\\'); }
+/* Construit les lignes autoTable d'un agrégat (nom affiché entre parenthèses) */
+function aggToBody(agg){
+  const secStyle={fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
+  const body=[];
+  const sec=t=>body.push([{content:t, colSpan:3, styles:secStyle}]);
+  const dwn=o=> o.label+(o.names&&o.names.length? ' ('+o.names.join(', ')+')':'');
+  const item=(des,q,u,red)=>{ const st=red?{textColor:CLR.danger}:null; const cell=v=> st?{content:String(v),styles:st}:String(v); body.push([cell(des),cell(q),cell(u)]); };
+  if(agg.chemins.length){ sec('Cheminement'); agg.chemins.forEach(o=>item(dwn(o), o.qty||'', 'm', o.red)); }
+  if(agg.cables.length){ sec('Câblage'); agg.cables.forEach(o=>item(dwn(o), o.qty||'', 'm', o.red)); }
+  if(agg.apps.length){ sec('Appareillage'); agg.apps.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
+  if(agg.boites.length){ sec('Boîtes de dérivation'); agg.boites.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
+  if(agg.disj.length){ sec('Tableau / protections'); agg.disj.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
+  return body;
+}
 function downloadPDF(){
   if(!window.jspdf){ alert("Librairie PDF non chargée. Vérifie le dossier « vendor »."); return; }
   const d = window._lastData || collect();
-  const doc = buildPDFDoc(d);
-  doc.save((($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+'.pdf');
+  const doc = buildPDFDoc(d, EXPORT_MODE);
+  const suffix = EXPORT_MODE==='global'?'_global':'_detail';
+  doc.save((($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+suffix+'.pdf');
 }
-function buildPDFDoc(d){
+function buildPDFDoc(d, mode){
+  mode = mode==='global' ? 'global' : 'detail';
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'mm', format:'a4'});
   const M=14, W=210, H=297, CW=W-2*M;
@@ -909,29 +1026,41 @@ function buildPDFDoc(d){
     doc.setDrawColor(...CLR.line); doc.setLineWidth(0.2); doc.line(M,y,W-M,y); y+=3;
   };
 
-  const chGroup = groupChemins(d.chemins.filter(c=>!c.existant));
+  const rooms=d.rooms||[];
+  const drawTable = body => {
+    doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+      styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top'},
+      headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+      columnStyles:{0:{cellWidth:CW-38}, 1:{cellWidth:19, halign:'center'}, 2:{cellWidth:19, halign:'center'}},
+      head:[['Désignation','Qté','Unité']], body, didParseCell:sanitize,
+    });
+    y=doc.lastAutoTable.finalY;
+  };
 
   /* Descriptif des travaux */
-  heading('Descriptif des travaux');
-  const secStyle={fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
-  const body=[];
-  const sec=t=>body.push([{content:t, colSpan:3, styles:secStyle}]);
-  const item=(des,q,u,red)=>{ const st=red?{textColor:CLR.danger}:null;
-    const cell=v=> st?{content:String(v),styles:st}:String(v);
-    body.push([cell(des), cell(q), cell(u)]); };
-  if(chGroup.length){ sec('Cheminement'); chGroup.forEach(c=>item(c.label, c.long||'', 'm')); }
-  if(d.cables.length){ sec('Câblage'); d.cables.forEach(c=>item(cableLabel(c), c.long||'', 'm')); }
-  if(d.apps.length){ sec('Appareillage'); d.apps.forEach(a=>item(appLabel(a).replace(/—/g,'-'), a.qte, 'pce', a.gamme==='EDIZIO.due')); }
-  if(d.boites.length){ sec('Boîtes de dérivation'); d.boites.forEach(b=>item('Boîte '+b.modele, b.qte, 'pce')); }
-  if(d.disj.length){ sec('Tableau / protections'); d.disj.forEach(x=>item(disjLabel(x,'-'), x.qte, 'pce')); }
-  sec('Temps estimé');
-  item(tempsDesc(d), totalHeures(d), 'h');
-  doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
-    styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top'},
-    headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
-    columnStyles:{0:{cellWidth:CW-38}, 1:{cellWidth:19, halign:'center'}, 2:{cellWidth:19, halign:'center'}},
-    head:[['Désignation','Qté','Unité']], body, didParseCell:sanitize,
-  });
+  if(mode==='detail'){
+    heading('Descriptif par pièce');
+    let any=false;
+    rooms.forEach(room=>{
+      const body=aggToBody(aggregate(room));
+      if(!body.length) return;
+      any=true;
+      if(y>H-26){ doc.addPage(); y=16; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...CLR.navy2);
+      doc.text(pdfSafe(room.name), M, y+3); y+=6;
+      drawTable(body); y+=5;
+    });
+    if(!any){ doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...CLR.mut);
+      doc.text('Aucune piece saisie.',M,y); y+=6; }
+  } else {
+    heading('Descriptif des travaux - global (toutes pieces additionnees)');
+    drawTable(aggToBody(aggregate(mergeRooms(rooms)))); y+=5;
+  }
+
+  /* Temps (global, une seule fois) */
+  if(y>H-26){ doc.addPage(); y=16; }
+  heading('Temps estimé');
+  drawTable([[tempsDesc(d), String(totalHeures(d)), 'h']]);
   y=doc.lastAutoTable.finalY+7;
 
   /* Remarques (auto en rouge + manuelles) */
@@ -990,33 +1119,46 @@ function buildPDFDoc(d){
 async function sharePDF(){
   if(!window.jspdf){ alert("Librairie PDF non chargée."); return; }
   const d = window._lastData || collect();
-  const name=(($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+'.pdf';
-  const blob = buildPDFDoc(d).output('blob');
+  const suffix = EXPORT_MODE==='global'?'_global':'_detail';
+  const name=(($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+suffix+'.pdf';
+  const blob = buildPDFDoc(d, EXPORT_MODE).output('blob');
   const file = new File([blob], name, {type:'application/pdf'});
   if(navigator.canShare && navigator.canShare({files:[file]})){
     try{ await navigator.share({files:[file], title:'Fiche '+(d.ref||''), text:'Fiche informative '+(d.ref||'')}); }
     catch(e){ /* annulé par l'utilisateur */ }
   } else {
-    buildPDFDoc(d).save(name);
+    buildPDFDoc(d, EXPORT_MODE).save(name);
     alert("Partage direct indisponible sur cet appareil : le PDF a été téléchargé, tu peux le joindre manuellement.");
   }
 }
 
 /* ================= Persistance (brouillon auto) ================= */
-const DRAFT='sevj_draft_v2', DRAFT_PHOTOS='sevj_draft_photos_v2';
+const DRAFT='sevj_draft_v3', DRAFT_PHOTOS='sevj_draft_photos_v2';
 const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#dureeH'];
 const D_CHECK=['#vendredi','#apprenti','#tabAmiante'];
-const D_CONT=[['#chemins',()=>addChemin()],['#cables',()=>addCable()],['#apps',()=>addApp()],
-              ['#boites',()=>addBoite()],['#disj',()=>addDisj()],['#remarques',()=>addRemarque()]];
+const SUBS=['chemins','cables','apps','boites','disj'];
 let _saveT=null;
 function scheduleSave(){ clearTimeout(_saveT); _saveT=setTimeout(saveDraft,500); }
 function rowState(r){ const o={}; r.querySelectorAll('[data-f]').forEach(e=>{ o[e.dataset.f]= e.type==='checkbox'?e.checked:e.value; }); return o; }
+function fillRow(r,state){
+  if(!r||!state) return;
+  const g=r.querySelector('[data-f="genre"]');       // appareil : genre pilote la liste modèle
+  if(g && state.genre!=null){ g.value=state.genre; applyCond(r); }
+  Object.entries(state).forEach(([f,v])=>{ const e=r.querySelector(`[data-f="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=v; else e.value=v; } });
+  applyCond(r);
+}
+function roomState(room){
+  const o={name:(room.querySelector('[data-room-name]').value||'')};
+  SUBS.forEach(k=> o[k]=[...room.querySelectorAll('[data-sub="'+k+'"] .row')].map(rowState));
+  return o;
+}
 function saveDraft(){
   try{
-    const d={simple:{}, checks:{}, rows:{}, ref:$('#ref').value, refEdited};
+    const d={simple:{}, checks:{}, ref:$('#ref').value, refEdited, remarques:[], rooms:[]};
     D_SIMPLE.forEach(s=>d.simple[s]=$(s).value);
     D_CHECK.forEach(s=>d.checks[s]=$(s).checked);
-    D_CONT.forEach(([sel])=> d.rows[sel]=[...document.querySelectorAll(sel+' .row')].map(rowState));
+    d.remarques=[...document.querySelectorAll('#remarques .row')].map(rowState);
+    d.rooms=[...document.querySelectorAll('#rooms .room')].map(roomState);
     localStorage.setItem(DRAFT, JSON.stringify(d));
   }catch(e){}
   try{ localStorage.setItem(DRAFT_PHOTOS, JSON.stringify(PHOTOS)); }catch(e){ /* quota : photos non sauvées */ }
@@ -1028,21 +1170,25 @@ function restoreDraft(){
   if(!d) return false;
   D_SIMPLE.forEach(s=>{ if(d.simple&&d.simple[s]!=null) $(s).value=d.simple[s]; });
   D_CHECK.forEach(s=>{ if(d.checks&&d.checks[s]!=null) $(s).checked=d.checks[s]; });
-  D_CONT.forEach(([sel,add])=>{
-    const rows=d.rows&&d.rows[sel]; if(!rows) return;
-    document.querySelector(sel).innerHTML='';
-    rows.forEach(state=>{
-      add();
-      const r=document.querySelector(sel+' .row:last-child');
-      const g=r.querySelector('[data-f="genre"]');       // appareil : genre pilote la liste modèle
-      if(g && state.genre!=null){ g.value=state.genre; applyCond(r); }
-      Object.entries(state).forEach(([f,v])=>{ const e=r.querySelector(`[data-f="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=v; else e.value=v; } });
-      applyCond(r);
+  // remarques (global)
+  if(Array.isArray(d.remarques)){
+    $('#remarques').innerHTML='';
+    d.remarques.forEach(state=>{ addRemarque(); fillRow(document.querySelector('#remarques .row:last-child'), state); });
+  }
+  // pièces
+  if(Array.isArray(d.rooms)){
+    $('#rooms').innerHTML='';
+    d.rooms.forEach(rs=>{
+      const room=addRoom(rs.name);
+      SUBS.forEach(k=>{
+        const cont=room.querySelector('[data-sub="'+k+'"]');
+        (rs[k]||[]).forEach(state=>{ ROOM_ADDERS[k](cont); fillRow(cont.querySelector('.row:last-child'), state); });
+      });
     });
-  });
+  }
   if(d.ref!=null) $('#ref').value=d.ref;
   refEdited=!!d.refEdited;
-  syncChemLinks();   // reconstruit les cases de liaison câble<->cheminement (sélections restaurées)
+  syncChemLinks();   // reconstruit les liaisons câble<->cheminement (sélections restaurées)
   return true;
 }
 function clearDraft(){ try{ localStorage.removeItem(DRAFT); localStorage.removeItem(DRAFT_PHOTOS); }catch(e){} }
@@ -1054,15 +1200,15 @@ function init(){
   initCollab();
   // Sections vides au départ : l'utilisateur ajoute les lignes via les boutons « + ».
 
-  // Sections repliables : fermées par défaut. Les sections obligatoires (.req) restent ouvertes.
+  // Sections repliables : fermées par défaut. Les sections obligatoires (.req) et les Pièces restent ouvertes.
   document.querySelectorAll('main .card').forEach(card=>{
     if(card.classList.contains('req')) return;
-    card.classList.add('collapsed');
+    if(card.id!=='roomsCard') card.classList.add('collapsed');
     card.querySelector('h2').addEventListener('click',()=>card.classList.toggle('collapsed'));
   });
 
   document.querySelectorAll('.add[data-add]').forEach(b=>{
-    b.onclick=()=>{ ({cable:addCable,chemin:addChemin,app:addApp,boite:addBoite,disj:addDisj,remarque:addRemarque}[b.dataset.add])(); scheduleSave(); };
+    b.onclick=()=>{ ({cable:addCable,chemin:addChemin,app:addApp,boite:addBoite,disj:addDisj,remarque:addRemarque}[b.dataset.add])(); syncChemLinks(); scheduleSave(); };
   });
   $('#loginBtn').onclick=doLogin;
   $('#logoutBtn').onclick=doLogout;
@@ -1070,8 +1216,12 @@ function init(){
   $('#genBtn').onclick=generate;
   $('#closeOut').onclick=()=>$('#outputOverlay').classList.remove('on');
   $('#printBtn').onclick=downloadPDF;
-  $('#calcCableBtn').onclick=calcCable;
   $('#resetBtn').onclick=()=>{ if(confirm('Vider tout le formulaire ? Le brouillon enregistré sera effacé.')){ clearDraft(); location.reload(); } };
+
+  // Pièces : ajout d'une nouvelle pièce
+  $('#addRoomBtn').onclick=()=>{ const rm=addRoom(); rm.querySelector('[data-room-name]').focus(); syncChemLinks(); scheduleSave(); };
+  // Sélecteur de mode d'export (Détaillé / Global)
+  document.querySelectorAll('#modeSwitch button').forEach(b=> b.onclick=()=>setExportMode(b.dataset.mode));
 
   // Photos
   $('#photoBtn').onclick=()=>$('#photoInput').click();
@@ -1096,6 +1246,8 @@ function init(){
 
   // Restauration du brouillon éventuel
   restoreDraft();
+  // Au moins une pièce visible au départ
+  if(!document.querySelector('#rooms .room')) addRoom();
   syncChemLinks();
   updateMO();
 
