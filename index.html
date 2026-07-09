@@ -272,6 +272,7 @@ textarea{min-height:70px; resize:vertical}
       <p class="hint">Courbe, intensité, différentiel (DDR) et marque souhaitée.</p>
       <div id="disj"></div>
       <button class="add" data-add="disj">＋ Ajouter un disjoncteur</button>
+      <div class="chk" style="margin-top:10px"><input id="tabAmiante" type="checkbox"><label for="tabAmiante">Tableau (TAB) en amiante</label></div>
     </div>
   </section>
 
@@ -364,7 +365,8 @@ const COLLABORATORS = [
 const MM2      = ["1.5","2.5","4","6","10","16","25","autre…"];
 const CABLE_T  = ["TT-Flex (standard souple)","B2ca (extérieur & voie de fuite)","Cca (voie de fuite)","FE0 (standard intérieur)","Fil"];
 const FIL_N    = ["1x","2x","3x","4x","5x","6x","7x","8x","9x","10x","plus…"];
-const CHEM_T   = ["Tube TIT","Tube ALU","Canal","Tube THFWG","Chemin de câble"];
+const CHEM_T   = ["Tube TIT","Tube ALU","Canal","Tube THFWG","Tube Bergmann","Chemin de câble"];
+const GAMME    = ["EDIZIO.liv","EDIZIO.due"];
 const PRISE_M  = ["T13","T15","T23","T25","CEE16A","CEE32A","CEE63A"];
 const INTER_M  = ["sch3","sch6","sch3 + prise","sch3+3","spécifique…"];
 const AMP       = ["6","8","10","13","16","20","25","32","40","63","autre…"];
@@ -389,7 +391,10 @@ function addCable(){
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Câble / Fil</div>
-    <div style="margin-bottom:10px"><label class="fld">Type</label><select data-f="type">${opts(CABLE_T)}</select></div>
+    <div class="grid" style="margin-bottom:10px">
+      <div><label class="fld">Type</label><select data-f="type">${opts(CABLE_T)}</select></div>
+      <div class="cond" data-c="phase"><label class="fld">Phase</label><select data-f="phase"><option>Mono</option><option>Tri</option></select></div>
+    </div>
     <div class="grid-3">
       <div class="cond" data-c="filn"><label class="fld">Nombre</label><select data-f="nb">${opts(FIL_N,"3x")}</select></div>
       <div><label class="fld">Section mm²</label><select data-f="mm2">${opts(MM2,"6")}</select></div>
@@ -398,8 +403,13 @@ function addCable(){
     <div class="grid" style="margin-top:10px">
       <div class="cond" data-c="mm2"><label class="fld">Préciser mm²</label><input data-f="mm2autre" type="text" placeholder="ex : 35"></div>
       <div class="cond" data-c="nbautre"><label class="fld">Préciser nombre</label><input data-f="nbautre2" type="text" placeholder="ex : 12x"></div>
+    </div>
+    <div style="margin-top:10px">
+      <label class="fld">Cheminements empruntés (pour la longueur par section)</label>
+      <div class="links-list" data-links-list></div>
+      <input type="hidden" data-f="links">
     </div>`;
-  wire(r); $('#cables').appendChild(r);
+  wire(r); $('#cables').appendChild(r); syncChemLinks();
 }
 function addChemin(){
   const r = el('div','row'); const id=++uid;
@@ -413,9 +423,10 @@ function addChemin(){
     <div class="cond" data-c="canal" style="margin-top:10px"><label class="fld">Dimension du canal</label><input data-f="dim" type="text" placeholder="ex : 60×110 mm"></div>
     <div class="cond" data-c="thfwg" style="margin-top:10px"><label class="fld">THFWG résistant UV ?</label><select data-f="uv"><option>Oui (résistant UV)</option><option>Non</option></select></div>
     <div style="margin-top:10px"><label class="fld">État</label><select data-f="etat"><option>À poser (neuf)</option><option>Déjà existant</option></select></div>
+    <div class="cond" data-c="bergmann" style="margin-top:8px; color:var(--danger); font-weight:600; font-size:12px">⚠ Tube Bergmann : forcément existant — tirage compliqué (signalé en remarque dans l'export).</div>
     <div class="chk"><input type="checkbox" data-f="haut"><label>Travail en hauteur (&gt; 3.50 m)</label></div>
     <div class="majo" data-m>⚠ Majoration 1.5× du prix du câble</div>`;
-  wire(r); $('#chemins').appendChild(r);
+  wire(r); $('#chemins').appendChild(r); syncChemLinks();
 }
 function addApp(){
   const r = el('div','row'); const id=++uid;
@@ -427,9 +438,10 @@ function addApp(){
       <div><label class="fld">Modèle</label><select data-f="modele">${opts(PRISE_M)}</select></div>
     </div>
     <div class="cond" data-c="spec" style="margin-top:10px"><label class="fld">Préciser modèle</label><input data-f="specv" type="text" placeholder="modèle spécifique"></div>
-    <div class="grid" style="margin-top:10px">
+    <div class="grid-3" style="margin-top:10px">
       <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="1" step="1" value="1"></div>
       <div><label class="fld">Montage</label><select data-f="montage"><option>AP</option><option>ENC</option></select></div>
+      <div><label class="fld">Gamme</label><select data-f="gamme">${opts(GAMME)}</select></div>
     </div>`;
   wire(r); $('#apps').appendChild(r);
 }
@@ -444,11 +456,15 @@ function addDisj(){
       <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="1" step="1" value="1"></div>
     </div>
     <div class="cond" data-c="amp" style="margin-top:10px"><label class="fld">Préciser (A)</label><input data-f="ampautre" type="text" placeholder="ex : 80"></div>
-    <div class="grid" style="margin-top:10px">
+    <div class="grid-3" style="margin-top:10px">
       <div><label class="fld">Différentiel (DDR)</label><select data-f="ddr"><option>Sans DDR</option><option>Avec DDR</option></select></div>
+      <div><label class="fld">Phase</label><select data-f="phase"><option>Mono</option><option>Tri</option></select></div>
       <div><label class="fld">Marque</label><select data-f="marque">${opts(MARQUE)}</select></div>
     </div>
-    <div class="cond" data-c="marque" style="margin-top:10px"><label class="fld">Préciser la marque</label><input data-f="marqueautre" type="text" placeholder="marque / référence"></div>`;
+    <div class="cond" data-c="marque" style="margin-top:10px"><label class="fld">Préciser la marque</label><input data-f="marqueautre" type="text" placeholder="marque / référence"></div>
+    <div class="cond" data-c="um1" style="margin-top:8px">
+      <div class="chk" style="padding:4px 0"><input type="checkbox" data-f="um1"><label>Ajouter un 1UM (mono avec DDR)</label></div>
+    </div>`;
   wire(r); $('#disj').appendChild(r);
 }
 function addBoite(){
@@ -472,10 +488,11 @@ function addRemarque(){
 
 /* conditional field logic + remove button */
 function wire(r){
-  r.querySelector('.rm').onclick = ()=>{ r.remove(); if(window.scheduleSave) scheduleSave(); };
+  const isChem = !!r.closest('#chemins');
+  r.querySelector('.rm').onclick = ()=>{ r.remove(); if(window.scheduleSave) scheduleSave(); syncChemLinks(); };
   r.querySelectorAll('select[data-f], input[data-f]').forEach(inp=>{
-    inp.addEventListener('change', ()=>applyCond(r));
-    inp.addEventListener('input', ()=>applyCond(r));
+    inp.addEventListener('change', ()=>{ applyCond(r); if(isChem) syncChemLinks(); });
+    inp.addEventListener('input',  ()=>{ applyCond(r); if(isChem) syncChemLinks(); });
   });
   applyCond(r);
 }
@@ -486,11 +503,24 @@ function applyCond(r){
   show('[data-c="canal"]', val('type')==='Canal');
   show('[data-c="thfwg"]', val('type')==='Tube THFWG');
   show('[data-c="amp"]',   val('amp')==='autre…');
-  // câble : champ "Nombre" seulement pour un Fil
+  // câble : champ "Nombre" seulement pour un Fil ; "Phase" (mono/tri) pour un câble
   show('[data-c="filn"]',    val('type')==='Fil');
   show('[data-c="nbautre"]', val('type')==='Fil' && val('nb')==='plus…');
+  show('[data-c="phase"]',   r.querySelector('[data-f="phase"]') && val('type')!=='Fil');
+  // cheminement : Tube Bergmann -> forcément existant + avertissement tirage compliqué
+  const etatSel = r.querySelector('[data-f="etat"]');
+  if(etatSel){
+    const isBerg = val('type')==='Tube Bergmann';
+    if(isBerg){ etatSel.value='Déjà existant'; etatSel.disabled=true; }
+    else etatSel.disabled=false;
+    show('[data-c="bergmann"]', isBerg);
+  }
   // disjoncteur : marque à préciser
   show('[data-c="marque"]',  val('marque')==='À préciser…');
+  // disjoncteur : option 1UM uniquement en mono + DDR (décochée si masquée)
+  const um=r.querySelector('[data-f="um1"]');
+  if(um){ const umShow = val('phase')==='Mono' && val('ddr')==='Avec DDR';
+    if(!umShow) um.checked=false; show('[data-c="um1"]', umShow); }
   // boîte : modèle à préciser
   show('[data-c="boite"]',   val('modele')==='À préciser…');
   // appareil: modèle liste selon genre + spécifique
@@ -506,6 +536,33 @@ function applyCond(r){
   // hauteur -> majoration
   const h = r.querySelector('[data-f="haut"]');
   if(h){ const m=r.querySelector('[data-m]'); if(m) m.classList.toggle('on',h.checked); }
+}
+
+/* ===== Liaison câble <-> cheminements (longueur par section) ===== */
+function renumberChemins(){
+  [...document.querySelectorAll('#chemins .row .tag')].forEach((t,i)=> t.textContent='Cheminement #'+(i+1));
+}
+/* (Re)construit la liste de cases « cheminements empruntés » d'un câble,
+   en conservant les sélections déjà faites (référencées par position). */
+function buildLinksFor(cableRow){
+  const wrap=cableRow.querySelector('[data-links-list]'), hidden=cableRow.querySelector('[data-f="links"]');
+  if(!wrap||!hidden) return;
+  const selected=new Set((hidden.value||'').split(',').filter(x=>x!==''));
+  const chem=[...document.querySelectorAll('#chemins .row')];
+  if(!chem.length){ wrap.innerHTML='<div class="hint" style="margin:2px 0 0">Aucun cheminement pour l’instant — ajoute-en dans la section Cheminement.</div>'; return; }
+  wrap.innerHTML = chem.map((r,i)=>{
+    const t=r.querySelector('[data-f="type"]'); const type=t?t.value:'';
+    const e=r.querySelector('[data-f="long"]'); const long=e&&e.value?e.value+' m':'—';
+    return `<label class="chk" style="padding:4px 0"><input type="checkbox" data-lk="${i}"${selected.has(String(i))?' checked':''}><span>#${i+1} · ${esc(type)} · ${esc(long)}</span></label>`;
+  }).join('');
+  wrap.querySelectorAll('input[data-lk]').forEach(cb=> cb.addEventListener('change',()=>{
+    hidden.value=[...wrap.querySelectorAll('input[data-lk]')].filter(x=>x.checked).map(x=>x.dataset.lk).join(',');
+    scheduleSave();
+  }));
+}
+function syncChemLinks(){
+  renumberChemins();
+  document.querySelectorAll('#cables .row').forEach(buildLinksFor);
 }
 
 /* ================= Login ================= */
@@ -571,22 +628,46 @@ function buildRef(){
 }
 
 /* ================= Calcul longueur de câble ================= */
-/* Σ de tous les cheminements (existants ou non) + 1.5 m de marge -> 1er câble */
+/* Marge de raccordement ajoutée à chaque câble */
+const MARGE_CABLE = 1.5;
+function chemLen(r){ const e=r.querySelector('[data-f="long"]'); const v=e?parseFloat(e.value):NaN; return isNaN(v)?0:v; }
+/* Deux modes :
+   - si des câbles sont liés à des cheminements -> longueur par section (Σ des cheminements liés + marge)
+   - sinon -> comportement historique : Σ de tous les cheminements + marge -> 1er câble */
 function calcCable(){
-  const rows=[...document.querySelectorAll('#chemins .row')];
-  let sum=0, n=0;
-  rows.forEach(r=>{
-    const e=r.querySelector('[data-f="long"]'); const v=e?parseFloat(e.value):NaN;
-    if(!isNaN(v)){ sum+=v; n++; }
-  });
   const msg=$('#calcMsg');
+  const chem=[...document.querySelectorAll('#chemins .row')];
+  const cables=[...document.querySelectorAll('#cables .row')];
+  const linked=cables.filter(c=>{ const l=c.querySelector('[data-f="links"]'); return l && l.value.trim()!==''; });
+
+  if(linked.length){
+    const parts=[];
+    cables.forEach((c,ci)=>{
+      const l=c.querySelector('[data-f="links"]'); const idxs=(l?l.value:'').split(',').filter(x=>x!=='');
+      if(!idxs.length) return;
+      let s=0; idxs.forEach(i=>{ const r=chem[+i]; if(r) s+=chemLen(r); });
+      const total=Math.round((s+MARGE_CABLE)*100)/100;
+      const cab=c.querySelector('[data-f="long"]'); if(cab) cab.value=total;
+      const mm=c.querySelector('[data-f="mm2"]'); const sec=mm?mm.value:'';
+      parts.push(`câble ${ci+1} (${sec} mm²) = <b>${total} m</b>`);
+    });
+    scheduleSave();
+    msg.innerHTML = parts.length
+      ? `Longueur par section (Σ cheminements liés + ${MARGE_CABLE} m de marge) : ${parts.join(' · ')}.`
+      : 'Aucun cheminement lié à un câble — coche les cheminements dans chaque câble.';
+    return;
+  }
+
+  /* --- mode historique : Σ tous les cheminements -> 1er câble --- */
+  let sum=0, n=0;
+  chem.forEach(r=>{ const e=r.querySelector('[data-f="long"]'); const v=e?parseFloat(e.value):NaN; if(!isNaN(v)){ sum+=v; n++; } });
   if(!n){ msg.textContent='Aucune longueur de cheminement saisie.'; return; }
-  const total=Math.round((sum+1.5)*100)/100;
-  if(!document.querySelector('#cables .row')) addCable();   // crée une ligne câble si aucune
+  const total=Math.round((sum+MARGE_CABLE)*100)/100;
+  if(!cables.length) addCable();
   const cab=document.querySelector('#cables .row [data-f="long"]');
   if(cab) cab.value=total;
   scheduleSave();
-  msg.innerHTML=`Σ ${n} cheminement(s) = <b>${Math.round(sum*100)/100} m</b> + 1.5 m de marge = <b>${total} m</b> → reporté dans le 1<sup>er</sup> câble.`;
+  msg.innerHTML=`Σ ${n} cheminement(s) = <b>${Math.round(sum*100)/100} m</b> + ${MARGE_CABLE} m de marge = <b>${total} m</b> → reporté dans le 1<sup>er</sup> câble. <i>(Astuce : coche les cheminements dans chaque câble pour une longueur par section.)</i>`;
 }
 
 /* ================= Collecte des données ================= */
@@ -596,17 +677,18 @@ function collect(){
     let s=g(r,'mm2'); if(s==='autre…') s=g(r,'mm2autre')||'?';
     const fil = g(r,'type')==='Fil';
     let nb=g(r,'nb'); if(nb==='plus…') nb=g(r,'nbautre2')||'?';
-    return {mm2:s, type:g(r,'type'), long:g(r,'long'), fil, nb};
+    return {mm2:s, type:g(r,'type'), long:g(r,'long'), fil, nb, phase:g(r,'phase')};
   }).filter(c=>c.long||c.mm2);
   const chemins=[...document.querySelectorAll('#chemins .row')].map(r=>{
     const t=g(r,'type');
+    const berg=t==='Tube Bergmann';
     return {type:t, long:g(r,'long'), dim:g(r,'dim'), uv:g(r,'uv'),
-            etat:g(r,'etat'), haut:g(r,'haut'), canal:t==='Canal', thfwg:t==='Tube THFWG',
-            existant:(g(r,'etat')||'').startsWith('Déjà')};
+            etat:g(r,'etat'), haut:g(r,'haut'), canal:t==='Canal', thfwg:t==='Tube THFWG', bergmann:berg,
+            existant:(g(r,'etat')||'').startsWith('Déjà') || berg};
   }).filter(c=>c.long||c.type);
   const apps=[...document.querySelectorAll('#apps .row')].map(r=>{
     let m=g(r,'modele'); if(m==='spécifique…') m=g(r,'specv')||'Spécifique';
-    return {genre:g(r,'genre'), modele:m, qte:g(r,'qte')||'1', montage:montageCode(g(r,'montage'))};
+    return {genre:g(r,'genre'), modele:m, qte:g(r,'qte')||'1', montage:montageCode(g(r,'montage')), gamme:g(r,'gamme')};
   }).filter(a=>a.modele);
   const boites=[...document.querySelectorAll('#boites .row')].map(r=>{
     let m=g(r,'modele'); if(m==='À préciser…') m=g(r,'modautre')||'À préciser';
@@ -615,7 +697,7 @@ function collect(){
   const disj=[...document.querySelectorAll('#disj .row')].map(r=>{
     let a=g(r,'amp'); if(a==='autre…') a=g(r,'ampautre')||'?';
     let mq=g(r,'marque'); if(mq==='À préciser…') mq=g(r,'marqueautre')||'À préciser';
-    return {courbe:g(r,'courbe'), amp:a, qte:g(r,'qte')||'1', ddr:g(r,'ddr'), marque:mq};
+    return {courbe:g(r,'courbe'), amp:a, qte:g(r,'qte')||'1', ddr:g(r,'ddr'), marque:mq, phase:g(r,'phase'), um1:g(r,'um1')};
   }).filter(d=>d.amp);
   const rem=[...document.querySelectorAll('#remarques .row')].map(r=>g(r,'txt')).filter(Boolean);
   return {
@@ -623,6 +705,7 @@ function collect(){
     lieu:$('#lieu').value.trim(), date:$('#date').value,
     jours:$('#jours').value, monteurs:$('#monteurs').value, dureeH:$('#dureeH').value,
     vendredi:$('#vendredi').checked, apprenti:$('#apprenti').checked,
+    tabAmiante:$('#tabAmiante').checked,
     cables, chemins, apps, boites, disj, rem, user:currentUser
   };
 }
@@ -660,18 +743,19 @@ function buildFiche(d){
   if(d.cables.length){ L.push(secRow('Câblage'));
     d.cables.forEach(c=> L.push(itemRow(cableLabel(c), c.long||'', 'm'))); }
   if(d.apps.length){ L.push(secRow('Appareillage'));
-    d.apps.forEach(a=> L.push(itemRow(`${a.genre} ${a.modele} — ${a.montage}`, a.qte, 'pce'))); }
+    d.apps.forEach(a=> L.push(itemRow(appLabel(a), a.qte, 'pce', a.gamme==='EDIZIO.due'))); }
   if(d.boites.length){ L.push(secRow('Boîtes de dérivation'));
     d.boites.forEach(b=> L.push(itemRow(`Boîte ${b.modele}`, b.qte, 'pce'))); }
   if(d.disj.length){ L.push(secRow('Tableau / protections'));
-    d.disj.forEach(x=> L.push(itemRow(`Disjoncteur courbe ${x.courbe} ${x.amp} A${x.ddr==='Avec DDR'?' + DDR':''} — ${x.marque}`, x.qte, 'pce'))); }
+    d.disj.forEach(x=> L.push(itemRow(disjLabel(x), x.qte, 'pce'))); }
   L.push(secRow('Temps estimé'));
   L.push(itemRow(tempsDesc(d), totalHeures(d), 'h'));
   L.push(`</table>`);
 
-  /* ---- Remarques ---- */
+  /* ---- Remarques (auto en rouge + manuelles) ---- */
   L.push(`<h3>Remarques</h3>`);
-  if(d.rem.length){ L.push('<ul>'+d.rem.map(x=>`<li>${esc(x)}</li>`).join('')+'</ul>'); }
+  const rems=allRemarks(d);
+  if(rems.length){ L.push('<ul>'+rems.map(x=>`<li${x.red?' style="color:#b02a2a;font-weight:600"':''}>${esc(x.txt)}</li>`).join('')+'</ul>'); }
   else L.push('<p class="empty">Aucune remarque.</p>');
 
   /* ---- Signature ---- */
@@ -680,10 +764,24 @@ function buildFiche(d){
 }
 function row2(k,v){return `<tr><td>${k}</td><td>${v}</td></tr>`;}
 function secRow(t){return `<tr class="sec-row"><td colspan="3">${esc(t)}</td></tr>`;}
-function itemRow(des,q,u){return `<tr><td>${esc(des)}</td><td class="q">${esc(String(q))}</td><td class="u">${esc(u)}</td></tr>`;}
+function itemRow(des,q,u,red){const s=red?' style="color:#b02a2a;font-weight:600"':'';
+  return `<tr><td${s}>${esc(des)}</td><td class="q"${s}>${esc(String(q))}</td><td class="u"${s}>${esc(u)}</td></tr>`;}
 function cableLabel(c){
   if(c.fil) return `${c.nb||'?'} fil ${c.mm2} mm²`;
-  return `${c.mm2} mm² · ${c.type}`;
+  const pref = c.phase==='Tri' ? '5x' : '3x';   // mono = 3×section, tri = 5×section
+  return `${pref}${c.mm2} mm² · ${c.type}`;
+}
+function appLabel(a){ return `${a.genre} ${a.modele} — ${a.montage}${a.gamme?' · '+a.gamme:''}`; }
+function disjLabel(x,dash){ const d=dash||'—';
+  return `Disjoncteur courbe ${x.courbe} ${x.amp} A${x.ddr==='Avec DDR'?' + DDR':''}${x.um1?' + 1UM':''}${x.phase?' · '+x.phase:''} ${d} ${x.marque}`; }
+/* Remarques affichées = auto (rouge) + manuelles */
+function allRemarks(d){
+  const out=[];
+  if(d.tabAmiante) out.push({txt:"⚠ Tableau (TAB) en amiante — intervention sous précautions amiante à prévoir.", red:true});
+  (d.chemins||[]).forEach(c=>{ if(c.bergmann)
+    out.push({txt:"⚠ Tube Bergmann existant"+(c.long?" ("+c.long+" m)":"")+" — tirage compliqué à prévoir.", red:true}); });
+  (d.rem||[]).forEach(t=> out.push({txt:t, red:false}));
+  return out;
 }
 function chemLabel(c,full){
   let s=c.type;
@@ -771,8 +869,8 @@ function generate(){
 }
 
 /* ---- PDF direct (jsPDF), pagination propre, pas de page blanche ---- */
-const CLR={navy:[31,59,91], navy2:[62,97,136], bg:[234,240,246], line:[201,212,224], sec:[242,246,251], ink:[43,43,43], mut:[110,110,110]};
-function pdfSafe(s){ return String(s==null?'':s).replace(/[—–]/g,'-').replace(/→/g,'->').replace(/œ/g,'oe').replace(/[’‘]/g,"'"); }
+const CLR={navy:[31,59,91], navy2:[62,97,136], bg:[234,240,246], line:[201,212,224], sec:[242,246,251], ink:[43,43,43], mut:[110,110,110], danger:[176,42,42]};
+function pdfSafe(s){ return String(s==null?'':s).replace(/[—–]/g,'-').replace(/→/g,'->').replace(/œ/g,'oe').replace(/[’‘]/g,"'").replace(/⚠/g,'/!\\'); }
 function downloadPDF(){
   if(!window.jspdf){ alert("Librairie PDF non chargée. Vérifie le dossier « vendor »."); return; }
   const d = window._lastData || collect();
@@ -818,12 +916,14 @@ function buildPDFDoc(d){
   const secStyle={fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
   const body=[];
   const sec=t=>body.push([{content:t, colSpan:3, styles:secStyle}]);
-  const item=(des,q,u)=>body.push([des, String(q), u]);
+  const item=(des,q,u,red)=>{ const st=red?{textColor:CLR.danger}:null;
+    const cell=v=> st?{content:String(v),styles:st}:String(v);
+    body.push([cell(des), cell(q), cell(u)]); };
   if(chGroup.length){ sec('Cheminement'); chGroup.forEach(c=>item(c.label, c.long||'', 'm')); }
   if(d.cables.length){ sec('Câblage'); d.cables.forEach(c=>item(cableLabel(c), c.long||'', 'm')); }
-  if(d.apps.length){ sec('Appareillage'); d.apps.forEach(a=>item(a.genre+' '+a.modele+' - '+a.montage, a.qte, 'pce')); }
+  if(d.apps.length){ sec('Appareillage'); d.apps.forEach(a=>item(appLabel(a).replace(/—/g,'-'), a.qte, 'pce', a.gamme==='EDIZIO.due')); }
   if(d.boites.length){ sec('Boîtes de dérivation'); d.boites.forEach(b=>item('Boîte '+b.modele, b.qte, 'pce')); }
-  if(d.disj.length){ sec('Tableau / protections'); d.disj.forEach(x=>item('Disjoncteur courbe '+x.courbe+' '+x.amp+' A'+(x.ddr==='Avec DDR'?' + DDR':'')+' - '+x.marque, x.qte, 'pce')); }
+  if(d.disj.length){ sec('Tableau / protections'); d.disj.forEach(x=>item(disjLabel(x,'-'), x.qte, 'pce')); }
   sec('Temps estimé');
   item(tempsDesc(d), totalHeures(d), 'h');
   doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
@@ -834,13 +934,14 @@ function buildPDFDoc(d){
   });
   y=doc.lastAutoTable.finalY+7;
 
-  /* Remarques */
+  /* Remarques (auto en rouge + manuelles) */
   heading('Remarques');
-  if(d.rem.length){
+  const rems=allRemarks(d);
+  if(rems.length){
     doc.autoTable({ startY:y, theme:'plain', margin:{left:M,right:M},
       styles:{fontSize:9, cellPadding:{top:0.6,bottom:0.6,left:0,right:0}, textColor:CLR.ink},
       columnStyles:{0:{cellWidth:CW}}, didParseCell:sanitize,
-      body:d.rem.map(r=>[{content:'•  '+r}]),
+      body:rems.map(r=>[{content:'•  '+r.txt, styles: r.red?{textColor:CLR.danger, fontStyle:'bold'}:{}}]),
     });
     y=doc.lastAutoTable.finalY+6;
   } else { doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...CLR.mut);
@@ -904,7 +1005,7 @@ async function sharePDF(){
 /* ================= Persistance (brouillon auto) ================= */
 const DRAFT='sevj_draft_v2', DRAFT_PHOTOS='sevj_draft_photos_v2';
 const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#dureeH'];
-const D_CHECK=['#vendredi','#apprenti'];
+const D_CHECK=['#vendredi','#apprenti','#tabAmiante'];
 const D_CONT=[['#chemins',()=>addChemin()],['#cables',()=>addCable()],['#apps',()=>addApp()],
               ['#boites',()=>addBoite()],['#disj',()=>addDisj()],['#remarques',()=>addRemarque()]];
 let _saveT=null;
@@ -941,6 +1042,7 @@ function restoreDraft(){
   });
   if(d.ref!=null) $('#ref').value=d.ref;
   refEdited=!!d.refEdited;
+  syncChemLinks();   // reconstruit les cases de liaison câble<->cheminement (sélections restaurées)
   return true;
 }
 function clearDraft(){ try{ localStorage.removeItem(DRAFT); localStorage.removeItem(DRAFT_PHOTOS); }catch(e){} }
@@ -994,6 +1096,7 @@ function init(){
 
   // Restauration du brouillon éventuel
   restoreDraft();
+  syncChemLinks();
   updateMO();
 
   // Service worker (mode hors-ligne)
