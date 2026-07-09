@@ -19,13 +19,22 @@ Tout tient dans un seul fichier `index.html` — aucune installation, aucun serv
    ou **📤 PDF** — envoie le PDF en pièce jointe via le menu du téléphone (mail, WhatsApp…).
 
 ### Pièces 🏠
-Le relevé s'organise **par pièce / zone** (ex : Cuisine, Salle de bain…). Avec **🏠 Ajouter une pièce**,
-tu crées une pièce (nommable) et tu ajoutes **dedans** ses **cheminements**, **câbles/fils**,
-**prises/interrupteurs**, **boîtes** et **disjoncteurs**. La liaison câble↔cheminement (longueur
-automatique) se fait **au sein de la même pièce**.
+Le relevé s'organise **par pièce / zone**. Avec **🏠 Ajouter une pièce**, tu crées une pièce et tu
+ajoutes **dedans** ses **cheminements**, **câbles/fils**, **prises/interrupteurs**, **boîtes** et
+**disjoncteurs**. La liaison câble↔cheminement (longueur automatique) se fait **au sein de la même pièce**.
+
+- **Nom de pièce** : menu déroulant des pièces courantes (Chambre 1-5, Cuisine, Salle à manger,
+  Salle de bain, WC, Chaufferie, Garage, Couloir, Extérieur…) + **Autre…** pour un nom libre.
+  Si **deux pièces portent le même nom**, elles sont automatiquement suffixées **#1**, **#2**…
+- **Couleur** : chaque pièce reçoit une **couleur distincte** (en-tête + liseré). En export **Détaillé**,
+  cette couleur **réapparaît** sur le titre de la pièce (HTML **et** PDF) pour bien les distinguer.
 
 Les blocs **Chantier**, **Collaborateur**, **Temps & main d'œuvre**, **Remarques**, **Photos** et la
 case **« TAB en amiante »** sont **globaux** (une seule fois pour tout le chantier).
+
+Chaque pièce peut être **repliée** (bouton chevron ou icône 🏠 de son en-tête) pour gagner de la place :
+les données restent **conservées** à l'intérieur, et un résumé du nombre d'articles s'affiche. L'état
+replié/déployé est **mémorisé** avec le brouillon.
 
 Chaque article ajouté porte un **badge numéroté** (`CÂBLE / FIL #2`, …), un **liseré bleu** à gauche,
 et un champ **Nom** optionnel (ex : « Alim four ») affiché dans l'export détaillé.
@@ -39,6 +48,16 @@ Dans l'aperçu, un sélecteur **Détaillé / Global** :
   (ex : deux câbles `5x6 mm²` de deux pièces → une seule ligne, longueurs cumulées).
 
 Le nom du fichier PDF reçoit le suffixe `_detail` ou `_global` selon le mode choisi.
+
+### Reprendre un relevé (import PDF) 📥
+Chaque PDF **généré et téléchargé** par l'app contient, de façon invisible, **les données du relevé**
+(les pièces, articles, liaisons, etc. sont encodées après la fin du PDF — les lecteurs les ignorent).
+Le bouton **📥 Importer un relevé (PDF de l'app)** (section *Chantier*) permet de **recharger** un tel
+PDF : le formulaire se re-remplit et tu peux **compléter puis re-télécharger**.
+
+> ⚠️ Fonctionne uniquement avec un PDF **produit par cette application** (pas un PDF quelconque).
+> Les **photos ne sont pas ré-importées** (elles restent visibles dans le PDF d'origine) — rajoute-les
+> si tu regénères le document.
 
 **Longueur de câble automatique** 🧮 — chaque câble propose une liste **« Cheminements empruntés »**
 (les cheminements sont numérotés `#1`, `#2`, …). Dès que tu **coches** les cheminements qu'un câble

@@ -102,16 +102,28 @@ textarea{min-height:70px; resize:vertical}
   text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; padding:3px 11px; border-radius:20px}
 input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 /* ---------- Pièces ---------- */
-.room{border:1px solid var(--line); border-radius:14px; margin:0 0 16px; overflow:hidden; background:#fff;
-  box-shadow:0 2px 8px rgba(31,59,91,.08)}
-.room-hd{display:flex; align-items:center; gap:10px; background:var(--navy); color:#fff; padding:10px 12px}
+.room{border:1px solid var(--line); border-left:6px solid var(--rc,var(--navy2)); border-radius:14px; margin:0 0 16px;
+  overflow:hidden; background:#fff; box-shadow:0 2px 8px rgba(31,59,91,.08)}
+.room-hd{display:flex; flex-wrap:wrap; align-items:center; gap:10px; background:var(--rc,var(--navy)); color:#fff; padding:10px 12px}
 .room-hd .rn-ico{flex:0 0 auto; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center;
   background:rgba(255,255,255,.15); border-radius:8px; font-size:15px}
-.room-hd input{flex:1; border:none; border-radius:8px; padding:8px 10px; font-size:15px; font-weight:700;
-  background:rgba(255,255,255,.14); color:#fff}
-.room-hd input::placeholder{color:rgba(255,255,255,.6)}
+.room-hd .room-name,.room-hd .room-name-custom{flex:1; min-width:120px; border:none; border-radius:8px; padding:8px 10px;
+  font-size:15px; font-weight:700; background:rgba(255,255,255,.16); color:#fff}
+.room-hd .room-name option{color:var(--ink)}
+.room-hd .room-name-custom{flex-basis:100%; order:10}
+.room-hd .room-name-custom::placeholder{color:rgba(255,255,255,.6)}
+.room-hd .room-dup{flex:0 0 auto; color:#fff; font-size:13px; font-weight:800}
 .room-hd .room-rm{flex:0 0 auto; border:none; background:rgba(255,255,255,.16); color:#fff;
   width:34px; height:34px; border-radius:9px; font-size:18px; font-weight:700; cursor:pointer}
+.room-hd .rn-ico{cursor:pointer}
+.room-hd .room-tog{flex:0 0 auto; border:none; background:rgba(255,255,255,.16); color:#fff;
+  width:34px; height:34px; border-radius:9px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center}
+.room-hd .room-tog::before{content:''; width:8px; height:8px; border-right:2.4px solid #fff; border-bottom:2.4px solid #fff;
+  transform:rotate(45deg); margin-top:-3px; transition:transform .2s}
+.room.collapsed .room-hd .room-tog::before{transform:rotate(-45deg); margin-top:3px}
+.room.collapsed .room-body{display:none}
+.room-sum{display:none; color:rgba(255,255,255,.85); font-size:12px; font-weight:600; white-space:nowrap; padding:0 2px}
+.room.collapsed .room-sum{display:inline}
 .room-body{padding:12px}
 .sub{margin:0 0 14px}
 .sub>h4{margin:0 0 8px; font-size:13px; color:var(--navy); display:flex; align-items:center; gap:7px;
@@ -250,6 +262,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <div><label class="fld" for="date">Date</label><input id="date" type="date"></div>
       </div>
       <div class="chk" style="margin-top:12px"><input id="tabAmiante" type="checkbox"><label for="tabAmiante">Tableau (TAB) en amiante</label></div>
+      <input id="pdfImport" type="file" accept="application/pdf,.pdf" style="display:none">
+      <button class="add" id="importBtn" style="border-style:solid; margin-top:12px">📥 Importer un relevé (PDF de l'app)</button>
+      <p class="hint" style="margin:6px 0 0">Recharge un PDF <b>généré et téléchargé</b> par cette application pour compléter le relevé, puis re-télécharger. (Les photos ne sont pas ré-importées.)</p>
     </div>
   </section>
 
@@ -366,6 +381,10 @@ const INTER_M  = ["sch3","sch6","sch3 + prise","sch3+3","spécifique…"];
 const AMP       = ["6","8","10","13","16","20","25","32","40","63","autre…"];
 const MARQUE   = ["Schneider","ABB","ABB smissline","Hager","À préciser…"];
 const BOITE_T  = ["AP9","AP10","À préciser…"];
+const ROOM_NAMES = ["Chambre 1","Chambre 2","Chambre 3","Chambre 4","Chambre 5","Cuisine","Salle à manger",
+  "Salle de bain","WC","Chaufferie","Garage","Couloir","Buanderie","Entrée","Salon","Bureau","Cave","Extérieur","Autre…"];
+const ROOM_COLORS = ['#1F3B5B','#2E7D5B','#8A5A2B','#7A3B8A','#B5651D','#2B6CB0','#9B2C4A','#4A6B2E','#5A4F9E','#0E7C86'];
+function hexToRgb(h){ const n=parseInt(h.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
 
 /* ---------- helpers ---------- */
 const $  = s => document.querySelector(s);
@@ -495,12 +514,22 @@ function subBlock(key,title,btn){
     <button class="add" data-addsub="${key}">${btn}</button>
   </div>`;
 }
-function addRoom(name){
+function addRoom(name, colorIdx){
   const room = el('div','room'); room.setAttribute('data-room','');
+  const known = name && ROOM_NAMES.includes(name);
+  const isCustom = name && !known;                 // nom libre -> option « Autre… »
+  const selVal = isCustom ? 'Autre…' : (name||'');
   room.innerHTML = `
     <div class="room-hd">
+      <button class="room-tog" data-room-tog title="Réduire / déployer"></button>
       <span class="rn-ico">🏠</span>
-      <input class="room-name" data-room-name type="text" placeholder="Nom de la pièce (ex : Cuisine)" value="${esc(name||'')}">
+      <select class="room-name" data-room-name>
+        <option value="">— choisir la pièce —</option>
+        ${ROOM_NAMES.map(n=>`<option${n===selVal?' selected':''}>${n}</option>`).join('')}
+      </select>
+      <input class="room-name-custom" data-room-custom type="text" placeholder="Préciser le nom" value="${isCustom?esc(name):''}" style="display:${isCustom?'':'none'}">
+      <b class="room-dup" data-room-dup></b>
+      <span class="room-sum" data-room-sum></span>
       <button class="room-rm" title="Supprimer la pièce">×</button>
     </div>
     <div class="room-body">
@@ -510,15 +539,46 @@ function addRoom(name){
       ${subBlock('boites','Boîtes','＋ Boîte')}
       ${subBlock('disj','Disjoncteurs','＋ Disjoncteur')}
     </div>`;
+  // couleur
+  const ci = (colorIdx!=null?colorIdx: $('#rooms').querySelectorAll('.room').length) % ROOM_COLORS.length;
+  room.dataset.color = ci;
+  room.style.setProperty('--rc', ROOM_COLORS[ci]);
+  // actions
   room.querySelector('.room-rm').onclick=()=>{
     if(confirm('Supprimer cette pièce et tout son contenu ?')){ room.remove(); syncChemLinks(); scheduleSave(); }
   };
+  const toggle=()=>{ room.classList.toggle('collapsed'); scheduleSave(); };
+  room.querySelector('[data-room-tog]').onclick=toggle;
+  room.querySelector('.rn-ico').onclick=toggle;
   room.querySelectorAll('[data-addsub]').forEach(b=>{
     b.onclick=()=>{ const cont=b.parentElement.querySelector('[data-sub]'); ROOM_ADDERS[b.dataset.addsub](cont); scheduleSave(); };
   });
-  room.querySelector('[data-room-name]').addEventListener('input',scheduleSave);
+  const sel=room.querySelector('[data-room-name]'), custom=room.querySelector('[data-room-custom]');
+  const onName=()=>{ custom.style.display = sel.value==='Autre…' ? '' : 'none'; updateRoomsUI(); scheduleSave(); };
+  sel.addEventListener('change', onName);
+  custom.addEventListener('input', ()=>{ updateRoomsUI(); scheduleSave(); });
   $('#rooms').appendChild(room);
   return room;
+}
+/* Nom de base d'une pièce (option choisie ou texte libre) */
+function roomBase(room){
+  const sel=room.querySelector('[data-room-name]'); const v=sel?sel.value:'';
+  if(v==='Autre…'){ const c=room.querySelector('[data-room-custom]'); return (c&&c.value.trim())||'Pièce'; }
+  return v||'Pièce';
+}
+/* Nom brut mémorisé (pour la sauvegarde) : '' si non choisi, sinon le nom réel */
+function roomRawName(room){
+  const sel=room.querySelector('[data-room-name]'); const v=sel?sel.value:'';
+  if(v==='Autre…'){ const c=room.querySelector('[data-room-custom]'); return (c&&c.value)||''; }
+  return v||'';
+}
+/* Noms d'affichage avec suffixe #N pour les doublons */
+function computeRoomNames(){
+  const rooms=[...document.querySelectorAll('#rooms .room')];
+  const totals={}, seen={}, map=new Map();
+  rooms.forEach(r=>{ const b=roomBase(r); totals[b]=(totals[b]||0)+1; });
+  rooms.forEach(r=>{ const b=roomBase(r); seen[b]=(seen[b]||0)+1; map.set(r, totals[b]>1 ? b+' #'+seen[b] : b); });
+  return map;
 }
 
 /* conditional field logic + remove button */
@@ -611,6 +671,19 @@ function syncChemLinks(){
   renumberRows();
   document.querySelectorAll('[data-sub="cables"] .row').forEach(buildLinksFor);
   recalcCableLengths();
+  updateRoomsUI();
+}
+/* Suffixe #N (doublons) + résumé du nombre d'articles (affiché quand la pièce est repliée) */
+function updateRoomsUI(){
+  const map=computeRoomNames();
+  document.querySelectorAll('#rooms .room').forEach(room=>{
+    const full=map.get(room), base=roomBase(room);
+    const dup = full && full!==base ? full.slice(base.length).trim() : '';   // "#2" si doublon
+    const de=room.querySelector('[data-room-dup]'); if(de) de.textContent=dup;
+    const s=room.querySelector('[data-room-sum]');
+    if(s){ const n=['chemins','cables','apps','boites','disj'].reduce((a,k)=>a+room.querySelectorAll('[data-sub="'+k+'"] .row').length,0);
+      s.textContent=(n? '· '+n+' article'+(n>1?'s':'') : '· vide'); }
+  });
 }
 
 /* ================= Login ================= */
@@ -727,8 +800,9 @@ function collect(){
     return {name:g(r,'name'), courbe:g(r,'courbe'), amp:a, qte:g(r,'qte')||'1', ddr:g(r,'ddr'), marque:mq, phase:g(r,'phase'), um1:g(r,'um1')};
   }).filter(d=>d.amp);
 
-  const rooms=[...document.querySelectorAll('#rooms .room')].map((room,i)=>({
-    name:(room.querySelector('[data-room-name]').value||'').trim() || ('Pièce '+(i+1)),
+  const nameMap=computeRoomNames();
+  const rooms=[...document.querySelectorAll('#rooms .room')].map(room=>({
+    name:nameMap.get(room), color:ROOM_COLORS[(+room.dataset.color||0)%ROOM_COLORS.length],
     chemins:getChemins(room), cables:getCables(room), apps:getApps(room), boites:getBoites(room), disj:getDisj(room)
   })).filter(rm=> rm.chemins.length||rm.cables.length||rm.apps.length||rm.boites.length||rm.disj.length);
 
@@ -775,10 +849,12 @@ function buildFiche(d, mode){
       const agg=aggregate(room);
       if(!(agg.chemins.length||agg.cables.length||agg.apps.length||agg.boites.length||agg.disj.length)) return;
       shown++;
-      L.push(`<div class="room-title">${esc(room.name)}</div>`);
+      const col=room.color||'#1F3B5B';
+      L.push(`<div class="room-block" style="border-left:5px solid ${col}; padding-left:10px; margin:14px 0 4px">`);
+      L.push(`<div class="room-title" style="color:${col}; border-bottom-color:${col}">${esc(room.name)}</div>`);
       L.push(`<table><tr><th>Désignation</th><th class="q">Qté</th><th class="u">Unité</th></tr>`);
       pushSections(L, agg);
-      L.push(`</table>`);
+      L.push(`</table></div>`);
     });
     if(!shown) L.push('<p class="empty">Aucune pièce saisie.</p>');
   } else {
@@ -991,7 +1067,11 @@ function downloadPDF(){
   const d = window._lastData || collect();
   const doc = buildPDFDoc(d, EXPORT_MODE);
   const suffix = EXPORT_MODE==='global'?'_global':'_detail';
-  doc.save((($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+suffix+'.pdf');
+  const name=(($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+suffix+'.pdf';
+  const blob=pdfBlobWithData(doc);        // PDF + données ré-importables
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
 }
 function buildPDFDoc(d, mode){
   mode = mode==='global' ? 'global' : 'detail';
@@ -1046,8 +1126,11 @@ function buildPDFDoc(d, mode){
       if(!body.length) return;
       any=true;
       if(y>H-26){ doc.addPage(); y=16; }
-      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...CLR.navy2);
-      doc.text(pdfSafe(room.name), M, y+3); y+=6;
+      const rc=hexToRgb(room.color||'#1F3B5B');
+      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...rc);
+      doc.text(pdfSafe(room.name), M, y+3);
+      doc.setDrawColor(...rc); doc.setLineWidth(0.6); doc.line(M, y+4.7, W-M, y+4.7);
+      y+=8;
       drawTable(body); y+=5;
     });
     if(!any){ doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...CLR.mut);
@@ -1121,13 +1204,15 @@ async function sharePDF(){
   const d = window._lastData || collect();
   const suffix = EXPORT_MODE==='global'?'_global':'_detail';
   const name=(($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+suffix+'.pdf';
-  const blob = buildPDFDoc(d, EXPORT_MODE).output('blob');
+  const blob = pdfBlobWithData(buildPDFDoc(d, EXPORT_MODE));
   const file = new File([blob], name, {type:'application/pdf'});
   if(navigator.canShare && navigator.canShare({files:[file]})){
     try{ await navigator.share({files:[file], title:'Fiche '+(d.ref||''), text:'Fiche informative '+(d.ref||'')}); }
     catch(e){ /* annulé par l'utilisateur */ }
   } else {
-    buildPDFDoc(d, EXPORT_MODE).save(name);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
     alert("Partage direct indisponible sur cet appareil : le PDF a été téléchargé, tu peux le joindre manuellement.");
   }
 }
@@ -1148,50 +1233,83 @@ function fillRow(r,state){
   applyCond(r);
 }
 function roomState(room){
-  const o={name:(room.querySelector('[data-room-name]').value||'')};
+  const o={name:roomRawName(room), color:(+room.dataset.color||0), collapsed:room.classList.contains('collapsed')};
   SUBS.forEach(k=> o[k]=[...room.querySelectorAll('[data-sub="'+k+'"] .row')].map(rowState));
   return o;
 }
+/* État complet du formulaire (hors photos) — sert au brouillon ET au marqueur PDF */
+function draftObject(){
+  const d={simple:{}, checks:{}, ref:$('#ref').value, refEdited, remarques:[], rooms:[]};
+  D_SIMPLE.forEach(s=>d.simple[s]=$(s).value);
+  D_CHECK.forEach(s=>d.checks[s]=$(s).checked);
+  d.remarques=[...document.querySelectorAll('#remarques .row')].map(rowState);
+  d.rooms=[...document.querySelectorAll('#rooms .room')].map(roomState);
+  return d;
+}
 function saveDraft(){
-  try{
-    const d={simple:{}, checks:{}, ref:$('#ref').value, refEdited, remarques:[], rooms:[]};
-    D_SIMPLE.forEach(s=>d.simple[s]=$(s).value);
-    D_CHECK.forEach(s=>d.checks[s]=$(s).checked);
-    d.remarques=[...document.querySelectorAll('#remarques .row')].map(rowState);
-    d.rooms=[...document.querySelectorAll('#rooms .room')].map(roomState);
-    localStorage.setItem(DRAFT, JSON.stringify(d));
-  }catch(e){}
+  try{ localStorage.setItem(DRAFT, JSON.stringify(draftObject())); }catch(e){}
   try{ localStorage.setItem(DRAFT_PHOTOS, JSON.stringify(PHOTOS)); }catch(e){ /* quota : photos non sauvées */ }
+}
+/* Recharge le formulaire depuis un objet (brouillon local ou import PDF) */
+function applyDraft(d){
+  if(!d) return false;
+  D_SIMPLE.forEach(s=>{ if(d.simple&&d.simple[s]!=null) $(s).value=d.simple[s]; });
+  D_CHECK.forEach(s=>{ if(d.checks&&d.checks[s]!=null) $(s).checked=d.checks[s]; });
+  if(Array.isArray(d.remarques)){
+    $('#remarques').innerHTML='';
+    d.remarques.forEach(state=>{ addRemarque(); fillRow(document.querySelector('#remarques .row:last-child'), state); });
+  }
+  if(Array.isArray(d.rooms)){
+    $('#rooms').innerHTML='';
+    d.rooms.forEach(rs=>{
+      const room=addRoom(rs.name, rs.color);
+      SUBS.forEach(k=>{
+        const cont=room.querySelector('[data-sub="'+k+'"]');
+        (rs[k]||[]).forEach(state=>{ ROOM_ADDERS[k](cont); fillRow(cont.querySelector('.row:last-child'), state); });
+      });
+      if(rs.collapsed) room.classList.add('collapsed');
+    });
+  }
+  if(d.ref!=null){ $('#ref').value=d.ref; }
+  refEdited=!!d.refEdited;
+  syncChemLinks();   // reconstruit les liaisons + suffixes #N + couleurs
+  return true;
 }
 function restoreDraft(){
   let d; try{ d=JSON.parse(localStorage.getItem(DRAFT)); }catch(e){}
   try{ const p=JSON.parse(localStorage.getItem(DRAFT_PHOTOS)); if(Array.isArray(p)) PHOTOS=p; }catch(e){}
   if(PHOTOS.length) renderPhotos();
-  if(!d) return false;
-  D_SIMPLE.forEach(s=>{ if(d.simple&&d.simple[s]!=null) $(s).value=d.simple[s]; });
-  D_CHECK.forEach(s=>{ if(d.checks&&d.checks[s]!=null) $(s).checked=d.checks[s]; });
-  // remarques (global)
-  if(Array.isArray(d.remarques)){
-    $('#remarques').innerHTML='';
-    d.remarques.forEach(state=>{ addRemarque(); fillRow(document.querySelector('#remarques .row:last-child'), state); });
-  }
-  // pièces
-  if(Array.isArray(d.rooms)){
-    $('#rooms').innerHTML='';
-    d.rooms.forEach(rs=>{
-      const room=addRoom(rs.name);
-      SUBS.forEach(k=>{
-        const cont=room.querySelector('[data-sub="'+k+'"]');
-        (rs[k]||[]).forEach(state=>{ ROOM_ADDERS[k](cont); fillRow(cont.querySelector('.row:last-child'), state); });
-      });
-    });
-  }
-  if(d.ref!=null) $('#ref').value=d.ref;
-  refEdited=!!d.refEdited;
-  syncChemLinks();   // reconstruit les liaisons câble<->cheminement (sélections restaurées)
-  return true;
+  return applyDraft(d);
 }
 function clearDraft(){ try{ localStorage.removeItem(DRAFT); localStorage.removeItem(DRAFT_PHOTOS); }catch(e){} }
+
+/* ===== Marqueur de données dans le PDF (pour ré-import) ===== */
+const SEVJ_MARK='%SEVJDATA:';
+function b64enc(s){ return btoa(unescape(encodeURIComponent(s))); }
+function b64dec(s){ return decodeURIComponent(escape(atob(s))); }
+/* Ajoute les données du relevé (JSON base64) après le PDF, dans un commentaire ignoré des lecteurs */
+function pdfBlobWithData(doc){
+  const marker='\n'+SEVJ_MARK+b64enc(JSON.stringify(draftObject()))+'\n';
+  const pdf=new Uint8Array(doc.output('arraybuffer'));
+  const mk=new TextEncoder().encode(marker);
+  const out=new Uint8Array(pdf.length+mk.length); out.set(pdf,0); out.set(mk,pdf.length);
+  return new Blob([out], {type:'application/pdf'});
+}
+/* Importe un PDF généré par l'app : extrait le marqueur et recharge le formulaire */
+function importPDF(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const s=new TextDecoder('latin1').decode(new Uint8Array(reader.result));
+    const idx=s.lastIndexOf(SEVJ_MARK);
+    if(idx<0){ alert("Ce PDF ne contient pas de données SEVJ importables.\n(Il doit avoir été généré et téléchargé depuis cette application.)"); return; }
+    const b64=(s.slice(idx+SEVJ_MARK.length).match(/[A-Za-z0-9+/=]+/)||[''])[0];
+    let data; try{ data=JSON.parse(b64dec(b64)); }catch(e){ alert("Import impossible : données illisibles."); return; }
+    if(!confirm("Remplacer le relevé en cours par le contenu du PDF importé ?")) return;
+    applyDraft(data); updateMO(); buildRef(); saveDraft();
+    alert("Relevé importé ✓  (les photos ne sont pas ré-importées — rajoute-les si besoin.)");
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 /* ================= Init ================= */
 function init(){
@@ -1220,6 +1338,9 @@ function init(){
 
   // Pièces : ajout d'une nouvelle pièce
   $('#addRoomBtn').onclick=()=>{ const rm=addRoom(); rm.querySelector('[data-room-name]').focus(); syncChemLinks(); scheduleSave(); };
+  // Import d'un PDF généré par l'app
+  $('#importBtn').onclick=()=>$('#pdfImport').click();
+  $('#pdfImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importPDF(f); e.target.value=''; });
   // Sélecteur de mode d'export (Détaillé / Global)
   document.querySelectorAll('#modeSwitch button').forEach(b=> b.onclick=()=>setExportMode(b.dataset.mode));
 
