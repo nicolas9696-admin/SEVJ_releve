@@ -156,6 +156,21 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #fiche .sig-grid img{display:block; max-width:100%; height:70px; object-fit:contain; border-bottom:1px solid var(--ink)}
 #fiche .sig-grid .empty-sig{height:70px; border-bottom:1px solid var(--ink)}
 #fiche .cli td:first-child{width:32%; background:#EAF0F6; color:var(--navy); font-weight:600}
+/* ---------- Combobox matériel (catalogue recherchable) ---------- */
+.matbox{position:relative}
+.mat-tools{display:flex; gap:8px; align-items:center; margin-top:5px; flex-wrap:wrap}
+.mat-eldas{font-size:12px; color:var(--navy2); font-weight:700}
+.mat-eldas b{font-family:monospace}
+.mat-color{border:1px solid var(--line); background:var(--bg); border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; color:var(--navy); cursor:pointer}
+.mat-panel{position:absolute; left:0; right:0; top:100%; z-index:40; background:#fff; border:1px solid var(--navy2);
+  border-radius:10px; margin-top:4px; max-height:270px; overflow:auto; box-shadow:0 8px 20px rgba(0,0,0,.18)}
+.mat-panel .mi{padding:9px 11px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--bg); line-height:1.35}
+.mat-panel .mi.sel,.mat-panel .mi:hover{background:var(--bg)}
+.mat-panel .mi .eld{color:var(--navy2); font-weight:700; font-size:11px; font-family:monospace}
+.mat-panel .grp{padding:6px 11px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+  color:#fff; background:var(--navy2); position:sticky; top:0}
+.mat-panel .none{padding:11px; font-size:12px; color:var(--mut)}
+#fiche .eldas{color:var(--navy2); font-weight:700; font-family:monospace}
 .add{
   width:100%; padding:12px; border:2px dashed var(--navy2); background:#fff; color:var(--navy);
   border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; margin-top:2px;
@@ -238,7 +253,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <input id="ref" type="text" placeholder="INI_date_chantier" autocomplete="off">
     </div>
   </div>
-  <div class="who">Relevé par : <b id="whoName">— non connecté —</b></div>
+  <div class="who">Relevé par : <b id="whoName">— non connecté —</b> <span id="appVer" style="opacity:.55; font-size:10px; margin-left:8px"></span></div>
 </header>
 
 <main>
@@ -429,6 +444,17 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   <button class="btn-main" id="regGenBtn" disabled>Générer le bon de régie</button>
 </div>
 
+<!-- Modale : charte de couleurs d'une gamme -->
+<div class="overlay" id="colorOverlay">
+  <div class="sheet" style="max-width:520px">
+    <div class="sheet-hd">
+      <span class="t" id="colorTitle">Couleurs disponibles</span>
+      <button class="x" id="closeColor">Fermer</button>
+    </div>
+    <div class="sheet-body" style="padding:14px; text-align:center"><img id="colorImg" alt="" style="max-width:100%; height:auto; border-radius:8px"></div>
+  </div>
+</div>
+
 <!-- Output overlay -->
 <div class="overlay" id="outputOverlay">
   <div class="sheet">
@@ -448,6 +474,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 
 <script src="vendor/jspdf.umd.min.js"></script>
 <script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="materiel.js"></script>
 <script>
 /* =========================================================================
    CONFIG — Collaborateurs
@@ -501,6 +528,60 @@ window.hashPw = hashPw; // utilitaire console
 
 let uid = 0;
 
+/* ================= Catalogue matériel (combobox recherchable) ================= */
+const MAT = (typeof MATERIEL!=='undefined') ? MATERIEL : [];
+/* HTML d'un combobox matériel pour une section ('app' | 'boite' | 'chem') */
+function matBoxHtml(sec, label, ph){
+  return `<div class="matbox" data-matbox data-sec="${sec}">
+    <label class="fld">${label}</label>
+    <input class="mat-input" data-f="article" type="text" placeholder="${ph}" autocomplete="off">
+    <input type="hidden" data-f="eldas">
+    <div class="mat-tools"><span class="mat-eldas"></span><button type="button" class="mat-color" hidden>🎨 Couleurs</button></div>
+    <div class="mat-panel" hidden></div>
+  </div>`;
+}
+/* Détection de la charte de couleurs selon la gamme du nom d'article */
+function detectChart(name){
+  const n=name||'';
+  if(/EDIZIO ?due/i.test(n) && /ENC/i.test(n)) return 'couleur-EDIZIOdue-ENC-1.png';
+  if(/EDIZIO\.?liv/i.test(n) && /ENC/i.test(n)) return 'couleur-EDIZIOliv-ENC.png';
+  if(/EDIZIO\.?liv/i.test(n) && /\bAP\b/i.test(n)) return 'couleur-EDIZIOliv-AP.png';
+  if(/THFWG/i.test(n)) return 'couleur-THFWG.png';
+  return '';
+}
+function openColorChart(src){ if(!src) return; $('#colorImg').src=src; $('#colorOverlay').classList.add('on'); }
+/* Câblage d'un combobox : recherche filtrée + saisie libre + ELDAS + bouton couleurs */
+function wireMat(box){
+  const sec=box.dataset.sec;
+  const input=box.querySelector('.mat-input'), eldasEl=box.querySelector('[data-f="eldas"]');
+  const eldasLbl=box.querySelector('.mat-eldas'), colorBtn=box.querySelector('.mat-color'), panel=box.querySelector('.mat-panel');
+  const list=MAT.filter(m=>m.s===sec);
+  function refresh(){
+    const nm=input.value.trim();
+    const exact=list.find(m=>m.n===nm);
+    eldasEl.value = exact ? (exact.e||'') : '';
+    eldasLbl.innerHTML = eldasEl.value ? 'N° ELDAS <b>'+esc(eldasEl.value)+'</b>'
+                       : (nm ? '<span style="color:#999">saisie libre (sans ELDAS)</span>' : '');
+    const chart=detectChart(nm);
+    colorBtn.hidden=!chart; colorBtn.dataset.chart=chart||'';
+  }
+  box._matRefresh=refresh;
+  function build(q){
+    const toks=(q||'').toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const res=list.filter(m=>{ if(!toks.length) return true; const hay=(m.n+' '+(m.e||'')).toLowerCase(); return toks.every(t=>hay.includes(t)); }).slice(0,80);
+    if(!res.length){ panel.innerHTML='<div class="none">Aucun article — ta saisie sera utilisée telle quelle (sans ELDAS).</div>'; return; }
+    const byCat={}; res.forEach(m=>{ (byCat[m.c]=byCat[m.c]||[]).push(m); });
+    panel.innerHTML=Object.entries(byCat).map(([cat,arr])=>`<div class="grp">${esc(cat)}</div>`+
+      arr.map(m=>`<div class="mi" data-n="${esc(m.n)}" data-e="${esc(m.e||'')}">${esc(m.n)}${m.e?` <span class="eld">${esc(m.e)}</span>`:''}</div>`).join('')).join('');
+    panel.querySelectorAll('.mi').forEach(mi=> mi.addEventListener('mousedown',ev=>{ ev.preventDefault();
+      input.value=mi.dataset.n; panel.hidden=true; refresh(); if(window.scheduleSave) scheduleSave(); }));
+  }
+  input.addEventListener('focus',()=>{ build(input.value); panel.hidden=false; });
+  input.addEventListener('input', ()=>{ build(input.value); panel.hidden=false; refresh(); });
+  input.addEventListener('blur',  ()=>{ setTimeout(()=>{ panel.hidden=true; }, 150); });
+  refresh();
+}
+
 /* ================= Repeatable builders ================= */
 function addCable(cont){
   const r = el('div','row');
@@ -538,31 +619,27 @@ function addChemin(cont){
       <div><label class="fld">Type</label><select data-f="type">${opts(CHEM_T)}</select></div>
       <div><label class="fld">Longueur (m)</label><input data-f="long" type="number" min="0" step="0.5" placeholder="0"></div>
     </div>
+    <div style="margin-top:10px">${matBoxHtml('chem','Article précis (catalogue, optionnel)','ex : Tube TIT M20, Canal LF 60×40…')}</div>
     <div class="cond" data-c="canal" style="margin-top:10px"><label class="fld">Dimension du canal</label><input data-f="dim" type="text" placeholder="ex : 60×110 mm"></div>
-    <div class="cond" data-c="thfwg" style="margin-top:10px"><label class="fld">THFWG résistant UV ?</label><select data-f="uv"><option>Oui (résistant UV)</option><option>Non</option></select></div>
+    <div class="cond" data-c="thfwg" style="margin-top:10px"><label class="fld">THFWG résistant UV ?</label><select data-f="uv"><option>Oui (résistant UV)</option><option>Non</option></select>
+      <button type="button" class="mat-color" data-chart="couleur-THFWG.png" style="margin-top:6px">🎨 Couleurs THFWG</button></div>
     <div style="margin-top:10px"><label class="fld">État</label><select data-f="etat"><option>À poser (neuf)</option><option>Déjà existant</option></select></div>
     <div class="cond" data-c="bergmann" style="margin-top:8px; color:var(--danger); font-weight:600; font-size:12px">⚠ Tube Bergmann : forcément existant — tirage compliqué (signalé en remarque dans l'export).</div>
     <div class="chk"><input type="checkbox" data-f="haut"><label>Travail en hauteur (&gt; 3.50 m)</label></div>
     <div class="majo" data-m>⚠ Majoration 1.5× du prix du câble</div>`;
-  wire(r); cont.appendChild(r); syncChemLinks();
+  wire(r); wireMat(r.querySelector('[data-matbox]')); cont.appendChild(r); syncChemLinks();
 }
 function addApp(cont){
   const r = el('div','row');
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Appareil</div>
-    <div style="margin-bottom:10px"><label class="fld">Nom (optionnel)</label><input data-f="name" type="text" placeholder="ex : Prise plan de travail"></div>
-    <div class="grid">
-      <div><label class="fld">Genre</label><select data-f="genre"><option>Prise</option><option>Interrupteur</option></select></div>
-      <div><label class="fld">Modèle</label><select data-f="modele">${opts(PRISE_M)}</select></div>
-    </div>
-    <div class="cond" data-c="spec" style="margin-top:10px"><label class="fld">Préciser modèle</label><input data-f="specv" type="text" placeholder="modèle spécifique"></div>
-    <div class="grid-3" style="margin-top:10px">
+    ${matBoxHtml('app','Article (prise, interrupteur, combinaison, CEE…)','Rechercher un article ou saisir librement…')}
+    <div class="grid" style="margin-top:10px">
       <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="1" step="1" value="1"></div>
-      <div><label class="fld">Montage</label><select data-f="montage"><option>AP</option><option>ENC</option></select></div>
-      <div><label class="fld">Gamme</label><select data-f="gamme">${opts(GAMME)}</select></div>
+      <div><label class="fld">Nom / repère (optionnel)</label><input data-f="name" type="text" placeholder="ex : Plan de travail"></div>
     </div>`;
-  wire(r); cont.appendChild(r); syncChemLinks();
+  wire(r); wireMat(r.querySelector('[data-matbox]')); cont.appendChild(r); syncChemLinks();
 }
 function addDisj(cont){
   const r = el('div','row');
@@ -592,13 +669,12 @@ function addBoite(cont){
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Boîte</div>
-    <div style="margin-bottom:10px"><label class="fld">Nom (optionnel)</label><input data-f="name" type="text" placeholder="ex : Dérivation plafond"></div>
-    <div class="grid">
-      <div><label class="fld">Modèle</label><select data-f="modele">${opts(BOITE_T)}</select></div>
+    ${matBoxHtml('boite','Article (boîte de dérivation, support…)','Rechercher une boîte ou saisir librement…')}
+    <div class="grid" style="margin-top:10px">
       <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="1" step="1" value="1"></div>
-    </div>
-    <div class="cond" data-c="boite" style="margin-top:10px"><label class="fld">Préciser le modèle</label><input data-f="modautre" type="text" placeholder="ex : boîte étanche 100×100"></div>`;
-  wire(r); cont.appendChild(r); syncChemLinks();
+      <div><label class="fld">Nom / repère (optionnel)</label><input data-f="name" type="text" placeholder="ex : Dérivation plafond"></div>
+    </div>`;
+  wire(r); wireMat(r.querySelector('[data-matbox]')); cont.appendChild(r); syncChemLinks();
 }
 function addRemarque(){
   const r = el('div','row');
@@ -886,17 +962,16 @@ function collect(){
   const getChemins = root => [...root.querySelectorAll('[data-sub="chemins"] .row')].map(r=>{
     const t=g(r,'type'); const berg=t==='Tube Bergmann';
     return {name:g(r,'name'), type:t, long:g(r,'long'), dim:g(r,'dim'), uv:g(r,'uv'),
+            article:g(r,'article'), eldas:g(r,'eldas'),
             etat:g(r,'etat'), haut:g(r,'haut'), canal:t==='Canal', thfwg:t==='Tube THFWG', bergmann:berg,
             existant:(g(r,'etat')||'').startsWith('Déjà') || berg};
-  }).filter(c=>c.long||c.type);
-  const getApps = root => [...root.querySelectorAll('[data-sub="apps"] .row')].map(r=>{
-    let m=g(r,'modele'); if(m==='spécifique…') m=g(r,'specv')||'Spécifique';
-    return {name:g(r,'name'), genre:g(r,'genre'), modele:m, qte:g(r,'qte')||'1', montage:montageCode(g(r,'montage')), gamme:g(r,'gamme')};
-  }).filter(a=>a.modele);
-  const getBoites = root => [...root.querySelectorAll('[data-sub="boites"] .row')].map(r=>{
-    let m=g(r,'modele'); if(m==='À préciser…') m=g(r,'modautre')||'À préciser';
-    return {name:g(r,'name'), modele:m, qte:g(r,'qte')||'1'};
-  }).filter(b=>b.modele);
+  }).filter(c=>c.long||c.type||c.article);
+  const getApps = root => [...root.querySelectorAll('[data-sub="apps"] .row')].map(r=>(
+    {name:g(r,'name'), article:g(r,'article'), eldas:g(r,'eldas'), qte:g(r,'qte')||'1'}
+  )).filter(a=>a.article);
+  const getBoites = root => [...root.querySelectorAll('[data-sub="boites"] .row')].map(r=>(
+    {name:g(r,'name'), article:g(r,'article'), eldas:g(r,'eldas'), qte:g(r,'qte')||'1'}
+  )).filter(b=>b.article);
   const getDisj = root => [...root.querySelectorAll('[data-sub="disj"] .row')].map(r=>{
     let a=g(r,'amp'); if(a==='autre…') a=g(r,'ampautre')||'?';
     let mq=g(r,'marque'); if(mq==='À préciser…') mq=g(r,'marqueautre')||'À préciser';
@@ -982,7 +1057,9 @@ function buildFiche(d, mode){
 }
 /* Rendu des sections d'un agrégat dans le tableau HTML */
 function pushSections(L, agg){
-  const dwn=o=> esc(o.label)+(o.names&&o.names.length?` <span class="names">(${o.names.map(esc).join(', ')})</span>`:'');
+  const dwn=o=> esc(o.label)
+    + (o.eldas?` <span class="eldas">ELDAS ${esc(o.eldas)}</span>`:'')
+    + (o.names&&o.names.length?` <span class="names">(${o.names.map(esc).join(', ')})</span>`:'');
   if(agg.chemins.length){ L.push(secRow('Cheminement')); agg.chemins.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'm', o.red))); }
   if(agg.cables.length){ L.push(secRow('Câblage')); agg.cables.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'm', o.red))); }
   if(agg.apps.length){ L.push(secRow('Appareillage')); agg.apps.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
@@ -1007,21 +1084,25 @@ function groupItems(list, labelFn, qtyFn, redFn){
   const map=new Map();
   (list||[]).forEach(it=>{
     const key=labelFn(it);
-    const cur=map.get(key)||{label:key, qty:0, any:false, names:new Set(), red:false};
+    const cur=map.get(key)||{label:key, qty:0, any:false, names:new Set(), red:false, eldas:''};
     const q=parseFloat(qtyFn(it)); if(!isNaN(q)){ cur.qty+=q; cur.any=true; }
     if(it.name) cur.names.add(it.name);
+    if(it.eldas && !cur.eldas) cur.eldas=it.eldas;
     if(redFn&&redFn(it)) cur.red=true;
     map.set(key,cur);
   });
-  return [...map.values()].map(o=>({label:o.label, qty:o.any?String(Math.round(o.qty*100)/100):'', names:[...o.names], red:o.red}));
+  return [...map.values()].map(o=>({label:o.label, qty:o.any?String(Math.round(o.qty*100)/100):'', names:[...o.names], red:o.red, eldas:o.eldas}));
 }
+/* Libellé d'un cheminement dans l'export : article précis si choisi, sinon type détaillé */
+function chemDesig(c){ return c.article ? c.article : chemLabel(c,true); }
+function isDue(a){ return /EDIZIO ?due/i.test(a.article||''); }
 /* Agrège les articles d'un ensemble {chemins,cables,apps,boites,disj} */
 function aggregate(items){
   return {
-    chemins: groupItems(items.chemins.filter(c=>!c.existant), c=>chemLabel(c,true), c=>c.long),
+    chemins: groupItems(items.chemins.filter(c=>!c.existant), chemDesig, c=>c.long),
     cables:  groupItems(items.cables, cableLabel, c=>c.long),
-    apps:    groupItems(items.apps, appLabel, a=>a.qte, a=>a.gamme==='EDIZIO.due'),
-    boites:  groupItems(items.boites, b=>'Boîte '+b.modele, b=>b.qte),
+    apps:    groupItems(items.apps, appLabel, a=>a.qte, isDue),
+    boites:  groupItems(items.boites, b=>b.article, b=>b.qte),
     disj:    groupItems(items.disj, x=>disjLabel(x), x=>x.qte),
   };
 }
@@ -1037,7 +1118,7 @@ function cableLabel(c){
   const pref = c.phase==='Tri' ? '5x' : '3x';   // mono = 3×section, tri = 5×section
   return `${pref}${c.mm2} mm² · ${c.type}`;
 }
-function appLabel(a){ return `${a.genre} ${a.modele} — ${a.montage}${a.gamme?' · '+a.gamme:''}`; }
+function appLabel(a){ return a.article||''; }
 function disjLabel(x,dash){ const d=dash||'—';
   return `Disjoncteur courbe ${x.courbe} ${x.amp} A${x.ddr==='Avec DDR'?' + DDR':''}${x.um1?' + 1UM':''}${x.phase?' · '+x.phase:''} ${d} ${x.marque}`; }
 /* Remarques affichées = auto (rouge) + manuelles */
@@ -1158,7 +1239,7 @@ function aggToBody(agg){
   const secStyle={fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
   const body=[];
   const sec=t=>body.push([{content:t, colSpan:3, styles:secStyle}]);
-  const dwn=o=> o.label+(o.names&&o.names.length? ' ('+o.names.join(', ')+')':'');
+  const dwn=o=> o.label+(o.eldas? '  [ELDAS '+o.eldas+']':'')+(o.names&&o.names.length? ' ('+o.names.join(', ')+')':'');
   const item=(des,q,u,red)=>{ const st=red?{textColor:CLR.danger}:null; const cell=v=> st?{content:String(v),styles:st}:String(v); body.push([cell(des),cell(q),cell(u)]); };
   if(agg.chemins.length){ sec('Cheminement'); agg.chemins.forEach(o=>item(dwn(o), o.qty||'', 'm', o.red)); }
   if(agg.cables.length){ sec('Câblage'); agg.cables.forEach(o=>item(dwn(o), o.qty||'', 'm', o.red)); }
@@ -1554,10 +1635,11 @@ function scheduleSave(){ clearTimeout(_saveT); _saveT=setTimeout(saveDraft,500);
 function rowState(r){ const o={}; r.querySelectorAll('[data-f]').forEach(e=>{ o[e.dataset.f]= e.type==='checkbox'?e.checked:e.value; }); return o; }
 function fillRow(r,state){
   if(!r||!state) return;
-  const g=r.querySelector('[data-f="genre"]');       // appareil : genre pilote la liste modèle
+  const g=r.querySelector('[data-f="genre"]');       // (ancien schéma) genre pilote la liste modèle
   if(g && state.genre!=null){ g.value=state.genre; applyCond(r); }
   Object.entries(state).forEach(([f,v])=>{ const e=r.querySelector(`[data-f="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=v; else e.value=v; } });
   applyCond(r);
+  const mb=r.querySelector('[data-matbox]'); if(mb && mb._matRefresh) mb._matRefresh();  // ELDAS + bouton couleurs
 }
 function roomState(room){
   const o={name:roomRawName(room), color:(+room.dataset.color||0), collapsed:room.classList.contains('collapsed')};
@@ -1608,7 +1690,7 @@ function restoreDraft(){
   if(PHOTOS.length) renderPhotos();
   return applyDraft(d);
 }
-function clearDraft(){ try{ localStorage.removeItem(DRAFT); localStorage.removeItem(DRAFT_PHOTOS); }catch(e){} }
+function clearDraft(){ try{ Object.keys(localStorage).filter(k=>k.indexOf('sevj_')===0).forEach(k=>localStorage.removeItem(k)); }catch(e){} }
 
 /* ===== Marqueur de données dans le PDF (pour ré-import) ===== */
 const SEVJ_MARK='%SEVJDATA:';
@@ -1639,8 +1721,10 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
+const APP_VERSION='v11 — catalogue + bon de régie';
 function init(){
   $('#logoImg').src=LOGO;
+  const av=$('#appVer'); if(av) av.textContent=APP_VERSION;
   $('#date').value=new Date().toISOString().slice(0,10);
   initCollab();
   // Sections vides au départ : l'utilisateur ajoute les lignes via les boutons « + ».
@@ -1661,7 +1745,16 @@ function init(){
   $('#genBtn').onclick=generate;
   $('#closeOut').onclick=()=>$('#outputOverlay').classList.remove('on');
   $('#printBtn').onclick=downloadPDF;
-  $('#resetBtn').onclick=()=>{ if(confirm('Vider tout le formulaire ? Le brouillon enregistré sera effacé.')){ clearDraft(); location.reload(); } };
+  // Charte de couleurs (boutons 🎨 du catalogue + THFWG)
+  $('#closeColor').onclick=()=>$('#colorOverlay').classList.remove('on');
+  document.addEventListener('click', e=>{ const b=e.target.closest('.mat-color'); if(b && !b.hidden && b.dataset.chart) openColorChart(b.dataset.chart); });
+  $('#resetBtn').onclick=async ()=>{
+    if(!confirm('Vider le formulaire et recharger la dernière version de l’app ?')) return;
+    clearDraft();
+    try{ if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); } }catch(e){}
+    try{ if(navigator.serviceWorker){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); } }catch(e){}
+    location.reload();
+  };
 
   // Pièces : ajout d'une nouvelle pièce
   $('#addRoomBtn').onclick=()=>{ const rm=addRoom(); rm.querySelector('[data-room-name]').focus(); syncChemLinks(); scheduleSave(); };
@@ -1712,8 +1805,17 @@ function init(){
   syncChemLinks();
   updateMO();
 
-  // Service worker (mode hors-ligne)
-  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+  // Service worker (mode hors-ligne) + mise à jour automatique
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      if(reg.update) reg.update();                    // force la vérification d'une nouvelle version
+      setInterval(()=>{ if(reg.update) reg.update(); }, 60000);
+    }).catch(()=>{});
+    let _reloaded=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(_reloaded) return; _reloaded=true; location.reload();   // recharge dès qu'une nouvelle version prend la main
+    });
+  }
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>

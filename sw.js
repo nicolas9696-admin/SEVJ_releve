@@ -1,10 +1,11 @@
 /* SEVJ · Relevé chantier — service worker (mode hors-ligne)
    ⚠ Après chaque mise à jour de l'app, incrémente la version (CACHE) ci-dessous
    pour forcer le rafraîchissement du cache sur les téléphones. */
-const CACHE = 'sevj-v8';
+const CACHE = 'sevj-v11';
 const ASSETS = [
   './',
   './index.html',
+  './materiel.js',
   './manifest.webmanifest',
   './logo.png',
   './icon-192.png',
@@ -14,6 +15,11 @@ const ASSETS = [
   './regie-logo.png',
   './regie-band.png',
   './regie-deco.png',
+  './couleur-THFWG.png',
+  './couleur-EDIZIOliv-AP.png',
+  './couleur-EDIZIOliv-ENC.png',
+  './couleur-EDIZIOdue-ENC-1.png',
+  './couleur-EDIZIOdue-ENC-2.png',
   './vendor/jspdf.umd.min.js',
   './vendor/jspdf.plugin.autotable.min.js',
 ];

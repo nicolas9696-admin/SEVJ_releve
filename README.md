@@ -57,6 +57,20 @@ Chaque article ajouté porte un **badge numéroté** (`CÂBLE / FIL #2`, …), u
 et un champ **Nom** optionnel (ex : « Alim four ») affiché dans l'export détaillé.
 La case *Travail en hauteur (> 3.50 m)* affiche automatiquement la **majoration 1.5×** du câble.
 
+### Catalogue matériel 📇 (N° ELDAS)
+Les sections **Prises/Interrupteurs**, **Boîtes** et **Cheminements** proposent un **menu déroulant
+recherchable** du matériel de base SEVJ (issu de `Reference_materiel_SEVJ.xlsx`) :
+- Tape quelques mots (ex : `AP10 blanc`, `EDIZIOdue T13`) → la liste se filtre par **catégorie**
+  (Prises, Combinaisons, Interrupteurs, Plaques/obturateurs, Prises CEE ; Boîtes/support &
+  Boîtes de dérivation ; Tubes/gaines & Canaux). On peut aussi chercher par **N° ELDAS**.
+- En choisissant un article, son **N° ELDAS** est capturé et **affiché dans l'export** (utile pour les offres).
+- **Saisie libre** toujours possible : tape un nom qui n'est pas au catalogue → il est utilisé tel quel (sans ELDAS).
+- Bouton **🎨 Couleurs** : affiche la charte de couleurs de la gamme (EDIZIO.due/.liv ENC/AP, THFWG).
+- Les **câbles/fils** et **disjoncteurs** ne sont pas concernés (inchangés).
+- On ne stocke que **nom + N° ELDAS** (pas de prix ni remarque). *NUP/NEVO = étanche (IP55).*
+
+Le catalogue est dans **`materiel.js`** — pour le mettre à jour, régénère ce fichier depuis l'Excel.
+
 ### Deux modes d'export
 Dans l'aperçu, un sélecteur **Détaillé / Global** :
 - **Détaillé** — un descriptif **par pièce**, les articles identiques d'une même pièce étant
@@ -191,6 +205,7 @@ git push -u origin main
 Déposer **tous** les fichiers du dossier (`index.html`, `sw.js`, `manifest.webmanifest`,
 `logo.png`, `icon-192.png`, `icon-512.png`, `icon-512-maskable.png`, `apple-touch-icon.png`,
 `regie-logo.png`, `regie-band.png`, `regie-deco.png` (letterhead du bon de régie),
+`materiel.js` (catalogue), `couleur-*.png` (chartes de couleurs),
 **et le dossier `vendor/`** — indispensable pour la génération PDF).
 
 ### Astuce téléphone — icône d'application
