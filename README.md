@@ -60,13 +60,16 @@ La case *Travail en hauteur (> 3.50 m)* affiche automatiquement la **majoration 
 ### Catalogue matériel 📇 (N° ELDAS)
 Les sections **Prises/Interrupteurs**, **Boîtes** et **Cheminements** proposent un **menu déroulant
 recherchable** du matériel de base SEVJ (issu de `Reference_materiel_SEVJ.xlsx`) :
-- Tape quelques mots (ex : `AP10 blanc`, `EDIZIOdue T13`, `TIT M20`) → la liste se filtre par **catégorie**
-  (Prises, Combinaisons, Interrupteurs, Plaques/obturateurs, Prises CEE ; Boîtes/support &
-  Boîtes de dérivation ; Tubes/gaines & Canaux). On peut aussi chercher par **N° ELDAS**.
-  La liste est **triée par taille croissante** (tubes M16→M63, canaux 15×15→110×60…).
-- **Cheminements** : plus de sélecteur « Type » — tout passe par cette liste (Tube TIT/ALU/Bergmann/THFWG,
-  Canaux, Chemin de câble…) ou en saisie libre. Choisir un article contenant **« Bergmann »** force
-  automatiquement l'état *Déjà existant* + la remarque rouge « tirage compliqué ».
+- **Sélection en cascade** : **Famille** (menu déroulant groupé — Tube ALU, TIT, KRFWG, Canal LF,
+  Bergmann… ; EDIZIO.due / EDIZIO.liv **séparés** ; CEE ; NUP/NEVO…) → **Taille / modèle**
+  (triée du plus petit au plus grand : M16→M63, 15×15→110×60…) → **Couleur** (cases à cocher).
+- **Couleur** : le nom garde la taille mais le mot couleur est remplacé par celui coché. Comme les
+  **N° ELDAS ne sont donnés que pour la couleur par défaut**, choisir une autre couleur **retire l'ELDAS**
+  et affiche la **couleur en gras** dans l'export. (Couleurs dispo : KRFWG bleu/noir/gris/brun/jaune/rouge/vert/violet ; EDIZIO blanc/noir/anthracite/crème/beige/brun/gris.)
+- **Saisie libre** : famille **« Autre »** → champ texte (sans ELDAS).
+- Le **N° ELDAS** de l'article choisi s'affiche et est repris dans l'export.
+- **Cheminements** : plus de sélecteur « Type » séparé. Choisir un article **« Bergmann »** force l'état
+  *Déjà existant* + la remarque rouge « tirage compliqué ».
 - En choisissant un article, son **N° ELDAS** est capturé et **affiché dans l'export** (utile pour les offres).
 - **Saisie libre** toujours possible : tape un nom qui n'est pas au catalogue → il est utilisé tel quel (sans ELDAS).
 - Bouton **🎨 Couleurs** : affiche la charte de couleurs de la gamme (EDIZIO.due/.liv ENC/AP, THFWG).

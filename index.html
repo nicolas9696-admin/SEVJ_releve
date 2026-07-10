@@ -157,20 +157,16 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #fiche .sig-grid img{display:block; max-width:100%; height:70px; object-fit:contain; border-bottom:1px solid var(--ink)}
 #fiche .sig-grid .empty-sig{height:70px; border-bottom:1px solid var(--ink)}
 #fiche .cli td:first-child{width:32%; background:#EAF0F6; color:var(--navy); font-weight:600}
-/* ---------- Combobox matériel (catalogue recherchable) ---------- */
-.matbox{position:relative}
-.mat-tools{display:flex; gap:8px; align-items:center; margin-top:5px; flex-wrap:wrap}
+/* ---------- Sélecteur d'article en cascade ---------- */
+.artbox .art-fam,.artbox .art-mod,.artbox .art-free{width:100%}
+.mat-tools{display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap}
 .mat-eldas{font-size:12px; color:var(--navy2); font-weight:700}
 .mat-eldas b{font-family:monospace}
-.mat-color{border:1px solid var(--line); background:var(--bg); border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; color:var(--navy); cursor:pointer}
-.mat-panel{position:absolute; left:0; right:0; top:100%; z-index:40; background:#fff; border:1px solid var(--navy2);
-  border-radius:10px; margin-top:4px; max-height:270px; overflow:auto; box-shadow:0 8px 20px rgba(0,0,0,.18)}
-.mat-panel .mi{padding:9px 11px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--bg); line-height:1.35}
-.mat-panel .mi.sel,.mat-panel .mi:hover{background:var(--bg)}
-.mat-panel .mi .eld{color:var(--navy2); font-weight:700; font-size:11px; font-family:monospace}
-.mat-panel .grp{padding:6px 11px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
-  color:#fff; background:var(--navy2); position:sticky; top:0}
-.mat-panel .none{padding:11px; font-size:12px; color:var(--mut)}
+.art-colors{margin-top:2px}
+.colchk{display:inline-flex; align-items:center; gap:5px; margin:6px 6px 0 0; padding:5px 10px; border:1px solid var(--line);
+  border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; text-transform:capitalize; background:#fff; color:var(--navy)}
+.colchk.on{background:var(--navy); color:#fff; border-color:var(--navy)}
+.colchk input{width:15px; height:15px; margin:0}
 #fiche .eldas{color:var(--navy2); font-weight:700; font-family:monospace}
 .add{
   width:100%; padding:12px; border:2px dashed var(--navy2); background:#fff; color:var(--navy);
@@ -529,14 +525,13 @@ window.hashPw = hashPw; // utilitaire console
 
 let uid = 0;
 
-/* ================= Catalogue matériel (combobox recherchable) ================= */
+/* ================= Catalogue matériel (sélection en cascade) ================= */
 /* Types de cheminement usuels non tarifés dans l'Excel (sélectionnables dans la liste) */
 const MAT_EXTRA = [
   {n:'Tube TIT M50 gris clair', e:'', c:'Tubes / gaines', s:'chem'},
   {n:'Tube TIT M63 gris clair', e:'', c:'Tubes / gaines', s:'chem'},
   {n:'Tube ALU M16 lucide', e:'', c:'Tubes / gaines', s:'chem'},
   {n:'Tube Bergmann (existant)', e:'', c:'Tubes / gaines', s:'chem'},
-  {n:'Tube THFWG', e:'', c:'Tubes / gaines', s:'chem'},
   {n:'Chemin de câble', e:'', c:'Chemin de câble', s:'chem'},
 ];
 const MAT = ((typeof MATERIEL!=='undefined') ? MATERIEL : []).concat(MAT_EXTRA);
@@ -546,60 +541,122 @@ function matSize(name){
   const d=String(name||'').match(/(\d+)\s*[×x]\s*(\d+)/);   if(d) return +d[1]*1000 + +d[2];
   const n=String(name||'').match(/(\d+)/); return n? +n[1] : 99999;
 }
-/* HTML d'un combobox matériel pour une section ('app' | 'boite' | 'chem') */
-function matBoxHtml(sec, label, ph){
-  return `<div class="matbox" data-matbox data-sec="${sec}">
+/* Familles + couleurs (le mot couleur par défaut est dans le nom du catalogue) */
+const FAMILY_COLORS = {
+  'Tube KRFWG':  {def:'bleu',  list:['bleu','noir','gris','brun','jaune','rouge','vert','violet']},
+  'EDIZIO.due':  {def:'blanc', list:['blanc','noir','anthracite','crème','beige','brun','gris']},
+  'EDIZIO.liv':  {def:'blanc', list:['blanc','noir','anthracite','crème','beige','brun','gris']},
+};
+const FAM_ORDER = {
+  chem:['Tube ALU','Tube TIT','Tube KRFWG','Canal LF','Tube Bergmann','Chemin de câble','Autre'],
+  app:['EDIZIO.due','EDIZIO.liv','Prise CEE / industrielle','NUP/NEVO (étanche)','Autre'],
+  boite:['Boîte de dérivation','Boîte / support','Autre'],
+};
+function familyOf(sec, name){
+  const n=name||'';
+  if(sec==='chem'){
+    if(/tube\s*alu/i.test(n)) return 'Tube ALU';
+    if(/\bTIT\b/i.test(n)) return 'Tube TIT';
+    if(/KRFWG/i.test(n)) return 'Tube KRFWG';
+    if(/canal/i.test(n)) return 'Canal LF';
+    if(/bergmann/i.test(n)) return 'Tube Bergmann';
+    if(/chemin de c/i.test(n)) return 'Chemin de câble';
+    return 'Autre';
+  }
+  if(sec==='app'){
+    if(/edizio\s*due/i.test(n)) return 'EDIZIO.due';
+    if(/edizio\.?liv/i.test(n)) return 'EDIZIO.liv';
+    if(/\bCEE\b/i.test(n)) return 'Prise CEE / industrielle';
+    if(/NUP|NEVO/i.test(n)) return 'NUP/NEVO (étanche)';
+    return 'Autre';
+  }
+  if(/dérivation/i.test(n)) return 'Boîte de dérivation';
+  return 'Boîte / support';
+}
+/* Familles d'une section, triées, chaque famille triée par taille croissante */
+function buildFamilies(sec){
+  const map={};
+  MAT.filter(m=>m.s===sec).forEach(m=>{ const f=familyOf(sec,m.n); (map[f]=map[f]||[]).push(m); });
+  Object.values(map).forEach(arr=> arr.sort((a,b)=> matSize(a.n)-matSize(b.n) || a.n.localeCompare(b.n)));
+  const order=FAM_ORDER[sec]||Object.keys(map);
+  return order.filter(f=>map[f]&&map[f].length).map(f=>({fam:f, items:map[f], colors:FAMILY_COLORS[f]||null}));
+}
+/* Retire le mot couleur par défaut d'un nom et le remplace par la couleur choisie */
+function applyColor(name, def, col){ return (col&&def&&col!==def) ? name.replace(new RegExp('\\b'+def+'\\b','i'), col) : name; }
+
+/* HTML du sélecteur en cascade pour une section ('app'|'boite'|'chem') */
+function matBoxHtml(sec, label){
+  const fams=buildFamilies(sec);
+  const famOpts=fams.map(f=>`<option>${esc(f.fam)}</option>`).join('')+`<option value="__autre">Autre (saisie libre)</option>`;
+  return `<div class="artbox" data-artbox data-sec="${sec}">
     <label class="fld">${label}</label>
-    <input class="mat-input" data-f="article" type="text" placeholder="${ph}" autocomplete="off">
-    <input type="hidden" data-f="eldas">
-    <div class="mat-tools"><span class="mat-eldas"></span><button type="button" class="mat-color" hidden>🎨 Couleurs</button></div>
-    <div class="mat-panel" hidden></div>
+    <select class="art-fam" data-f="fam"><option value="">— choisir la famille —</option>${famOpts}</select>
+    <select class="art-mod" data-artmod hidden style="margin-top:8px"></select>
+    <input class="art-free" data-f="artbase" type="text" placeholder="Nom de l'article (saisie libre)…" hidden style="margin-top:8px" autocomplete="off">
+    <div class="art-colors" data-artcolors hidden></div>
+    <input type="hidden" data-f="article"><input type="hidden" data-f="eldas"><input type="hidden" data-f="color"><input type="hidden" data-f="colbold">
+    <div class="mat-tools"><span class="mat-eldas"></span></div>
   </div>`;
 }
-/* Détection de la charte de couleurs selon la gamme du nom d'article */
-function detectChart(name){
-  const n=name||'';
-  if(/EDIZIO ?due/i.test(n) && /ENC/i.test(n)) return 'couleur-EDIZIOdue-ENC-1.png';
-  if(/EDIZIO\.?liv/i.test(n) && /ENC/i.test(n)) return 'couleur-EDIZIOliv-ENC.png';
-  if(/EDIZIO\.?liv/i.test(n) && /\bAP\b/i.test(n)) return 'couleur-EDIZIOliv-AP.png';
-  if(/THFWG/i.test(n)) return 'couleur-THFWG.png';
-  return '';
-}
-function openColorChart(src){ if(!src) return; $('#colorImg').src=src; $('#colorOverlay').classList.add('on'); }
-/* Câblage d'un combobox : recherche filtrée + saisie libre + ELDAS + bouton couleurs */
+/* Câblage du sélecteur en cascade */
 function wireMat(box){
-  const sec=box.dataset.sec;
-  const input=box.querySelector('.mat-input'), eldasEl=box.querySelector('[data-f="eldas"]');
-  const eldasLbl=box.querySelector('.mat-eldas'), colorBtn=box.querySelector('.mat-color'), panel=box.querySelector('.mat-panel');
-  const list=MAT.filter(m=>m.s===sec);
-  function refresh(){
-    const nm=input.value.trim();
-    const exact=list.find(m=>m.n===nm);
-    eldasEl.value = exact ? (exact.e||'') : '';
+  const sec=box.dataset.sec, fams=buildFamilies(sec);
+  const famSel=box.querySelector('.art-fam'), modSel=box.querySelector('[data-artmod]'), free=box.querySelector('.art-free');
+  const colorsWrap=box.querySelector('[data-artcolors]');
+  const baseEl=box.querySelector('[data-f="artbase"]'), artEl=box.querySelector('[data-f="article"]');
+  const eldasEl=box.querySelector('[data-f="eldas"]'), colorEl=box.querySelector('[data-f="color"]');
+  const colBoldEl=box.querySelector('[data-f="colbold"]'), eldasLbl=box.querySelector('.mat-eldas');
+  const famData=name=>fams.find(f=>f.fam===name);
+  function fillModels(fam){ const fd=famData(fam);
+    modSel.innerHTML='<option value="">— choisir la taille / le modèle —</option>'+(fd?fd.items.map(m=>`<option value="${esc(m.n)}" data-e="${esc(m.e||'')}">${esc(m.n)}${m.e?' · '+esc(m.e):''}</option>`).join(''):''); }
+  function colorsOf(){ const fd=famData(famSel.value); return fd&&fd.colors?fd.colors:null; }
+  function renderColors(sel){
+    const cl=colorsOf();
+    if(!cl){ colorsWrap.hidden=true; colorsWrap.innerHTML=''; return; }
+    colorsWrap.hidden=false;
+    colorsWrap.innerHTML='<div class="fld" style="margin-top:10px">Couleur</div>'+cl.list.map(c=>
+      `<label class="colchk${c===sel?' on':''}"><input type="checkbox" ${c===sel?'checked':''} data-col="${c}"> ${c}</label>`).join('');
+    colorsWrap.querySelectorAll('input[data-col]').forEach(cb=> cb.addEventListener('change',()=>{ setColor(cb.dataset.col); }));
+  }
+  function updateLbl(){
+    const cl=colorsOf(), changed=cl && colorEl.value && colorEl.value!==cl.def;
     eldasLbl.innerHTML = eldasEl.value ? 'N° ELDAS <b>'+esc(eldasEl.value)+'</b>'
-                       : (nm ? '<span style="color:#999">saisie libre (sans ELDAS)</span>' : '');
-    const chart=detectChart(nm);
-    colorBtn.hidden=!chart; colorBtn.dataset.chart=chart||'';
+      : (changed ? 'couleur <b>'+esc(colorEl.value)+'</b> — sans ELDAS'
+      : (artEl.value ? '<span style="color:#999">sans ELDAS</span>' : ''));
   }
-  box._matRefresh=refresh;
-  function build(q){
-    const toks=(q||'').toLowerCase().trim().split(/\s+/).filter(Boolean);
-    const res=list.filter(m=>{ if(!toks.length) return true; const hay=(m.n+' '+(m.e||'')).toLowerCase(); return toks.every(t=>hay.includes(t)); }).slice(0,80);
-    if(!res.length){ panel.innerHTML='<div class="none">Aucun article — ta saisie sera utilisée telle quelle (sans ELDAS).</div>'; return; }
-    const byCat={}; res.forEach(m=>{ (byCat[m.c]=byCat[m.c]||[]).push(m); });
-    // tri de chaque catégorie par taille croissante (M16→M63, 15×15→110×60, …)
-    Object.values(byCat).forEach(arr=> arr.sort((a,b)=> matSize(a.n)-matSize(b.n) || a.n.localeCompare(b.n)));
-    panel.innerHTML=Object.entries(byCat).map(([cat,arr])=>`<div class="grp">${esc(cat)}</div>`+
-      arr.map(m=>`<div class="mi" data-n="${esc(m.n)}" data-e="${esc(m.e||'')}">${esc(m.n)}${m.e?` <span class="eld">${esc(m.e)}</span>`:''}</div>`).join('')).join('');
-    panel.querySelectorAll('.mi').forEach(mi=> mi.addEventListener('mousedown',ev=>{ ev.preventDefault();
-      input.value=mi.dataset.n; panel.hidden=true; refresh();
-      input.dispatchEvent(new Event('change',{bubbles:true}));   // -> applyCond (Bergmann) + syncChemLinks + save
-    }));
+  function compute(){
+    if(famSel.value==='__autre'){ baseEl.value=free.value; artEl.value=free.value.trim(); eldasEl.value=''; colorEl.value=''; colBoldEl.value=''; updateLbl(); return; }
+    const opt=modSel.selectedOptions[0]; const base=modSel.value||''; baseEl.value=base;
+    const cl=colorsOf();
+    let art=base, eldas=opt?(opt.dataset.e||''):'', col='', bold='';
+    if(cl && base){ col=colorEl.value||cl.def; if(col!==cl.def){ art=applyColor(base, cl.def, col); eldas=''; bold=col; } }
+    artEl.value=art; eldasEl.value=eldas; colorEl.value = cl? col : ''; colBoldEl.value=bold;
+    updateLbl();
   }
-  input.addEventListener('focus',()=>{ build(input.value); panel.hidden=false; });
-  input.addEventListener('input', ()=>{ build(input.value); panel.hidden=false; refresh(); });
-  input.addEventListener('blur',  ()=>{ setTimeout(()=>{ panel.hidden=true; }, 150); });
-  refresh();
+  function dispatch(){ artEl.dispatchEvent(new Event('change',{bubbles:true})); }   // -> applyCond (Bergmann) + syncChemLinks + save
+  function setColor(c){ colorEl.value=c; renderColors(c); compute(); dispatch(); }
+  famSel.addEventListener('change',()=>{
+    const autre=famSel.value==='__autre';
+    free.hidden=!autre; modSel.hidden=autre||!famSel.value;
+    colorEl.value='';
+    if(autre){ colorsWrap.hidden=true; }
+    else if(famSel.value){ fillModels(famSel.value); const cl=colorsOf(); renderColors(cl?cl.def:''); }
+    else { colorsWrap.hidden=true; }
+    compute(); dispatch();
+  });
+  modSel.addEventListener('change',()=>{ const cl=colorsOf(); colorEl.value=cl?cl.def:''; renderColors(cl?cl.def:''); compute(); dispatch(); });
+  free.addEventListener('input', ()=>{ compute(); if(window.scheduleSave) scheduleSave(); });
+  free.addEventListener('change',()=>{ dispatch(); });
+  /* Restauration : reconstruit l'UI depuis fam/artbase/color déjà remplis */
+  box._matRefresh=function(){
+    const fam=famSel.value;
+    if(fam==='__autre'){ free.hidden=false; modSel.hidden=true; colorsWrap.hidden=true; free.value=baseEl.value; }
+    else if(fam){ free.hidden=true; modSel.hidden=false; fillModels(fam); modSel.value=baseEl.value||'';
+      const cl=colorsOf(); renderColors(colorEl.value|| (cl?cl.def:'')); }
+    else { free.hidden=true; modSel.hidden=true; colorsWrap.hidden=true; }
+    updateLbl();
+  };
+  updateLbl();
 }
 
 /* ================= Repeatable builders ================= */
@@ -635,25 +692,25 @@ function addChemin(cont){
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Cheminement</div>
     <div style="margin-bottom:10px"><label class="fld">Nom (optionnel)</label><input data-f="name" type="text" placeholder="ex : Trémie cuisine"></div>
-    ${matBoxHtml('chem','Article / type (tube, canal… — ou saisie libre)','Rechercher : tube TIT M20, canal LF 60×40, Bergmann…')}
+    ${matBoxHtml('chem','Article / type (tube, canal… — ou saisie libre)')}
     <div style="margin-top:10px"><label class="fld">Longueur (m)</label><input data-f="long" type="number" min="0" step="0.5" placeholder="0"></div>
     <div style="margin-top:10px"><label class="fld">État</label><select data-f="etat"><option>À poser (neuf)</option><option>Déjà existant</option></select></div>
     <div class="cond" data-c="bergmann" style="margin-top:8px; color:var(--danger); font-weight:600; font-size:12px">⚠ Tube Bergmann : forcément existant — tirage compliqué (signalé en remarque dans l'export).</div>
     <div class="chk"><input type="checkbox" data-f="haut"><label>Travail en hauteur (&gt; 3.50 m)</label></div>
     <div class="majo" data-m>⚠ Majoration 1.5× du prix du câble</div>`;
-  wire(r); wireMat(r.querySelector('[data-matbox]')); cont.appendChild(r); syncChemLinks();
+  wire(r); wireMat(r.querySelector("[data-artbox]")); cont.appendChild(r); syncChemLinks();
 }
 function addApp(cont){
   const r = el('div','row');
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Appareil</div>
-    ${matBoxHtml('app','Article (prise, interrupteur, combinaison, CEE…)','Rechercher un article ou saisir librement…')}
+    ${matBoxHtml('app','Article (prise, interrupteur, combinaison, CEE…)')}
     <div class="grid" style="margin-top:10px">
       <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="1" step="1" value="1"></div>
       <div><label class="fld">Nom / repère (optionnel)</label><input data-f="name" type="text" placeholder="ex : Plan de travail"></div>
     </div>`;
-  wire(r); wireMat(r.querySelector('[data-matbox]')); cont.appendChild(r); syncChemLinks();
+  wire(r); wireMat(r.querySelector("[data-artbox]")); cont.appendChild(r); syncChemLinks();
 }
 function addDisj(cont){
   const r = el('div','row');
@@ -683,12 +740,12 @@ function addBoite(cont){
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Boîte</div>
-    ${matBoxHtml('boite','Article (boîte de dérivation, support…)','Rechercher une boîte ou saisir librement…')}
+    ${matBoxHtml('boite','Article (boîte de dérivation, support…)')}
     <div class="grid" style="margin-top:10px">
       <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="1" step="1" value="1"></div>
       <div><label class="fld">Nom / repère (optionnel)</label><input data-f="name" type="text" placeholder="ex : Dérivation plafond"></div>
     </div>`;
-  wire(r); wireMat(r.querySelector('[data-matbox]')); cont.appendChild(r); syncChemLinks();
+  wire(r); wireMat(r.querySelector("[data-artbox]")); cont.appendChild(r); syncChemLinks();
 }
 function addRemarque(){
   const r = el('div','row');
@@ -976,15 +1033,15 @@ function collect(){
   }).filter(c=>c.long||c.mm2);
   const getChemins = root => [...root.querySelectorAll('[data-sub="chemins"] .row')].map(r=>{
     const art=g(r,'article'); const berg=/bergmann/i.test(art);
-    return {name:g(r,'name'), article:art, eldas:g(r,'eldas'), long:g(r,'long'),
+    return {name:g(r,'name'), article:art, eldas:g(r,'eldas'), colbold:g(r,'colbold'), long:g(r,'long'),
             etat:g(r,'etat'), haut:g(r,'haut'), bergmann:berg,
             existant:(g(r,'etat')||'').startsWith('Déjà') || berg};
   }).filter(c=>c.long||c.article);
   const getApps = root => [...root.querySelectorAll('[data-sub="apps"] .row')].map(r=>(
-    {name:g(r,'name'), article:g(r,'article'), eldas:g(r,'eldas'), qte:g(r,'qte')||'1'}
+    {name:g(r,'name'), article:g(r,'article'), eldas:g(r,'eldas'), colbold:g(r,'colbold'), qte:g(r,'qte')||'1'}
   )).filter(a=>a.article);
   const getBoites = root => [...root.querySelectorAll('[data-sub="boites"] .row')].map(r=>(
-    {name:g(r,'name'), article:g(r,'article'), eldas:g(r,'eldas'), qte:g(r,'qte')||'1'}
+    {name:g(r,'name'), article:g(r,'article'), eldas:g(r,'eldas'), colbold:g(r,'colbold'), qte:g(r,'qte')||'1'}
   )).filter(b=>b.article);
   const getDisj = root => [...root.querySelectorAll('[data-sub="disj"] .row')].map(r=>{
     let a=g(r,'amp'); if(a==='autre…') a=g(r,'ampautre')||'?';
@@ -1069,9 +1126,11 @@ function buildFiche(d, mode){
   L.push(`<p class="sig">Fiche établie par : <b>${esc(d.user?d.user.name:'—')}</b></p>`);
   return L.join('');
 }
+/* Met en gras le mot couleur dans un libellé déjà échappé */
+function boldColor(escLabel, col){ return col ? escLabel.replace(new RegExp('\\b('+col+')\\b','i'), '<b>$1</b>') : escLabel; }
 /* Rendu des sections d'un agrégat dans le tableau HTML */
 function pushSections(L, agg){
-  const dwn=o=> esc(o.label)
+  const dwn=o=> boldColor(esc(o.label), o.colbold)
     + (o.eldas?` <span class="eldas">ELDAS ${esc(o.eldas)}</span>`:'')
     + (o.names&&o.names.length?` <span class="names">(${o.names.map(esc).join(', ')})</span>`:'');
   if(agg.chemins.length){ L.push(secRow('Cheminement')); agg.chemins.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'm', o.red))); }
@@ -1098,14 +1157,15 @@ function groupItems(list, labelFn, qtyFn, redFn){
   const map=new Map();
   (list||[]).forEach(it=>{
     const key=labelFn(it);
-    const cur=map.get(key)||{label:key, qty:0, any:false, names:new Set(), red:false, eldas:''};
+    const cur=map.get(key)||{label:key, qty:0, any:false, names:new Set(), red:false, eldas:'', colbold:''};
     const q=parseFloat(qtyFn(it)); if(!isNaN(q)){ cur.qty+=q; cur.any=true; }
     if(it.name) cur.names.add(it.name);
     if(it.eldas && !cur.eldas) cur.eldas=it.eldas;
+    if(it.colbold && !cur.colbold) cur.colbold=it.colbold;   // couleur à mettre en gras
     if(redFn&&redFn(it)) cur.red=true;
     map.set(key,cur);
   });
-  return [...map.values()].map(o=>({label:o.label, qty:o.any?String(Math.round(o.qty*100)/100):'', names:[...o.names], red:o.red, eldas:o.eldas}));
+  return [...map.values()].map(o=>({label:o.label, qty:o.any?String(Math.round(o.qty*100)/100):'', names:[...o.names], red:o.red, eldas:o.eldas, colbold:o.colbold}));
 }
 /* Libellé d'un cheminement dans l'export : l'article/type choisi (+ note hauteur) */
 function chemDesig(c){ let s=c.article||'Cheminement'; if(c.haut) s+=' — travail en hauteur > 3.50 m (majoration 1.5×)'; return s; }
@@ -1253,7 +1313,8 @@ function aggToBody(agg){
   const secStyle={fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
   const body=[];
   const sec=t=>body.push([{content:t, colSpan:3, styles:secStyle}]);
-  const dwn=o=> o.label+(o.eldas? '  [ELDAS '+o.eldas+']':'')+(o.names&&o.names.length? ' ('+o.names.join(', ')+')':'');
+  const dwn=o=>{ let lbl=o.label; if(o.colbold) lbl=lbl.replace(new RegExp('\\b('+o.colbold+')\\b','i'), m=>m.toUpperCase());
+    return lbl+(o.eldas? '  [ELDAS '+o.eldas+']':'')+(o.names&&o.names.length? ' ('+o.names.join(', ')+')':''); };
   const item=(des,q,u,red)=>{ const st=red?{textColor:CLR.danger}:null; const cell=v=> st?{content:String(v),styles:st}:String(v); body.push([cell(des),cell(q),cell(u)]); };
   if(agg.chemins.length){ sec('Cheminement'); agg.chemins.forEach(o=>item(dwn(o), o.qty||'', 'm', o.red)); }
   if(agg.cables.length){ sec('Câblage'); agg.cables.forEach(o=>item(dwn(o), o.qty||'', 'm', o.red)); }
@@ -1653,7 +1714,7 @@ function fillRow(r,state){
   if(g && state.genre!=null){ g.value=state.genre; applyCond(r); }
   Object.entries(state).forEach(([f,v])=>{ const e=r.querySelector(`[data-f="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=v; else e.value=v; } });
   applyCond(r);
-  const mb=r.querySelector('[data-matbox]'); if(mb && mb._matRefresh) mb._matRefresh();  // ELDAS + bouton couleurs
+  const mb=r.querySelector('[data-artbox]'); if(mb && mb._matRefresh) mb._matRefresh();  // reconstruit famille/taille/couleur + ELDAS
 }
 function roomState(room){
   const o={name:roomRawName(room), color:(+room.dataset.color||0), collapsed:room.classList.contains('collapsed')};
@@ -1735,7 +1796,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v13 — catalogue + bon de régie';
+const APP_VERSION='v14 — catalogue + bon de régie';
 function init(){
   $('#logoImg').src=LOGO;
   const av=$('#appVer'); if(av) av.textContent=APP_VERSION;
@@ -1760,8 +1821,7 @@ function init(){
   $('#closeOut').onclick=()=>$('#outputOverlay').classList.remove('on');
   $('#printBtn').onclick=downloadPDF;
   // Charte de couleurs (boutons 🎨 du catalogue + THFWG)
-  $('#closeColor').onclick=()=>$('#colorOverlay').classList.remove('on');
-  document.addEventListener('click', e=>{ const b=e.target.closest('.mat-color'); if(b && !b.hidden && b.dataset.chart) openColorChart(b.dataset.chart); });
+  const cc=$('#closeColor'); if(cc) cc.onclick=()=>$('#colorOverlay').classList.remove('on');
   $('#resetBtn').onclick=async ()=>{
     if(!confirm('Vider le formulaire et recharger la dernière version de l’app ?')) return;
     clearDraft();
