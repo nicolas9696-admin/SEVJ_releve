@@ -583,11 +583,20 @@ function buildFamilies(sec){
 }
 /* Retire le mot couleur par défaut d'un nom et le remplace par la couleur choisie */
 function applyColor(name, def, col){ return (col&&def&&col!==def) ? name.replace(new RegExp('\\b'+def+'\\b','i'), col) : name; }
+/* Repère visuel gamme dans les menus (appareils) : .liv rouge 🔴, .due vert 🟢 */
+function famMark(sec, fam){
+  if(sec!=='app') return null;
+  if(fam==='EDIZIO.liv') return {c:'#b02a2a', d:'🔴'};
+  if(fam==='EDIZIO.due') return {c:'#1c7c3f', d:'🟢'};
+  return null;
+}
 
 /* HTML du sélecteur en cascade pour une section ('app'|'boite'|'chem') */
 function matBoxHtml(sec, label){
   const fams=buildFamilies(sec);
-  const famOpts=fams.map(f=>`<option>${esc(f.fam)}</option>`).join('')+`<option value="__autre">Autre (saisie libre)</option>`;
+  const famOpts=fams.map(f=>{ const mk=famMark(sec,f.fam);
+    return `<option value="${esc(f.fam)}"${mk?` style="color:${mk.c}"`:''}>${mk?mk.d+' ':''}${esc(f.fam)}</option>`; }).join('')
+    +`<option value="__autre">Autre (saisie libre)</option>`;
   return `<div class="artbox" data-artbox data-sec="${sec}">
     <label class="fld">${label}</label>
     <select class="art-fam" data-f="fam"><option value="">— choisir la famille —</option>${famOpts}</select>
@@ -617,7 +626,8 @@ function wireMat(box){
     let pool = fd ? fd.items : (toks.length ? allItems() : []);
     if(toks.length) pool = pool.filter(m=>{ const hay=(m.n+' '+(m.e||'')).toLowerCase(); return toks.every(t=>hay.includes(t)); });
     const sel=keepSel?modSel.value:'';
-    modSel.innerHTML='<option value="">— choisir la taille / le modèle —</option>'+pool.map(m=>`<option value="${esc(m.n)}" data-e="${esc(m.e||'')}">${esc(m.n)}${m.e?' · '+esc(m.e):''}</option>`).join('');
+    modSel.innerHTML='<option value="">— choisir la taille / le modèle —</option>'+pool.map(m=>{ const mk=famMark(sec, familyOf(sec,m.n));
+      return `<option value="${esc(m.n)}" data-e="${esc(m.e||'')}"${mk?` style="color:${mk.c}"`:''}>${mk?mk.d+' ':''}${esc(m.n)}${m.e?' · '+esc(m.e):''}</option>`; }).join('');
     if(sel){ modSel.value=sel; }
     modSel.hidden = famSel.value==='__autre' ? true : (fd ? false : (toks.length? false : true));
   }
@@ -1811,7 +1821,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v15 — catalogue + bon de régie';
+const APP_VERSION='v16 — catalogue + bon de régie';
 function init(){
   $('#logoImg').src=LOGO;
   const av=$('#appVer'); if(av) av.textContent=APP_VERSION;
