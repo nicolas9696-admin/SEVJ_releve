@@ -138,6 +138,24 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #fiche .room-title{color:var(--navy2); font-weight:700; font-size:14px; margin:16px 0 2px; letter-spacing:.5px;
   text-transform:uppercase; border-bottom:2px solid var(--navy2); padding-bottom:3px}
 #fiche .names{color:var(--mut); font-style:italic}
+/* ---------- Onglets ---------- */
+.tabbar{display:flex; gap:8px; margin:0 0 14px}
+.tabbar button{flex:1; padding:12px 8px; border:1px solid var(--line); background:#fff; color:var(--navy2);
+  border-radius:12px; font-size:14px; font-weight:700; cursor:pointer}
+.tabbar button.on{background:var(--navy); color:#fff; border-color:var(--navy)}
+/* ---------- Signatures ---------- */
+.sig-wrap{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+@media(max-width:560px){ .sig-wrap{grid-template-columns:1fr} }
+.sig-box{border:1px solid var(--line); border-radius:12px; padding:10px; background:#fbfdff}
+.sig-lbl{font-size:12px; font-weight:700; color:var(--navy); margin-bottom:6px; display:flex; align-items:center; gap:8px}
+.sigpad{width:100%; height:150px; background:#fff; border:1px dashed var(--navy2); border-radius:10px; touch-action:none; display:block}
+.sig-clear{margin-top:8px; border:1px solid var(--line); background:var(--bg); color:var(--navy);
+  border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer}
+#fiche .sig-grid{display:flex; gap:24px; margin-top:8px}
+#fiche .sig-grid .sc{flex:1}
+#fiche .sig-grid img{display:block; max-width:100%; height:70px; object-fit:contain; border-bottom:1px solid var(--ink)}
+#fiche .sig-grid .empty-sig{height:70px; border-bottom:1px solid var(--ink)}
+#fiche .cli td:first-child{width:32%; background:#EAF0F6; color:var(--navy); font-weight:600}
 .add{
   width:100%; padding:12px; border:2px dashed var(--navy2); background:#fff; color:var(--navy);
   border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; margin-top:2px;
@@ -224,7 +242,13 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 </header>
 
 <main>
-  <!-- Collaborateur / connexion (en premier) -->
+  <!-- Onglets -->
+  <div class="tabbar" id="tabbar">
+    <button type="button" data-tab="releve" class="on">📋 Relevé chantier</button>
+    <button type="button" data-tab="regie">🧾 Bon de régie</button>
+  </div>
+
+  <!-- Collaborateur / connexion (partagé — sert de signature monteur) -->
   <section class="card req" data-req="collab">
     <h2><span class="n"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6v1H4z"/></svg></span> Collaborateur</h2>
     <div class="body">
@@ -246,6 +270,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <div class="msg" id="loginMsg"></div>
     </div>
   </section>
+
+  <div id="tabReleve">
 
   <!-- Chantier -->
   <section class="card req" data-req="chantier">
@@ -319,11 +345,88 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     </div>
   </section>
 
+  </div><!-- /#tabReleve -->
+
+  <!-- ================= ONGLET BON DE RÉGIE ================= -->
+  <div id="tabRegie" hidden>
+
+    <section class="card req" data-reqr="client">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6v1H4z"/></svg></span> Client</h2>
+      <div class="body">
+        <p class="hint">🔒 Les données client <b>ne sont pas enregistrées</b> (effacées au rechargement) — elles servent uniquement à l'export.</p>
+        <label class="fld" for="cliNom">Nom / Société</label>
+        <input id="cliNom" type="text" placeholder="ex : Régie Dupont SA" autocomplete="off">
+        <div style="height:10px"></div>
+        <div class="grid">
+          <div><label class="fld" for="cliAdr">Adresse</label><input id="cliAdr" type="text" placeholder="Rue et n°" autocomplete="off"></div>
+          <div><label class="fld" for="cliNpaLoc">NPA / Localité</label><input id="cliNpaLoc" type="text" placeholder="1341 L'Orient" autocomplete="off"></div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="grid">
+          <div><label class="fld" for="cliContact">Personne de contact</label><input id="cliContact" type="text" placeholder="ex : M. Martin" autocomplete="off"></div>
+          <div><label class="fld" for="cliTel">Téléphone</label><input id="cliTel" type="text" placeholder="ex : 021 000 00 00" autocomplete="off"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span> Chantier</h2>
+      <div class="body">
+        <div class="grid">
+          <div><label class="fld" for="regChantier">Chantier / objet</label><input id="regChantier" type="text" placeholder="ex : Villa L'Orient" autocomplete="off"></div>
+          <div><label class="fld" for="regLieu">Lieu</label><input id="regLieu" type="text" value="Le Sentier"></div>
+        </div>
+        <div class="mo-total" style="margin-top:12px">Date du bon : <b id="regDate">—</b> <span style="color:var(--mut)">(date du jour, non modifiable)</span></div>
+      </div>
+    </section>
+
+    <section class="card req" data-reqr="items">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 16.5h6"/></svg></span> Travaux en régie</h2>
+      <div class="body">
+        <p class="hint">Tout ce qui <b>n'est pas prévu dans l'offre de base</b> et prend du temps (raccordements, contrôles, adaptations, travaux supplémentaires…) — <b>à facturer au client</b>.</p>
+        <div id="regItems"></div>
+        <button class="add" id="addRegItem">＋ Ajouter une ligne</button>
+        <div class="mo-total" style="margin-top:12px">→ Total heures régie : <b id="regTotal">—</b></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 16.5h6"/></svg></span> Remarque</h2>
+      <div class="body">
+        <textarea id="regRemarque" placeholder="Remarque libre (optionnel)…"></textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3 0 3-10 6-10s3 10 6 10 3-4 6-4"/></svg></span> Signatures</h2>
+      <div class="body">
+        <p class="hint">Fais signer le monteur <b>et</b> le client. Les signatures apparaissent sur l'export (non enregistrées).</p>
+        <div class="sig-wrap">
+          <div class="sig-box">
+            <div class="sig-lbl">Monteur <span id="regMonteurName" class="pill">—</span></div>
+            <canvas class="sigpad" data-sig="monteur" width="600" height="180"></canvas>
+            <button type="button" class="sig-clear" data-clear="monteur">Effacer</button>
+          </div>
+          <div class="sig-box">
+            <div class="sig-lbl">Client</div>
+            <canvas class="sigpad" data-sig="client" width="600" height="180"></canvas>
+            <button type="button" class="sig-clear" data-clear="client">Effacer</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /#tabRegie -->
+
 </main>
 
-<div class="bar">
+<div class="bar" id="barReleve">
   <button class="btn-2" id="resetBtn">Réinitialiser</button>
   <button class="btn-main" id="genBtn" disabled>Générer la fiche</button>
+</div>
+<div class="bar" id="barRegie" hidden>
+  <button class="btn-2" id="regResetBtn">Effacer le bon</button>
+  <button class="btn-main" id="regGenBtn" disabled>Générer le bon de régie</button>
 </div>
 
 <!-- Output overlay -->
@@ -702,7 +805,7 @@ async function doLogin(){
     currentUser=c; msg.className='msg ok'; msg.textContent='Connecté ✓';
     $('#whoName').innerHTML = c.name+' <span class="pill">'+c.ini+'</span>';
     $('#pass').value=''; $('#loginBtn').style.display='none'; $('#logoutBtn').style.display='';
-    buildRef(); updateReq();
+    buildRef(); updateReq(); updateRegMonteur(); updateRegieReq();
   } else {
     msg.className='msg err'; msg.textContent='Mot de passe incorrect.';
   }
@@ -710,7 +813,7 @@ async function doLogin(){
 function doLogout(){
   currentUser=null; $('#whoName').textContent='— non connecté —';
   $('#loginBtn').style.display=''; $('#logoutBtn').style.display='none';
-  $('#loginMsg').textContent=''; updateReq();
+  $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq();
 }
 
 /* ================= Champs obligatoires (rouge / vert) ================= */
@@ -730,7 +833,7 @@ function updateMO(){
 }
 function updateReq(){
   let all=true;
-  document.querySelectorAll('.card.req').forEach(c=>{
+  document.querySelectorAll('.card.req[data-req]').forEach(c=>{
     const ok=reqOk(c.dataset.req);
     c.classList.toggle('ok',ok);
     if(!ok) all=false;
@@ -1036,6 +1139,8 @@ function renderFiche(){
 }
 function generate(){
   window._lastData = collect();
+  window._lastDoc = 'releve';
+  $('#modeSwitch').hidden=false;
   renderFiche();
   $('#outputOverlay').classList.add('on');
 }
@@ -1064,6 +1169,7 @@ function aggToBody(agg){
 }
 function downloadPDF(){
   if(!window.jspdf){ alert("Librairie PDF non chargée. Vérifie le dossier « vendor »."); return; }
+  if(window._lastDoc==='regie'){ const d=window._lastData||collectRegie(); downloadBlob(buildRegiePDF(d).output('blob'), regieFileName(d)); return; }
   const d = window._lastData || collect();
   const doc = buildPDFDoc(d, EXPORT_MODE);
   const suffix = EXPORT_MODE==='global'?'_global':'_detail';
@@ -1201,10 +1307,17 @@ function buildPDFDoc(d, mode){
 /* Partage natif : PDF en pièce jointe via le menu du téléphone */
 async function sharePDF(){
   if(!window.jspdf){ alert("Librairie PDF non chargée."); return; }
-  const d = window._lastData || collect();
-  const suffix = EXPORT_MODE==='global'?'_global':'_detail';
-  const name=(($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+suffix+'.pdf';
-  const blob = pdfBlobWithData(buildPDFDoc(d, EXPORT_MODE));
+  let d, name, blob;
+  if(window._lastDoc==='regie'){
+    d = window._lastData || collectRegie();
+    name = regieFileName(d);
+    blob = buildRegiePDF(d).output('blob');
+  } else {
+    d = window._lastData || collect();
+    const suffix = EXPORT_MODE==='global'?'_global':'_detail';
+    name=(($('#ref').value||'fiche').replace(/[^\wÀ-ſ.-]/g,'_'))+suffix+'.pdf';
+    blob = pdfBlobWithData(buildPDFDoc(d, EXPORT_MODE));
+  }
   const file = new File([blob], name, {type:'application/pdf'});
   if(navigator.canShare && navigator.canShare({files:[file]})){
     try{ await navigator.share({files:[file], title:'Fiche '+(d.ref||''), text:'Fiche informative '+(d.ref||'')}); }
@@ -1215,6 +1328,220 @@ async function sharePDF(){
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
     alert("Partage direct indisponible sur cet appareil : le PDF a été téléchargé, tu peux le joindre manuellement.");
   }
+}
+function downloadBlob(blob, name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+/* ==================================================================
+   BON DE RÉGIE  (2ᵉ onglet)  — aucune donnée client n'est enregistrée
+   ================================================================== */
+const REG_CATS  = ["Travaux supplémentaires","Raccordement","Contrôle","Adaptation","Déplacement","Matériel","Autre"];
+const REG_UNITS = ["h","pce","forfait","m"];
+const REGIE = {logo:null, band:null, deco:null};   // dataURLs (préchargées)
+const REGIE_RATIO = {logo:381/520, band:95/1200, deco:319/360};
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+/* Préchargement des images officielles en JPEG sur fond blanc (rendues sur page blanche
+   dans le PDF) → PDF léger. La transparence n'est pas nécessaire ici. */
+function loadImgJpeg(src){
+  return new Promise(res=>{ const img=new Image();
+    img.onload=()=>{ try{ const c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight;
+      const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0);
+      res(c.toDataURL('image/jpeg',0.85)); }catch(e){ res(null); } };
+    img.onerror=()=>res(null); img.src=src; });
+}
+async function preloadRegieAssets(){
+  REGIE.logo=await loadImgJpeg('regie-logo.png');
+  REGIE.band=await loadImgJpeg('regie-band.png');
+  REGIE.deco=await loadImgJpeg('regie-deco.png');
+}
+
+/* ---- Pad de signature (souris + tactile) ---- */
+function setupSigPad(canvas){
+  const ctx=canvas.getContext('2d');
+  ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#1a2b45';
+  let drawing=false, empty=true;
+  const pos=e=>{ const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*(canvas.width/r.width), y:(e.clientY-r.top)*(canvas.height/r.height)}; };
+  const start=e=>{ drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); if(e.cancelable)e.preventDefault(); };
+  const move=e=>{ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); empty=false; if(e.cancelable)e.preventDefault(); };
+  const end=()=>{ drawing=false; };
+  canvas.addEventListener('pointerdown',start);
+  canvas.addEventListener('pointermove',move);
+  window.addEventListener('pointerup',end); window.addEventListener('pointercancel',end);
+  canvas._sig={ clear:()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); empty=true; },
+    isEmpty:()=>empty, data:()=>empty?null:canvas.toDataURL('image/png') };
+}
+function sigData(name){ const c=document.querySelector(`.sigpad[data-sig="${name}"]`); return c&&c._sig?c._sig.data():null; }
+
+/* ---- Lignes de travaux en régie ---- */
+function addRegItem(){
+  const r=el('div','row');
+  r.innerHTML=`
+    <button class="rm" title="Supprimer">×</button>
+    <div class="tag">Ligne régie</div>
+    <div class="grid" style="margin-bottom:10px">
+      <div><label class="fld">Catégorie</label><select data-rf="cat">${opts(REG_CATS)}</select></div>
+      <div class="grid" style="gap:10px"><div><label class="fld">Quantité</label><input data-rf="qte" type="number" min="0" step="0.25" placeholder="ex : 2"></div>
+      <div><label class="fld">Unité</label><select data-rf="unit">${opts(REG_UNITS)}</select></div></div>
+    </div>
+    <label class="fld">Description</label>
+    <textarea data-rf="desc" placeholder="Détail du travail supplémentaire, raccordement, contrôle, adaptation…"></textarea>`;
+  r.querySelector('.rm').onclick=()=>{ r.remove(); renumberReg(); updateRegTotal(); updateRegieReq(); };
+  r.querySelectorAll('[data-rf]').forEach(e=>{ e.addEventListener('input',()=>{updateRegTotal(); updateRegieReq();}); e.addEventListener('change',()=>{updateRegTotal(); updateRegieReq();}); });
+  $('#regItems').appendChild(r); renumberReg(); updateRegTotal();
+}
+function renumberReg(){ [...document.querySelectorAll('#regItems .row .tag')].forEach((t,i)=> t.textContent='Ligne régie #'+(i+1)); }
+function regieHours(d){ let s=0; (d.items||[]).forEach(it=>{ if(it.unit==='h'){ const v=parseFloat(it.qte); if(!isNaN(v)) s+=v; } }); return s?Math.round(s*100)/100:''; }
+function updateRegTotal(){ const t=regieHours(collectRegie()); $('#regTotal').textContent = t? t+' h' : '—'; }
+
+/* ---- Collecte (jamais persistée) ---- */
+function collectRegie(){
+  const g=(r,f)=>{const e=r.querySelector(`[data-rf="${f}"]`); return e?e.value.trim():'';};
+  const items=[...document.querySelectorAll('#regItems .row')].map(r=>({cat:g(r,'cat'), desc:g(r,'desc'), qte:g(r,'qte'), unit:g(r,'unit')})).filter(i=>i.desc||i.qte);
+  return {
+    client:{nom:$('#cliNom').value.trim(), adr:$('#cliAdr').value.trim(), npaLoc:$('#cliNpaLoc').value.trim(),
+            contact:$('#cliContact').value.trim(), tel:$('#cliTel').value.trim()},
+    chantier:$('#regChantier').value.trim(), lieu:$('#regLieu').value.trim(), date:todayISO(),
+    items, remarque:$('#regRemarque').value.trim(),
+    monteur: currentUser?currentUser.name:'', ini: currentUser?currentUser.ini:'',
+    sigMonteur: sigData('monteur'), sigClient: sigData('client')
+  };
+}
+
+/* ---- Validation (badge rouge/vert) ---- */
+function setReqR(kind,ok){ const c=document.querySelector(`.card[data-reqr="${kind}"]`); if(c) c.classList.toggle('ok',ok); }
+function updateRegieReq(){
+  const nom=$('#cliNom')?$('#cliNom').value.trim():'';
+  const nItems=document.querySelectorAll('#regItems .row').length &&
+    [...document.querySelectorAll('#regItems .row')].some(r=>{const t=r.querySelector('[data-rf="desc"]'); return t&&t.value.trim();});
+  setReqR('client', nom!=='');
+  setReqR('items', !!nItems);
+  const btn=$('#regGenBtn'); if(btn) btn.disabled = !(currentUser && nom!=='' && nItems);
+}
+function updateRegMonteur(){ const p=$('#regMonteurName'); if(p) p.textContent = currentUser?currentUser.name:'— non connecté —'; }
+
+/* ---- Aperçu HTML (letterhead officiel) ---- */
+function buildRegieFiche(d){
+  const L=[];
+  L.push(`<div class="doc-hd" style="align-items:center">
+    <img src="regie-logo.png" alt="SEVJ" style="height:44px">
+    <div class="r"><div class="ttl" style="color:#79AFA2">BON DE RÉGIE</div>
+      <div class="ref">${esc(d.chantier||'')}</div>
+      <div class="dt">${esc(d.lieu||'')}${d.lieu?', le ':''}${frDate(d.date)}</div></div></div>`);
+  L.push(`<h3>Client</h3><table class="cli">`);
+  L.push(row2('Nom / Société', esc(d.client.nom||'—')));
+  const adr=[d.client.adr,d.client.npaLoc].filter(Boolean).join(', '); if(adr) L.push(row2('Adresse', esc(adr)));
+  const ct=[d.client.contact,d.client.tel].filter(Boolean).join(' · '); if(ct) L.push(row2('Contact', esc(ct)));
+  L.push(`</table>`);
+  L.push(`<h3>Travaux en régie <span style="font-weight:400;color:#666">— hors offre de base, à facturer</span></h3>`);
+  L.push(`<table><tr><th>Catégorie</th><th>Description</th><th class="q">Qté</th><th class="u">Unité</th></tr>`);
+  if(d.items.length) d.items.forEach(it=> L.push(`<tr><td>${esc(it.cat)}</td><td>${esc(it.desc)}</td><td class="q">${esc(it.qte)}</td><td class="u">${esc(it.unit)}</td></tr>`));
+  else L.push(`<tr><td colspan="4" class="empty">Aucune ligne.</td></tr>`);
+  L.push(`</table>`);
+  const th=regieHours(d); if(th) L.push(`<p class="obj"><b>Total heures régie : ${th} h</b></p>`);
+  if(d.remarque) L.push(`<h3>Remarque</h3><p class="obj">${esc(d.remarque)}</p>`);
+  L.push(`<h3>Signatures</h3><div class="sig-grid">`);
+  const sig=(label,data)=>`<div class="sc"><div style="font-size:12px;color:#666">${label}</div>${data?`<img src="${data}">`:`<div class="empty-sig"></div>`}<div style="font-size:11px;color:#666;margin-top:3px">Le ${frDate(d.date)}</div></div>`;
+  L.push(sig('Monteur — '+esc(d.monteur||'—'), d.sigMonteur));
+  L.push(sig('Client'+(d.client.nom?' — '+esc(d.client.nom):''), d.sigClient));
+  L.push(`</div>`);
+  L.push(`<div style="margin-top:24px"><img src="regie-band.png" style="width:100%;display:block"></div>`);
+  return L.join('');
+}
+
+/* ---- PDF (letterhead SEVJ officiel) ---- */
+function buildRegiePDF(d){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const M=14, W=210, H=297, CW=W-2*M;
+  const sanitize = data => { if(data.cell) data.cell.text = data.cell.text.map(pdfSafe); };
+  // En-tête : motif haut-droite + logo officiel haut-gauche
+  try{ if(REGIE.deco) doc.addImage(REGIE.deco,'JPEG', W-42, 0, 42, 42*REGIE_RATIO.deco); }catch(e){}
+  try{ if(REGIE.logo) doc.addImage(REGIE.logo,'JPEG', M, 13, 36, 36*REGIE_RATIO.logo); }catch(e){}
+  let y=38;
+  doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(121,175,162);
+  doc.text('BON DE REGIE', M, y); y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...CLR.mut);
+  doc.text(pdfSafe((d.lieu?d.lieu+', le ':'')+frDate(d.date)), M, y);
+  if(d.chantier) doc.text(pdfSafe(d.chantier), W-M, y, {align:'right'});
+  y+=4; doc.setDrawColor(121,175,162); doc.setLineWidth(0.6); doc.line(M,y,W-M,y); y+=6;
+  // Client
+  doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+    styles:{fontSize:9, cellPadding:1.8, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
+    columnStyles:{0:{cellWidth:40, fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold'}, 1:{cellWidth:CW-40}},
+    body:[['Client', d.client.nom||'-'],
+          ['Adresse', [d.client.adr,d.client.npaLoc].filter(Boolean).join(', ')||'-'],
+          ['Contact', [d.client.contact,d.client.tel].filter(Boolean).join('  -  ')||'-']],
+    didParseCell:sanitize });
+  y=doc.lastAutoTable.finalY+6;
+  // Travaux
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...CLR.navy);
+  doc.text(pdfSafe('Travaux en régie — hors offre de base, à facturer'), M, y); y+=2;
+  const body=d.items.map(it=>[it.cat, it.desc, String(it.qte||''), it.unit]);
+  if(!body.length) body.push([{content:'Aucune ligne.', colSpan:4, styles:{textColor:CLR.mut, fontStyle:'italic'}}]);
+  doc.autoTable({ startY:y+2, theme:'grid', margin:{left:M,right:M},
+    styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top'},
+    headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold'},
+    columnStyles:{0:{cellWidth:32}, 1:{cellWidth:CW-32-16-16}, 2:{cellWidth:16, halign:'center'}, 3:{cellWidth:16, halign:'center'}},
+    head:[['Catégorie','Description','Qté','Unité']], body, didParseCell:sanitize });
+  y=doc.lastAutoTable.finalY+5;
+  const th=regieHours(d);
+  if(th){ doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...CLR.navy);
+    doc.text(pdfSafe('Total heures régie : '+th+' h'), M, y); y+=7; }
+  if(d.remarque){ doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...CLR.navy); doc.text('Remarque', M, y); y+=5;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...CLR.ink);
+    const rt=doc.splitTextToSize(pdfSafe(d.remarque), CW); doc.text(rt,M,y); y+=rt.length*4+4; }
+  // Signatures
+  if(y>H-58){ doc.addPage(); y=20; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...CLR.navy); doc.text('Signatures', M, y); y+=6;
+  const colW=(CW-10)/2, sigH=26;
+  const drawSig=(x,label,data)=>{
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...CLR.mut); doc.text(pdfSafe(label), x, y);
+    if(data){ try{ doc.addImage(data,'PNG', x, y+2, colW, sigH); }catch(e){} }
+    doc.setDrawColor(...CLR.ink); doc.setLineWidth(0.2); doc.line(x, y+3+sigH, x+colW, y+3+sigH);
+    doc.setFontSize(8); doc.text(pdfSafe('Le '+frDate(d.date)), x, y+3+sigH+5);
+  };
+  drawSig(M, 'Monteur - '+(d.monteur||'-'), d.sigMonteur);
+  drawSig(M+colW+10, 'Client'+(d.client.nom?' - '+d.client.nom:''), d.sigClient);
+  y+=3+sigH+10;
+  // Bandeau adresse officiel en bas
+  if(REGIE.band){ const bw=CW, bh=bw*REGIE_RATIO.band; try{ doc.addImage(REGIE.band,'JPEG', M, H-12-bh, bw, bh); }catch(e){} }
+  // Pied : pagination si plusieurs pages
+  const pc=doc.getNumberOfPages();
+  if(pc>1){ for(let i=1;i<=pc;i++){ doc.setPage(i); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(i+' / '+pc, W-M, H-6, {align:'right'}); } }
+  return doc;
+}
+
+/* ---- Générer / réinitialiser le bon de régie ---- */
+function generateRegie(){
+  const d=collectRegie();
+  window._lastData=d; window._lastDoc='regie';
+  $('#fiche').innerHTML=buildRegieFiche(d);
+  $('#modeSwitch').hidden=true;
+  document.querySelector('#outputOverlay').classList.add('on');
+}
+function regieFileName(d){ const base=[d.ini,'regie',(d.chantier||'').replace(/\s+/g,'')].filter(Boolean).join('_')||'bon_regie'; return base.replace(/[^\wÀ-ſ.-]/g,'_')+'.pdf'; }
+function resetRegie(){
+  if(!confirm('Effacer le bon de régie en cours ?')) return;
+  ['#cliNom','#cliAdr','#cliNpaLoc','#cliContact','#cliTel','#regChantier','#regRemarque'].forEach(s=>{ const e=$(s); if(e) e.value=''; });
+  $('#regItems').innerHTML='';
+  document.querySelectorAll('.sigpad').forEach(c=>c._sig&&c._sig.clear());
+  addRegItem(); updateRegTotal(); updateRegieReq();
+}
+
+/* ---- Onglets ---- */
+let ACTIVE_TAB='releve';
+function setTab(t){
+  ACTIVE_TAB=(t==='regie'?'regie':'releve');
+  document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===ACTIVE_TAB));
+  $('#tabReleve').hidden = ACTIVE_TAB!=='releve';
+  $('#tabRegie').hidden  = ACTIVE_TAB!=='regie';
+  $('#barReleve').hidden = ACTIVE_TAB!=='releve';
+  $('#barRegie').hidden  = ACTIVE_TAB!=='regie';
+  if(ACTIVE_TAB==='regie'){ $('#regDate').textContent=frDate(todayISO()); updateRegMonteur(); updateRegieReq(); }
 }
 
 /* ================= Persistance (brouillon auto) ================= */
@@ -1318,8 +1645,8 @@ function init(){
   initCollab();
   // Sections vides au départ : l'utilisateur ajoute les lignes via les boutons « + ».
 
-  // Sections repliables : fermées par défaut. Les sections obligatoires (.req) et les Pièces restent ouvertes.
-  document.querySelectorAll('main .card').forEach(card=>{
+  // Sections repliables (relevé) : fermées par défaut. Les obligatoires (.req) et les Pièces restent ouvertes.
+  document.querySelectorAll('#tabReleve .card').forEach(card=>{
     if(card.classList.contains('req')) return;
     if(card.id!=='roomsCard') card.classList.add('collapsed');
     card.querySelector('h2').addEventListener('click',()=>card.classList.toggle('collapsed'));
@@ -1350,6 +1677,19 @@ function init(){
 
   // Partage : envoie le PDF en pièce jointe (menu du téléphone) ; sinon téléchargement
   $('#shareBtn').onclick=sharePDF;
+
+  /* ===== Bon de régie ===== */
+  document.querySelectorAll('#tabbar button').forEach(b=> b.onclick=()=>setTab(b.dataset.tab));
+  $('#addRegItem').onclick=()=>{ addRegItem(); };
+  $('#regGenBtn').onclick=generateRegie;
+  $('#regResetBtn').onclick=resetRegie;
+  document.querySelectorAll('.sigpad').forEach(setupSigPad);
+  document.querySelectorAll('.sig-clear').forEach(b=> b.onclick=()=>{ const c=document.querySelector('.sigpad[data-sig="'+b.dataset.clear+'"]'); if(c&&c._sig) c._sig.clear(); });
+  ['#cliNom','#cliAdr','#cliNpaLoc','#cliContact','#cliTel','#regChantier'].forEach(s=>$(s).addEventListener('input',updateRegieReq));
+  $('#regDate').textContent=frDate(todayISO());
+  preloadRegieAssets();
+  addRegItem();                 // une ligne au départ
+  updateRegMonteur(); updateRegieReq();
 
   ['#chantier','#date'].forEach(s=>$(s).addEventListener('input',buildRef));
   $('#ref').addEventListener('input',()=>{refEdited=true;});

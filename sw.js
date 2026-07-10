@@ -1,7 +1,7 @@
 /* SEVJ · Relevé chantier — service worker (mode hors-ligne)
    ⚠ Après chaque mise à jour de l'app, incrémente la version (CACHE) ci-dessous
    pour forcer le rafraîchissement du cache sur les téléphones. */
-const CACHE = 'sevj-v7';
+const CACHE = 'sevj-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -11,6 +11,9 @@ const ASSETS = [
   './icon-512.png',
   './icon-512-maskable.png',
   './apple-touch-icon.png',
+  './regie-logo.png',
+  './regie-band.png',
+  './regie-deco.png',
   './vendor/jspdf.umd.min.js',
   './vendor/jspdf.plugin.autotable.min.js',
 ];

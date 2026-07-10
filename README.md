@@ -1,9 +1,26 @@
 # SEVJ · Relevé chantier
 
-Application mobile (page web) pour **relever les informations sur site** et générer une
-**Fiche informative** destinée à la personne qui établit l'offre.
+Application mobile (page web) à **deux onglets** :
+- **📋 Relevé chantier** — relever les informations sur site et générer une **Fiche informative**
+  pour la personne qui établit l'offre.
+- **🧾 Bon de régie** — établir un bon signé pour les **travaux hors offre à facturer**.
 
-Tout tient dans un seul fichier `index.html` — aucune installation, aucun serveur requis.
+Tout tient dans `index.html` (+ les images `regie-*.png` du letterhead) — aucune installation, aucun serveur.
+
+---
+
+## 0. Bon de régie 🧾
+
+Le 2ᵉ onglet permet d'établir un **bon de régie** : tout ce qui **n'est pas prévu dans l'offre de base**
+et prend du temps (raccordements, contrôles, adaptations, travaux supplémentaires…) — **à facturer au client**.
+
+- **Données client** (nom/société, adresse, contact, téléphone) → affichées sur l'export.
+  🔒 **Sécurité : aucune donnée client n'est enregistrée** — tout est effacé au rechargement.
+- **Lignes de travaux** : catégorie, description, quantité, unité (h / pce / forfait / m) → **total heures** auto.
+- **Signatures** du **monteur** (connecté) *et* du **client**, capturées au doigt/à la souris.
+- **Export PDF au format du letterhead SEVJ officiel** : logo sevj officiel en haut, bandeau
+  d'adresse en bas, **date du jour non modifiable**, données client, tableau des travaux, et les deux signatures.
+- Le PDF de régie est léger (~60 Ko) et **ne contient pas** de marqueur de ré-import (données client non ré-exploitées).
 
 ---
 
@@ -173,6 +190,7 @@ git push -u origin main
 
 Déposer **tous** les fichiers du dossier (`index.html`, `sw.js`, `manifest.webmanifest`,
 `logo.png`, `icon-192.png`, `icon-512.png`, `icon-512-maskable.png`, `apple-touch-icon.png`,
+`regie-logo.png`, `regie-band.png`, `regie-deco.png` (letterhead du bon de régie),
 **et le dossier `vendor/`** — indispensable pour la génération PDF).
 
 ### Astuce téléphone — icône d'application
