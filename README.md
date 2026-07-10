@@ -66,6 +66,10 @@ recherchable** du matériel de base SEVJ (issu de `Reference_materiel_SEVJ.xlsx`
 - **Couleur** : le nom garde la taille mais le mot couleur est remplacé par celui coché. Comme les
   **N° ELDAS ne sont donnés que pour la couleur par défaut**, choisir une autre couleur **retire l'ELDAS**
   et affiche la **couleur en gras** dans l'export. (Couleurs dispo : KRFWG bleu/noir/gris/brun/jaune/rouge/vert/violet ; EDIZIO blanc/noir/anthracite/crème/beige/brun/gris.)
+- **Recherche** : un champ 🔎 au-dessus du menu permet de filtrer les articles au besoin — dans la
+  famille choisie, ou **sans famille** (recherche dans tout le catalogue de la section ; la famille est
+  alors déduite automatiquement pour les couleurs).
+- Les **boîtes** n'ont qu'**une seule catégorie** (toutes les boîtes dans la même liste).
 - **Saisie libre** : famille **« Autre »** → champ texte (sans ELDAS).
 - Le **N° ELDAS** de l'article choisi s'affiche et est repris dans l'export.
 - **Cheminements** : plus de sélecteur « Type » séparé. Choisir un article **« Bergmann »** force l'état

@@ -158,7 +158,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #fiche .sig-grid .empty-sig{height:70px; border-bottom:1px solid var(--ink)}
 #fiche .cli td:first-child{width:32%; background:#EAF0F6; color:var(--navy); font-weight:600}
 /* ---------- Sélecteur d'article en cascade ---------- */
-.artbox .art-fam,.artbox .art-mod,.artbox .art-free{width:100%}
+.artbox .art-fam,.artbox .art-mod,.artbox .art-free,.artbox .art-search{width:100%}
+.artbox .art-search{font-size:13px}
 .mat-tools{display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap}
 .mat-eldas{font-size:12px; color:var(--navy2); font-weight:700}
 .mat-eldas b{font-family:monospace}
@@ -550,7 +551,7 @@ const FAMILY_COLORS = {
 const FAM_ORDER = {
   chem:['Tube ALU','Tube TIT','Tube KRFWG','Canal LF','Tube Bergmann','Chemin de câble','Autre'],
   app:['EDIZIO.due','EDIZIO.liv','Prise CEE / industrielle','NUP/NEVO (étanche)','Autre'],
-  boite:['Boîte de dérivation','Boîte / support','Autre'],
+  boite:['Boîte','Autre'],
 };
 function familyOf(sec, name){
   const n=name||'';
@@ -570,8 +571,7 @@ function familyOf(sec, name){
     if(/NUP|NEVO/i.test(n)) return 'NUP/NEVO (étanche)';
     return 'Autre';
   }
-  if(/dérivation/i.test(n)) return 'Boîte de dérivation';
-  return 'Boîte / support';
+  return 'Boîte';   // boîtes : une seule catégorie
 }
 /* Familles d'une section, triées, chaque famille triée par taille croissante */
 function buildFamilies(sec){
@@ -591,6 +591,7 @@ function matBoxHtml(sec, label){
   return `<div class="artbox" data-artbox data-sec="${sec}">
     <label class="fld">${label}</label>
     <select class="art-fam" data-f="fam"><option value="">— choisir la famille —</option>${famOpts}</select>
+    <input class="art-search" type="text" placeholder="🔎 rechercher un article (facultatif)…" autocomplete="off" style="margin-top:8px">
     <select class="art-mod" data-artmod hidden style="margin-top:8px"></select>
     <input class="art-free" data-f="artbase" type="text" placeholder="Nom de l'article (saisie libre)…" hidden style="margin-top:8px" autocomplete="off">
     <div class="art-colors" data-artcolors hidden></div>
@@ -602,13 +603,24 @@ function matBoxHtml(sec, label){
 function wireMat(box){
   const sec=box.dataset.sec, fams=buildFamilies(sec);
   const famSel=box.querySelector('.art-fam'), modSel=box.querySelector('[data-artmod]'), free=box.querySelector('.art-free');
-  const colorsWrap=box.querySelector('[data-artcolors]');
+  const searchInp=box.querySelector('.art-search'), colorsWrap=box.querySelector('[data-artcolors]');
   const baseEl=box.querySelector('[data-f="artbase"]'), artEl=box.querySelector('[data-f="article"]');
   const eldasEl=box.querySelector('[data-f="eldas"]'), colorEl=box.querySelector('[data-f="color"]');
   const colBoldEl=box.querySelector('[data-f="colbold"]'), eldasLbl=box.querySelector('.mat-eldas');
   const famData=name=>fams.find(f=>f.fam===name);
-  function fillModels(fam){ const fd=famData(fam);
-    modSel.innerHTML='<option value="">— choisir la taille / le modèle —</option>'+(fd?fd.items.map(m=>`<option value="${esc(m.n)}" data-e="${esc(m.e||'')}">${esc(m.n)}${m.e?' · '+esc(m.e):''}</option>`).join(''):''); }
+  const allItems=()=> MAT.filter(m=>m.s===sec).slice().sort((a,b)=> matSize(a.n)-matSize(b.n) || a.n.localeCompare(b.n));
+  /* Remplit le menu des modèles : famille choisie -> ses items ; sinon si recherche -> tout ; filtré par la recherche */
+  function fillModels(keepSel){
+    const q=(searchInp.value||'').toLowerCase().trim();
+    const toks=q.split(/\s+/).filter(Boolean);
+    const fd=famData(famSel.value);
+    let pool = fd ? fd.items : (toks.length ? allItems() : []);
+    if(toks.length) pool = pool.filter(m=>{ const hay=(m.n+' '+(m.e||'')).toLowerCase(); return toks.every(t=>hay.includes(t)); });
+    const sel=keepSel?modSel.value:'';
+    modSel.innerHTML='<option value="">— choisir la taille / le modèle —</option>'+pool.map(m=>`<option value="${esc(m.n)}" data-e="${esc(m.e||'')}">${esc(m.n)}${m.e?' · '+esc(m.e):''}</option>`).join('');
+    if(sel){ modSel.value=sel; }
+    modSel.hidden = famSel.value==='__autre' ? true : (fd ? false : (toks.length? false : true));
+  }
   function colorsOf(){ const fd=famData(famSel.value); return fd&&fd.colors?fd.colors:null; }
   function renderColors(sel){
     const cl=colorsOf();
@@ -637,21 +649,24 @@ function wireMat(box){
   function setColor(c){ colorEl.value=c; renderColors(c); compute(); dispatch(); }
   famSel.addEventListener('change',()=>{
     const autre=famSel.value==='__autre';
-    free.hidden=!autre; modSel.hidden=autre||!famSel.value;
-    colorEl.value='';
-    if(autre){ colorsWrap.hidden=true; }
-    else if(famSel.value){ fillModels(famSel.value); const cl=colorsOf(); renderColors(cl?cl.def:''); }
-    else { colorsWrap.hidden=true; }
+    free.hidden=!autre; searchInp.hidden=autre; colorEl.value=''; modSel.value='';
+    if(autre){ colorsWrap.hidden=true; modSel.hidden=true; }
+    else { fillModels(false); const cl=colorsOf(); renderColors(cl?cl.def:''); }
     compute(); dispatch();
   });
-  modSel.addEventListener('change',()=>{ const cl=colorsOf(); colorEl.value=cl?cl.def:''; renderColors(cl?cl.def:''); compute(); dispatch(); });
+  searchInp.addEventListener('input', ()=>{ fillModels(true); });
+  modSel.addEventListener('change',()=>{
+    // recherche transverse sans famille -> déduire la famille de l'article choisi (pour les couleurs)
+    if(!famData(famSel.value) && modSel.value){ const f=familyOf(sec, modSel.value); if(famData(f)){ famSel.value=f; } }
+    const cl=colorsOf(); colorEl.value=cl?cl.def:''; renderColors(cl?cl.def:''); compute(); dispatch();
+  });
   free.addEventListener('input', ()=>{ compute(); if(window.scheduleSave) scheduleSave(); });
   free.addEventListener('change',()=>{ dispatch(); });
   /* Restauration : reconstruit l'UI depuis fam/artbase/color déjà remplis */
   box._matRefresh=function(){
-    const fam=famSel.value;
+    const fam=famSel.value; searchInp.value=''; searchInp.hidden = fam==='__autre';
     if(fam==='__autre'){ free.hidden=false; modSel.hidden=true; colorsWrap.hidden=true; free.value=baseEl.value; }
-    else if(fam){ free.hidden=true; modSel.hidden=false; fillModels(fam); modSel.value=baseEl.value||'';
+    else if(fam){ free.hidden=true; fillModels(false); modSel.value=baseEl.value||''; modSel.hidden=false;
       const cl=colorsOf(); renderColors(colorEl.value|| (cl?cl.def:'')); }
     else { free.hidden=true; modSel.hidden=true; colorsWrap.hidden=true; }
     updateLbl();
@@ -1796,7 +1811,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v14 — catalogue + bon de régie';
+const APP_VERSION='v15 — catalogue + bon de régie';
 function init(){
   $('#logoImg').src=LOGO;
   const av=$('#appVer'); if(av) av.textContent=APP_VERSION;
