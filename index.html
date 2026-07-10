@@ -16,6 +16,7 @@
   --card:#fff; --radius:14px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}   /* garantit que hidden cache, même avec un display:flex/inline-flex */
 html,body{margin:0;padding:0}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Calibri,Arial,sans-serif;
@@ -529,7 +530,22 @@ window.hashPw = hashPw; // utilitaire console
 let uid = 0;
 
 /* ================= Catalogue matériel (combobox recherchable) ================= */
-const MAT = (typeof MATERIEL!=='undefined') ? MATERIEL : [];
+/* Types de cheminement usuels non tarifés dans l'Excel (sélectionnables dans la liste) */
+const MAT_EXTRA = [
+  {n:'Tube TIT M50 gris clair', e:'', c:'Tubes / gaines', s:'chem'},
+  {n:'Tube TIT M63 gris clair', e:'', c:'Tubes / gaines', s:'chem'},
+  {n:'Tube ALU M16 lucide', e:'', c:'Tubes / gaines', s:'chem'},
+  {n:'Tube Bergmann (existant)', e:'', c:'Tubes / gaines', s:'chem'},
+  {n:'Tube THFWG', e:'', c:'Tubes / gaines', s:'chem'},
+  {n:'Chemin de câble', e:'', c:'Chemin de câble', s:'chem'},
+];
+const MAT = ((typeof MATERIEL!=='undefined') ? MATERIEL : []).concat(MAT_EXTRA);
+/* Taille d'un article pour le tri (tube M20, canal 60×40, prise 3×T13…) — plus petit d'abord */
+function matSize(name){
+  const m=String(name||'').match(/\bM\s?(\d+)/i); if(m) return +m[1];
+  const d=String(name||'').match(/(\d+)\s*[×x]\s*(\d+)/);   if(d) return +d[1]*1000 + +d[2];
+  const n=String(name||'').match(/(\d+)/); return n? +n[1] : 99999;
+}
 /* HTML d'un combobox matériel pour une section ('app' | 'boite' | 'chem') */
 function matBoxHtml(sec, label, ph){
   return `<div class="matbox" data-matbox data-sec="${sec}">
@@ -571,10 +587,14 @@ function wireMat(box){
     const res=list.filter(m=>{ if(!toks.length) return true; const hay=(m.n+' '+(m.e||'')).toLowerCase(); return toks.every(t=>hay.includes(t)); }).slice(0,80);
     if(!res.length){ panel.innerHTML='<div class="none">Aucun article — ta saisie sera utilisée telle quelle (sans ELDAS).</div>'; return; }
     const byCat={}; res.forEach(m=>{ (byCat[m.c]=byCat[m.c]||[]).push(m); });
+    // tri de chaque catégorie par taille croissante (M16→M63, 15×15→110×60, …)
+    Object.values(byCat).forEach(arr=> arr.sort((a,b)=> matSize(a.n)-matSize(b.n) || a.n.localeCompare(b.n)));
     panel.innerHTML=Object.entries(byCat).map(([cat,arr])=>`<div class="grp">${esc(cat)}</div>`+
       arr.map(m=>`<div class="mi" data-n="${esc(m.n)}" data-e="${esc(m.e||'')}">${esc(m.n)}${m.e?` <span class="eld">${esc(m.e)}</span>`:''}</div>`).join('')).join('');
     panel.querySelectorAll('.mi').forEach(mi=> mi.addEventListener('mousedown',ev=>{ ev.preventDefault();
-      input.value=mi.dataset.n; panel.hidden=true; refresh(); if(window.scheduleSave) scheduleSave(); }));
+      input.value=mi.dataset.n; panel.hidden=true; refresh();
+      input.dispatchEvent(new Event('change',{bubbles:true}));   // -> applyCond (Bergmann) + syncChemLinks + save
+    }));
   }
   input.addEventListener('focus',()=>{ build(input.value); panel.hidden=false; });
   input.addEventListener('input', ()=>{ build(input.value); panel.hidden=false; refresh(); });
@@ -615,14 +635,8 @@ function addChemin(cont){
     <button class="rm" title="Supprimer">×</button>
     <div class="tag">Cheminement</div>
     <div style="margin-bottom:10px"><label class="fld">Nom (optionnel)</label><input data-f="name" type="text" placeholder="ex : Trémie cuisine"></div>
-    <div class="grid">
-      <div><label class="fld">Type</label><select data-f="type">${opts(CHEM_T)}</select></div>
-      <div><label class="fld">Longueur (m)</label><input data-f="long" type="number" min="0" step="0.5" placeholder="0"></div>
-    </div>
-    <div style="margin-top:10px">${matBoxHtml('chem','Article précis (catalogue, optionnel)','ex : Tube TIT M20, Canal LF 60×40…')}</div>
-    <div class="cond" data-c="canal" style="margin-top:10px"><label class="fld">Dimension du canal</label><input data-f="dim" type="text" placeholder="ex : 60×110 mm"></div>
-    <div class="cond" data-c="thfwg" style="margin-top:10px"><label class="fld">THFWG résistant UV ?</label><select data-f="uv"><option>Oui (résistant UV)</option><option>Non</option></select>
-      <button type="button" class="mat-color" data-chart="couleur-THFWG.png" style="margin-top:6px">🎨 Couleurs THFWG</button></div>
+    ${matBoxHtml('chem','Article / type (tube, canal… — ou saisie libre)','Rechercher : tube TIT M20, canal LF 60×40, Bergmann…')}
+    <div style="margin-top:10px"><label class="fld">Longueur (m)</label><input data-f="long" type="number" min="0" step="0.5" placeholder="0"></div>
     <div style="margin-top:10px"><label class="fld">État</label><select data-f="etat"><option>À poser (neuf)</option><option>Déjà existant</option></select></div>
     <div class="cond" data-c="bergmann" style="margin-top:8px; color:var(--danger); font-weight:600; font-size:12px">⚠ Tube Bergmann : forcément existant — tirage compliqué (signalé en remarque dans l'export).</div>
     <div class="chk"><input type="checkbox" data-f="haut"><label>Travail en hauteur (&gt; 3.50 m)</label></div>
@@ -773,19 +787,17 @@ function applyCond(r){
   const val = f => { const e=r.querySelector(`[data-f="${f}"]`); return e?e.value:''; };
   const show = (sel,on)=>{ const e=r.querySelector(sel); if(e) e.classList.toggle('on',!!on); };
   show('[data-c="mm2"]',   val('mm2')==='autre…');
-  show('[data-c="canal"]', val('type')==='Canal');
-  show('[data-c="thfwg"]', val('type')==='Tube THFWG');
   show('[data-c="amp"]',   val('amp')==='autre…');
   // câble : champ "Nombre" seulement pour un Fil ; "Phase" (mono/tri) pour un câble
   show('[data-c="filn"]',    val('type')==='Fil');
   show('[data-c="nbautre"]', val('type')==='Fil' && val('nb')==='plus…');
   show('[data-c="phase"]',   r.querySelector('[data-f="phase"]') && val('type')!=='Fil');
-  // cheminement : Tube Bergmann -> forcément existant + avertissement tirage compliqué
+  // cheminement : article contenant "Bergmann" -> forcément existant + avertissement tirage compliqué
   const etatSel = r.querySelector('[data-f="etat"]');
   if(etatSel){
-    const isBerg = val('type')==='Tube Bergmann';
-    if(isBerg){ etatSel.value='Déjà existant'; etatSel.disabled=true; }
-    else etatSel.disabled=false;
+    const isBerg = /bergmann/i.test(val('article'));
+    if(isBerg){ etatSel.value='Déjà existant'; etatSel.disabled=true; etatSel.dataset.berg='1'; }
+    else { if(etatSel.dataset.berg){ etatSel.value='À poser (neuf)'; delete etatSel.dataset.berg; } etatSel.disabled=false; }
     show('[data-c="bergmann"]', isBerg);
   }
   // disjoncteur : marque à préciser
@@ -836,10 +848,10 @@ function buildLinksFor(cableRow){
   const chem=roomChemins(cableRow);
   if(!chem.length){ wrap.innerHTML='<div class="hint" style="margin:2px 0 0">Aucun cheminement dans cette pièce — ajoute-en ci-dessus.</div>'; return; }
   wrap.innerHTML = chem.map((r,i)=>{
-    const t=r.querySelector('[data-f="type"]'); const type=t?t.value:'';
+    const t=r.querySelector('[data-f="article"]'); const art=t&&t.value?t.value:'(cheminement)';
     const nm=r.querySelector('[data-f="name"]'); const name=nm&&nm.value?'«'+nm.value+'» ':'';
     const e=r.querySelector('[data-f="long"]'); const long=e&&e.value?e.value+' m':'—';
-    return `<label class="chk" style="padding:4px 0"><input type="checkbox" data-lk="${i}"${selected.has(String(i))?' checked':''}><span>#${i+1} · ${esc(name)}${esc(type)} · ${esc(long)}</span></label>`;
+    return `<label class="chk" style="padding:4px 0"><input type="checkbox" data-lk="${i}"${selected.has(String(i))?' checked':''}><span>#${i+1} · ${esc(name)}${esc(art)} · ${esc(long)}</span></label>`;
   }).join('');
   wrap.querySelectorAll('input[data-lk]').forEach(cb=> cb.addEventListener('change',()=>{
     hidden.value=[...wrap.querySelectorAll('input[data-lk]')].filter(x=>x.checked).map(x=>x.dataset.lk).join(',');
@@ -921,10 +933,13 @@ function updateReq(){
 let refEdited=false;
 function buildRef(){
   if(refEdited) return;
+  const nom = ($('#chantier').value||'').trim();
+  // rien de saisi (pas connecté ET pas de nom de chantier) -> référence vide
+  if(!currentUser && !nom){ $('#ref').value=''; return; }
   const ini = currentUser?currentUser.ini:'INI';
   const d   = ($('#date').value||'').replace(/-/g,'') || 'AAAAMMJJ';
-  const nom = ($('#chantier').value||'chantier').trim().replace(/\s+/g,'').replace(/[^\wÀ-ſ-]/g,'');
-  $('#ref').value = `${ini}_${d}_${nom}`;
+  const nomClean = nom.replace(/\s+/g,'').replace(/[^\wÀ-ſ-]/g,'') || 'chantier';
+  $('#ref').value = `${ini}_${d}_${nomClean}`;
 }
 
 /* ================= Longueur de câble automatique ================= */
@@ -960,12 +975,11 @@ function collect(){
     return {name:g(r,'name'), mm2:s, type:g(r,'type'), long:g(r,'long'), fil, nb, phase:g(r,'phase')};
   }).filter(c=>c.long||c.mm2);
   const getChemins = root => [...root.querySelectorAll('[data-sub="chemins"] .row')].map(r=>{
-    const t=g(r,'type'); const berg=t==='Tube Bergmann';
-    return {name:g(r,'name'), type:t, long:g(r,'long'), dim:g(r,'dim'), uv:g(r,'uv'),
-            article:g(r,'article'), eldas:g(r,'eldas'),
-            etat:g(r,'etat'), haut:g(r,'haut'), canal:t==='Canal', thfwg:t==='Tube THFWG', bergmann:berg,
+    const art=g(r,'article'); const berg=/bergmann/i.test(art);
+    return {name:g(r,'name'), article:art, eldas:g(r,'eldas'), long:g(r,'long'),
+            etat:g(r,'etat'), haut:g(r,'haut'), bergmann:berg,
             existant:(g(r,'etat')||'').startsWith('Déjà') || berg};
-  }).filter(c=>c.long||c.type||c.article);
+  }).filter(c=>c.long||c.article);
   const getApps = root => [...root.querySelectorAll('[data-sub="apps"] .row')].map(r=>(
     {name:g(r,'name'), article:g(r,'article'), eldas:g(r,'eldas'), qte:g(r,'qte')||'1'}
   )).filter(a=>a.article);
@@ -1093,8 +1107,8 @@ function groupItems(list, labelFn, qtyFn, redFn){
   });
   return [...map.values()].map(o=>({label:o.label, qty:o.any?String(Math.round(o.qty*100)/100):'', names:[...o.names], red:o.red, eldas:o.eldas}));
 }
-/* Libellé d'un cheminement dans l'export : article précis si choisi, sinon type détaillé */
-function chemDesig(c){ return c.article ? c.article : chemLabel(c,true); }
+/* Libellé d'un cheminement dans l'export : l'article/type choisi (+ note hauteur) */
+function chemDesig(c){ let s=c.article||'Cheminement'; if(c.haut) s+=' — travail en hauteur > 3.50 m (majoration 1.5×)'; return s; }
 function isDue(a){ return /EDIZIO ?due/i.test(a.article||''); }
 /* Agrège les articles d'un ensemble {chemins,cables,apps,boites,disj} */
 function aggregate(items){
@@ -1721,7 +1735,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v11 — catalogue + bon de régie';
+const APP_VERSION='v13 — catalogue + bon de régie';
 function init(){
   $('#logoImg').src=LOGO;
   const av=$('#appVer'); if(av) av.textContent=APP_VERSION;
@@ -1804,6 +1818,8 @@ function init(){
   if(!document.querySelector('#rooms .room')) addRoom();
   syncChemLinks();
   updateMO();
+  buildRef();     // recalcule la référence (vide si rien n'est saisi)
+  setTab('releve');   // état d'onglet cohérent au démarrage (barre du bas correcte)
 
   // Service worker (mode hors-ligne) + mise à jour automatique
   if('serviceWorker' in navigator){

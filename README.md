@@ -60,9 +60,13 @@ La case *Travail en hauteur (> 3.50 m)* affiche automatiquement la **majoration 
 ### Catalogue matériel 📇 (N° ELDAS)
 Les sections **Prises/Interrupteurs**, **Boîtes** et **Cheminements** proposent un **menu déroulant
 recherchable** du matériel de base SEVJ (issu de `Reference_materiel_SEVJ.xlsx`) :
-- Tape quelques mots (ex : `AP10 blanc`, `EDIZIOdue T13`) → la liste se filtre par **catégorie**
+- Tape quelques mots (ex : `AP10 blanc`, `EDIZIOdue T13`, `TIT M20`) → la liste se filtre par **catégorie**
   (Prises, Combinaisons, Interrupteurs, Plaques/obturateurs, Prises CEE ; Boîtes/support &
   Boîtes de dérivation ; Tubes/gaines & Canaux). On peut aussi chercher par **N° ELDAS**.
+  La liste est **triée par taille croissante** (tubes M16→M63, canaux 15×15→110×60…).
+- **Cheminements** : plus de sélecteur « Type » — tout passe par cette liste (Tube TIT/ALU/Bergmann/THFWG,
+  Canaux, Chemin de câble…) ou en saisie libre. Choisir un article contenant **« Bergmann »** force
+  automatiquement l'état *Déjà existant* + la remarque rouge « tirage compliqué ».
 - En choisissant un article, son **N° ELDAS** est capturé et **affiché dans l'export** (utile pour les offres).
 - **Saisie libre** toujours possible : tape un nom qui n'est pas au catalogue → il est utilisé tel quel (sans ELDAS).
 - Bouton **🎨 Couleurs** : affiche la charte de couleurs de la gamme (EDIZIO.due/.liv ENC/AP, THFWG).
