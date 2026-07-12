@@ -13,8 +13,27 @@
 :root{
   --navy:#1F3B5B; --navy2:#3E6188; --line:#C9D4E0; --bg:#EAF0F6;
   --ink:#2B2B2B; --mut:#666; --ok:#1c7c3f; --warn:#b5651d; --danger:#b02a2a;
-  --card:#fff; --radius:14px;
+  --card:#fff; --fieldbg:#fff; --rowbg:#fbfdff; --radius:14px;
 }
+:root[data-theme="dark"]{
+  --navy:#24405f; --navy2:#5b83ad; --line:#33404e; --bg:#0f1720;
+  --ink:#e7edf3; --mut:#9fb0bf; --card:#1a2530; --fieldbg:#0f1a24; --rowbg:#18232f;
+}
+:root[data-theme="dark"] input[type=text],
+:root[data-theme="dark"] input[type=number],
+:root[data-theme="dark"] input[type=password],
+:root[data-theme="dark"] input[type=date],
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] .art-pick{ background:var(--fieldbg); color:var(--ink); border-color:var(--line); }
+:root[data-theme="dark"] .row{ background:var(--rowbg); }
+:root[data-theme="dark"] .card>h2{ background:#141d26; }
+:root[data-theme="dark"] .tabbar button{ background:var(--card); color:#cdd9e5; }
+:root[data-theme="dark"] .add{ background:var(--card); }
+:root[data-theme="dark"] .btn-2{ background:var(--card); }
+:root[data-theme="dark"] .bar{ background:var(--card); }
+:root[data-theme="dark"] .mo-total,:root[data-theme="dark"] .sig-box,:root[data-theme="dark"] input.auto{ background:#141d26; }
+/* L'aperçu/PDF (#fiche) et les fenêtres-document restent clairs (papier) */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}   /* garantit que hidden cache, même avec un display:flex/inline-flex */
 html,body{margin:0;padding:0}
@@ -38,6 +57,7 @@ header{
 }
 .hdr-ref input::placeholder{color:rgba(255,255,255,.6)}
 .who{font-size:12px; margin-top:6px; text-align:right; opacity:.9; max-width:760px; margin-left:auto; margin-right:auto}
+.theme-btn{flex:0 0 auto; border:none; background:rgba(255,255,255,.14); color:#fff; width:38px; height:38px; border-radius:10px; font-size:18px; cursor:pointer; line-height:1}
 .who b{color:#fff}
 /* ---------- Layout ---------- */
 main{max-width:760px; margin:0 auto; padding:14px}
@@ -123,8 +143,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   transform:rotate(45deg); margin-top:-3px; transition:transform .2s}
 .room.collapsed .room-hd .room-tog::before{transform:rotate(-45deg); margin-top:3px}
 .room.collapsed .room-body{display:none}
-.room-sum{display:none; color:rgba(255,255,255,.85); font-size:12px; font-weight:600; white-space:nowrap; padding:0 2px}
-.room.collapsed .room-sum{display:inline}
+.room-sum{color:rgba(255,255,255,.85); font-size:11px; font-weight:600; white-space:nowrap; padding:0 2px}
+.room-hd .room-mv{flex:0 0 auto; border:none; background:rgba(255,255,255,.16); color:#fff; width:26px; height:30px;
+  border-radius:7px; font-size:11px; cursor:pointer; padding:0}
 .room-body{padding:12px}
 .sub{margin:0 0 14px}
 .sub>h4{margin:0 0 8px; font-size:13px; color:var(--navy); display:flex; align-items:center; gap:7px;
@@ -218,6 +239,13 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .btn-main{background:var(--navy); color:#fff}
 .btn-main:disabled{opacity:.45}
 .btn-2{background:var(--bg); color:var(--navy); border:1px solid var(--line)!important}
+/* ---------- Champ mot de passe (œil) ---------- */
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:44px}
+.pw-eye{position:absolute; top:50%; right:6px; transform:translateY(-50%); width:34px; height:34px;
+  border:none; background:transparent; color:var(--navy2); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0}
+.pw-eye svg{width:20px; height:20px}
+.pw-eye.on{color:var(--navy)}
 /* ---------- Login state ---------- */
 .locked{opacity:.55; pointer-events:none}
 .pill{display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; background:var(--bg); color:var(--navy2); font-weight:700}
@@ -266,6 +294,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 <header>
   <div class="hdr-row">
     <img id="logoImg" alt="SEVJ">
+    <button type="button" id="themeBtn" class="theme-btn" title="Mode clair / sombre" aria-label="Mode clair / sombre">🌙</button>
     <div class="hdr-ref">
       <label for="ref">Référence</label>
       <input id="ref" type="text" placeholder="INI_date_chantier" autocomplete="off">
@@ -293,7 +322,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         </div>
         <div>
           <label class="fld" for="pass">Mot de passe</label>
-          <input id="pass" type="password" autocomplete="off">
+          <div class="pw-wrap">
+            <input id="pass" type="password" autocomplete="off">
+            <button type="button" id="pwToggle" class="pw-eye" aria-label="Afficher le mot de passe" title="Afficher / masquer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
       </div>
       <div style="margin-top:10px; display:flex; gap:10px; align-items:center">
@@ -324,6 +358,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <input id="pdfImport" type="file" accept="application/pdf,.pdf" style="display:none">
       <button class="add" id="importBtn" style="border-style:solid; margin-top:12px">📥 Importer un relevé (PDF de l'app)</button>
       <p class="hint" style="margin:6px 0 0">Recharge un PDF <b>généré et téléchargé</b> par cette application pour compléter le relevé, puis re-télécharger. (Les photos ne sont pas ré-importées.)</p>
+      <div style="display:flex; gap:8px; margin-top:12px">
+        <button class="add" id="backupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.json)</button>
+        <input id="backupImport" type="file" accept="application/json,.json" style="display:none">
+        <button class="add" id="backupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.json)</button>
+      </div>
+      <p class="hint" style="margin:6px 0 0">Sauvegarde complète (données <b>+ photos</b>) dans un fichier, pour changer de téléphone ou en cas de perte.</p>
     </div>
   </section>
 
@@ -336,7 +376,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       à partir des cheminements <b>de la même pièce</b>. Chaque article peut recevoir un <b>nom</b>
       (affiché dans l'export détaillé).</p>
       <div id="rooms"></div>
-      <button class="add" id="addRoomBtn" style="border-style:solid">🏠 Ajouter une pièce</button>
+      <div style="display:flex; gap:8px; margin-top:2px">
+        <button class="add" id="addRoomBtn" style="border-style:solid; margin:0; flex:1">🏠 Ajouter une pièce</button>
+        <button class="add" id="toggleAllBtn" style="border-style:solid; margin:0; flex:0 0 auto; width:auto; padding:12px 14px" title="Tout replier / déployer">⇕</button>
+      </div>
     </div>
   </section>
 
@@ -364,17 +407,6 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     <div class="body">
       <div id="remarques"></div>
       <button class="add" data-add="remarque">＋ Ajouter une remarque</button>
-    </div>
-  </section>
-
-  <!-- 7. Photos -->
-  <section class="card">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg></span> Photos</h2>
-    <div class="body">
-      <p class="hint">Photos du chantier (tableau, tracé, existant…) — incluses dans le PDF.</p>
-      <input id="photoInput" type="file" accept="image/*" capture="environment" multiple style="display:none">
-      <button class="add" id="photoBtn" style="border-style:solid">📷 Ajouter des photos</button>
-      <div id="photoGrid" class="photo-grid"></div>
     </div>
   </section>
 
@@ -410,6 +442,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
           <div><label class="fld" for="regLieu">Lieu</label><input id="regLieu" type="text" value="Le Sentier"></div>
         </div>
         <div class="mo-total" style="margin-top:12px">Date du bon : <b id="regDate">—</b> <span style="color:var(--mut)">(date du jour, non modifiable)</span></div>
+        <div class="mo-total" style="margin-top:8px">N° de bon : <b id="regRef">—</b> <span style="color:var(--mut)">(auto : INITIALES_date_chantier)</span></div>
       </div>
     </section>
 
@@ -832,6 +865,8 @@ function addRoom(name, colorIdx){
       <input class="room-name-custom" data-room-custom type="text" placeholder="Préciser le nom" value="${isCustom?esc(name):''}" style="display:${isCustom?'':'none'}">
       <b class="room-dup" data-room-dup></b>
       <span class="room-sum" data-room-sum></span>
+      <button class="room-mv" data-mv="up" title="Monter la pièce">▲</button>
+      <button class="room-mv" data-mv="down" title="Descendre la pièce">▼</button>
       <button class="room-rm" title="Supprimer la pièce">×</button>
     </div>
     <div class="room-body">
@@ -840,7 +875,14 @@ function addRoom(name, colorIdx){
       ${subBlock('apps','Prises & interrupteurs','＋ Appareil')}
       ${subBlock('boites','Boîtes','＋ Boîte')}
       ${subBlock('disj','Disjoncteurs','＋ Disjoncteur')}
+      <div class="sub">
+        <h4>Photos</h4>
+        <input class="room-photo-input" type="file" accept="image/*" capture="environment" multiple hidden>
+        <button type="button" class="add room-photo-btn" style="font-size:13px">📷 Ajouter des photos</button>
+        <div class="photo-grid" data-photogrid></div>
+      </div>
     </div>`;
+  room._photos=[];
   // couleur
   const ci = (colorIdx!=null?colorIdx: $('#rooms').querySelectorAll('.room').length) % ROOM_COLORS.length;
   room.dataset.color = ci;
@@ -852,6 +894,11 @@ function addRoom(name, colorIdx){
   const toggle=()=>{ room.classList.toggle('collapsed'); scheduleSave(); };
   room.querySelector('[data-room-tog]').onclick=toggle;
   room.querySelector('.rn-ico').onclick=toggle;
+  room.querySelectorAll('.room-mv').forEach(b=> b.onclick=()=>{
+    if(b.dataset.mv==='up'){ const p=room.previousElementSibling; if(p) room.parentNode.insertBefore(room,p); }
+    else { const n=room.nextElementSibling; if(n) room.parentNode.insertBefore(n,room); }
+    syncChemLinks(); scheduleSave();
+  });
   room.querySelectorAll('[data-addsub]').forEach(b=>{
     b.onclick=()=>{ const cont=b.parentElement.querySelector('[data-sub]'); ROOM_ADDERS[b.dataset.addsub](cont); scheduleSave(); };
   });
@@ -859,6 +906,9 @@ function addRoom(name, colorIdx){
   const onName=()=>{ custom.style.display = sel.value==='Autre…' ? '' : 'none'; updateRoomsUI(); scheduleSave(); };
   sel.addEventListener('change', onName);
   custom.addEventListener('input', ()=>{ updateRoomsUI(); scheduleSave(); });
+  const pinput=room.querySelector('.room-photo-input');
+  room.querySelector('.room-photo-btn').onclick=()=>pinput.click();
+  pinput.addEventListener('change', e=>{ addPhotosToRoom(room,[...e.target.files]); e.target.value=''; });
   $('#rooms').appendChild(room);
   return room;
 }
@@ -1104,8 +1154,9 @@ function collect(){
   const nameMap=computeRoomNames();
   const rooms=[...document.querySelectorAll('#rooms .room')].map(room=>({
     name:nameMap.get(room), color:ROOM_COLORS[(+room.dataset.color||0)%ROOM_COLORS.length],
-    chemins:getChemins(room), cables:getCables(room), apps:getApps(room), boites:getBoites(room), disj:getDisj(room)
-  })).filter(rm=> rm.chemins.length||rm.cables.length||rm.apps.length||rm.boites.length||rm.disj.length);
+    chemins:getChemins(room), cables:getCables(room), apps:getApps(room), boites:getBoites(room), disj:getDisj(room),
+    photos:(room._photos||[]).slice()
+  })).filter(rm=> rm.chemins.length||rm.cables.length||rm.apps.length||rm.boites.length||rm.disj.length||rm.photos.length);
 
   const rem=[...document.querySelectorAll('#remarques .row')].map(r=>g(r,'txt')).filter(Boolean);
   return {
@@ -1173,6 +1224,16 @@ function buildFiche(d, mode){
   const rems=allRemarks(d);
   if(rems.length){ L.push('<ul>'+rems.map(x=>`<li${x.red?' style="color:#b02a2a;font-weight:600"':''}>${esc(x.txt)}</li>`).join('')+'</ul>'); }
   else L.push('<p class="empty">Aucune remarque.</p>');
+
+  /* ---- Photos (par pièce) ---- */
+  const roomsWithPhotos=(d.rooms||[]).filter(r=>r.photos&&r.photos.length);
+  if(roomsWithPhotos.length){
+    L.push('<h3>Photos</h3>');
+    roomsWithPhotos.forEach(r=>{ const col=r.color||'#1F3B5B';
+      L.push(`<div class="room-title" style="color:${col};border-bottom-color:${col}">${esc(r.name)}</div>`);
+      L.push('<div class="photo-grid" style="margin-bottom:8px">'+r.photos.map(p=>`<div class="ph"><img src="${p.data}"></div>`).join('')+'</div>');
+    });
+  }
 
   /* ---- Signature ---- */
   L.push(`<p class="sig">Fiche établie par : <b>${esc(d.user?d.user.name:'—')}</b></p>`);
@@ -1303,8 +1364,7 @@ function tempsDesc(d){
   return s;
 }
 
-/* ================= Photos ================= */
-let PHOTOS = [];   // [{data:'data:image/jpeg;base64,…'}]
+/* ================= Photos (par pièce) ================= */
 function compressImage(file){
   return new Promise((resolve,reject)=>{
     const img=new Image(); const url=URL.createObjectURL(file);
@@ -1321,18 +1381,19 @@ function compressImage(file){
     img.src=url;
   });
 }
-async function addPhotos(files){
+async function addPhotosToRoom(room, files){
+  room._photos = room._photos||[];
   for(const f of files){ if(!f.type.startsWith('image/')) continue;
-    try{ const data=await compressImage(f); PHOTOS.push({data}); }catch(e){}
+    try{ const data=await compressImage(f); room._photos.push({data}); }catch(e){}
   }
-  renderPhotos(); saveDraft();
+  renderRoomPhotos(room); saveDraft();
 }
-function renderPhotos(){
-  const g=$('#photoGrid'); g.innerHTML='';
-  PHOTOS.forEach((p,i)=>{
+function renderRoomPhotos(room){
+  const g=room.querySelector('[data-photogrid]'); if(!g) return; g.innerHTML='';
+  (room._photos||[]).forEach((p,i)=>{
     const d=el('div','ph');
-    d.innerHTML=`<img src="${p.data}"><button title="Supprimer" data-i="${i}">×</button>`;
-    d.querySelector('button').onclick=()=>{ PHOTOS.splice(i,1); renderPhotos(); saveDraft(); };
+    d.innerHTML=`<img src="${p.data}"><button type="button" title="Supprimer">×</button>`;
+    d.querySelector('button').onclick=()=>{ room._photos.splice(i,1); renderRoomPhotos(room); saveDraft(); };
     g.appendChild(d);
   });
 }
@@ -1482,24 +1543,28 @@ function buildPDFDoc(d, mode){
   doc.text(pdfSafe(d.user?d.user.name:'-'), M+w, y+2);
   y+=10;
 
-  /* Photos (2 colonnes) */
-  if(PHOTOS.length){
-    if(y>H-55){ doc.addPage(); y=16; }
+  /* Photos (par pièce, 2 colonnes) */
+  const roomsWithPhotos=(d.rooms||[]).filter(r=>r.photos&&r.photos.length);
+  if(roomsWithPhotos.length){
+    if(y>H-40){ doc.addPage(); y=16; }
     heading('Photos');
     const gap=6, colW=(CW-gap)/2;
-    let col=0, rowY=y, rowH=0;
-    PHOTOS.forEach(p=>{
-      let ratio=0.75;
-      try{ const pr=doc.getImageProperties(p.data); ratio=pr.height/pr.width; }catch(e){}
-      let iw=colW, ih=colW*ratio;
-      if(ih>95){ ih=95; iw=ih/ratio; }              // limite hauteur, garde le ratio
-      if(col===0 && rowY+ih>H-14){ doc.addPage(); rowY=16; rowH=0; }
-      try{ doc.addImage(p.data,'JPEG', M+col*(colW+gap), rowY, iw, ih); }catch(e){}
-      rowH=Math.max(rowH,ih);
-      col++;
-      if(col===2){ col=0; rowY+=rowH+gap; rowH=0; }
+    roomsWithPhotos.forEach(room=>{
+      if(y>H-24){ doc.addPage(); y=16; }
+      const rc=hexToRgb(room.color||'#1F3B5B');
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...rc);
+      doc.text(pdfSafe(room.name), M, y+3); y+=7;
+      let col=0, rowY=y, rowH=0;
+      room.photos.forEach(p=>{
+        let ratio=0.75; try{ const pr=doc.getImageProperties(p.data); ratio=pr.height/pr.width; }catch(e){}
+        let iw=colW, ih=colW*ratio; if(ih>95){ ih=95; iw=ih/ratio; }
+        if(col===0 && rowY+ih>H-14){ doc.addPage(); rowY=16; rowH=0; }
+        try{ doc.addImage(p.data,'JPEG', M+col*(colW+gap), rowY, iw, ih); }catch(e){}
+        rowH=Math.max(rowH,ih); col++;
+        if(col===2){ col=0; rowY+=rowH+gap; rowH=0; }
+      });
+      y = rowY + (col===1 ? rowH+gap : 0) + 4;
     });
-    y = rowY + (col===1 ? rowH+gap : 0);
   }
 
   /* Pied de page : pagination */
@@ -1612,11 +1677,22 @@ function collectRegie(){
   return {
     client:{nom:$('#cliNom').value.trim(), adr:$('#cliAdr').value.trim(), npaLoc:$('#cliNpaLoc').value.trim(),
             contact:$('#cliContact').value.trim(), tel:$('#cliTel').value.trim()},
-    chantier:$('#regChantier').value.trim(), lieu:$('#regLieu').value.trim(), date:todayISO(),
+    chantier:$('#regChantier').value.trim(), lieu:$('#regLieu').value.trim(), date:todayISO(), ref:buildRegRef(),
     items, remarque:$('#regRemarque').value.trim(),
     monteur: currentUser?currentUser.name:'', ini: currentUser?currentUser.ini:'',
     sigMonteur: sigData('monteur'), sigClient: sigData('client')
   };
+}
+/* Réf. auto du bon de régie : INITIALES_date_chantier */
+function buildRegRef(){
+  const nom=($('#regChantier')?$('#regChantier').value:'').trim();
+  if(!currentUser && !nom){ const e=$('#regRef'); if(e) e.textContent='—'; return ''; }
+  const ini=currentUser?currentUser.ini:'INI';
+  const d=todayISO().replace(/-/g,'');
+  const n=nom.replace(/\s+/g,'').replace(/[^\wÀ-ſ-]/g,'')||'chantier';
+  const ref=`${ini}_${d}_${n}`;
+  const e=$('#regRef'); if(e) e.textContent=ref;
+  return ref;
 }
 
 /* ---- Validation (badge rouge/vert) ---- */
@@ -1627,6 +1703,7 @@ function updateRegieReq(){
     [...document.querySelectorAll('#regItems .row')].some(r=>{const t=r.querySelector('[data-rf="desc"]'); return t&&t.value.trim();});
   setReqR('client', nom!=='');
   setReqR('items', !!nItems);
+  buildRegRef();
   const btn=$('#regGenBtn'); if(btn) btn.disabled = !(currentUser && nom!=='' && nItems);
 }
 function updateRegMonteur(){ const p=$('#regMonteurName'); if(p) p.textContent = currentUser?currentUser.name:'— non connecté —'; }
@@ -1638,7 +1715,8 @@ function buildRegieFiche(d){
     <img src="regie-logo.png" alt="SEVJ" style="height:42px; display:block">
     <div style="margin-top:18px">
       <div class="ttl" style="color:#79AFA2; font-size:20px; font-weight:800; letter-spacing:1px">BON DE RÉGIE</div>
-      ${d.chantier?`<div class="ref">${esc(d.chantier)}</div>`:''}
+      ${d.ref?`<div class="ref">N° ${esc(d.ref)}</div>`:''}
+      ${d.chantier?`<div class="obj" style="margin:2px 0">${esc(d.chantier)}</div>`:''}
       <div class="dt">${esc(d.lieu||'')}${d.lieu?', le ':''}${frDate(d.date)}</div>
     </div></div>`);
   L.push(`<h3>Client</h3><table class="cli">`);
@@ -1673,10 +1751,11 @@ function buildRegiePDF(d){
   try{ if(REGIE.logo) doc.addImage(REGIE.logo,'JPEG', M, 13, 34, 34*REGIE_RATIO.logo); }catch(e){}
   let y = 13 + 34*REGIE_RATIO.logo + 10;   // titre sous le logo, avec un espace
   doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(121,175,162);
-  doc.text('BON DE REGIE', M, y); y+=6;
+  doc.text('BON DE REGIE', M, y);
+  if(d.ref){ doc.setFontSize(10); doc.setTextColor(...CLR.navy); doc.text(pdfSafe('N° '+d.ref), W-M, y, {align:'right'}); }
+  y+=6;
   doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...CLR.mut);
-  doc.text(pdfSafe((d.lieu?d.lieu+', le ':'')+frDate(d.date)), M, y);
-  if(d.chantier) doc.text(pdfSafe(d.chantier), W-M, y, {align:'right'});
+  doc.text(pdfSafe((d.lieu?d.lieu+', le ':'')+frDate(d.date)+(d.chantier?'  ·  '+d.chantier:'')), M, y);
   y+=4; doc.setDrawColor(121,175,162); doc.setLineWidth(0.6); doc.line(M,y,W-M,y); y+=6;
   // Client
   doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
@@ -1733,7 +1812,7 @@ function generateRegie(){
   $('#modeSwitch').hidden=true;
   document.querySelector('#outputOverlay').classList.add('on');
 }
-function regieFileName(d){ const base=[d.ini,'regie',(d.chantier||'').replace(/\s+/g,'')].filter(Boolean).join('_')||'bon_regie'; return base.replace(/[^\wÀ-ſ.-]/g,'_')+'.pdf'; }
+function regieFileName(d){ const base=(d.ref? 'regie_'+d.ref : [d.ini,'regie',(d.chantier||'').replace(/\s+/g,'')].filter(Boolean).join('_'))||'bon_regie'; return base.replace(/[^\wÀ-ſ.-]/g,'_')+'.pdf'; }
 function resetRegie(){
   if(!confirm('Effacer le bon de régie en cours ?')) return;
   ['#cliNom','#cliAdr','#cliNpaLoc','#cliContact','#cliTel','#regChantier','#regRemarque'].forEach(s=>{ const e=$(s); if(e) e.value=''; });
@@ -1786,7 +1865,7 @@ function draftObject(){
 }
 function saveDraft(){
   try{ localStorage.setItem(DRAFT, JSON.stringify(draftObject())); }catch(e){}
-  try{ localStorage.setItem(DRAFT_PHOTOS, JSON.stringify(PHOTOS)); }catch(e){ /* quota : photos non sauvées */ }
+  try{ localStorage.setItem(DRAFT_PHOTOS, JSON.stringify([...document.querySelectorAll('#rooms .room')].map(r=>r._photos||[]))); }catch(e){ /* quota : photos non sauvées */ }
 }
 /* Recharge le formulaire depuis un objet (brouillon local ou import PDF) */
 function applyDraft(d){
@@ -1815,11 +1894,34 @@ function applyDraft(d){
 }
 function restoreDraft(){
   let d; try{ d=JSON.parse(localStorage.getItem(DRAFT)); }catch(e){}
-  try{ const p=JSON.parse(localStorage.getItem(DRAFT_PHOTOS)); if(Array.isArray(p)) PHOTOS=p; }catch(e){}
-  if(PHOTOS.length) renderPhotos();
-  return applyDraft(d);
+  const ok=applyDraft(d);
+  try{ const p=JSON.parse(localStorage.getItem(DRAFT_PHOTOS));
+    if(Array.isArray(p)) [...document.querySelectorAll('#rooms .room')].forEach((room,i)=>{ if(Array.isArray(p[i])){ room._photos=p[i]; renderRoomPhotos(room); } });
+  }catch(e){}
+  return ok;
 }
 function clearDraft(){ try{ Object.keys(localStorage).filter(k=>k.indexOf('sevj_')===0).forEach(k=>localStorage.removeItem(k)); }catch(e){} }
+
+/* ===== Sauvegarde / restauration manuelle (.json, données + photos) ===== */
+function exportBackup(){
+  const data={ app:'sevj', v:1, draft:draftObject(),
+    photos:[...document.querySelectorAll('#rooms .room')].map(r=>r._photos||[]) };
+  const name=(($('#ref').value||'sevj_releve').replace(/[^\wÀ-ſ.-]/g,'_'))+'.json';
+  downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name);
+}
+function importBackup(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let data; try{ data=JSON.parse(reader.result); }catch(e){ alert('Fichier illisible.'); return; }
+    if(!data || data.app!=='sevj' || !data.draft){ alert("Ce fichier n'est pas une sauvegarde SEVJ."); return; }
+    if(!confirm('Remplacer le relevé en cours par cette sauvegarde ?')) return;
+    applyDraft(data.draft);
+    if(Array.isArray(data.photos)) [...document.querySelectorAll('#rooms .room')].forEach((room,i)=>{ if(Array.isArray(data.photos[i])){ room._photos=data.photos[i]; renderRoomPhotos(room); } });
+    updateMO(); buildRef(); saveDraft();
+    alert('Sauvegarde restaurée ✓');
+  };
+  reader.readAsText(file);
+}
 
 /* ===== Marqueur de données dans le PDF (pour ré-import) ===== */
 const SEVJ_MARK='%SEVJDATA:';
@@ -1850,10 +1952,18 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v18 — catalogue + bon de régie';
+const APP_VERSION='v20 — catalogue + bon de régie';
+/* ---- Thème clair/sombre ---- */
+const THEME_KEY='sevj_theme';
+function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+  const b=document.querySelector('#themeBtn'); if(b) b.textContent = dark?'☀️':'🌙';
+  const mt=document.querySelector('meta[name="theme-color"]'); if(mt) mt.setAttribute('content', dark?'#0f1720':'#1F3B5B'); }
+try{ applyTheme(localStorage.getItem(THEME_KEY)||'light'); }catch(e){}
 function init(){
   $('#logoImg').src=LOGO;
   const av=$('#appVer'); if(av) av.textContent=APP_VERSION;
+  applyTheme((function(){try{return localStorage.getItem(THEME_KEY)||'light';}catch(e){return 'light';}})());
+  $('#themeBtn').onclick=()=>{ const nt=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'; applyTheme(nt); try{ localStorage.setItem(THEME_KEY,nt); }catch(e){} };
   $('#date').value=new Date().toISOString().slice(0,10);
   initCollab();
   // Sections vides au départ : l'utilisateur ajoute les lignes via les boutons « + ».
@@ -1871,6 +1981,8 @@ function init(){
   $('#loginBtn').onclick=doLogin;
   $('#logoutBtn').onclick=doLogout;
   $('#pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  $('#pwToggle').onclick=()=>{ const p=$('#pass'), b=$('#pwToggle'); const show=p.type==='password';
+    p.type=show?'text':'password'; b.classList.toggle('on',show); b.setAttribute('aria-label', show?'Masquer le mot de passe':'Afficher le mot de passe'); p.focus(); };
   $('#genBtn').onclick=generate;
   $('#closeOut').onclick=()=>$('#outputOverlay').classList.remove('on');
   $('#printBtn').onclick=downloadPDF;
@@ -1889,15 +2001,25 @@ function init(){
 
   // Pièces : ajout d'une nouvelle pièce
   $('#addRoomBtn').onclick=()=>{ const rm=addRoom(); rm.querySelector('[data-room-name]').focus(); syncChemLinks(); scheduleSave(); };
+  $('#toggleAllBtn').onclick=()=>{ const rooms=[...document.querySelectorAll('#rooms .room')];
+    const anyOpen=rooms.some(r=>!r.classList.contains('collapsed'));
+    rooms.forEach(r=>r.classList.toggle('collapsed', anyOpen)); scheduleSave(); };
   // Import d'un PDF généré par l'app
   $('#importBtn').onclick=()=>$('#pdfImport').click();
   $('#pdfImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importPDF(f); e.target.value=''; });
+  // Sauvegarde / restauration .json
+  $('#backupExport').onclick=exportBackup;
+  $('#backupImportBtn').onclick=()=>$('#backupImport').click();
+  $('#backupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importBackup(f); e.target.value=''; });
+  // Déconnexion auto après 15 min d'inactivité
+  let _idle=null; const IDLE_MS=15*60*1000;
+  const resetIdle=()=>{ clearTimeout(_idle); _idle=setTimeout(()=>{ if(currentUser){ doLogout(); const m=$('#loginMsg'); if(m){ m.className='msg'; m.textContent='Déconnecté automatiquement (inactivité).'; } } }, IDLE_MS); };
+  ['click','input','keydown','touchstart'].forEach(ev=> document.addEventListener(ev, resetIdle, {passive:true}));
+  resetIdle();
   // Sélecteur de mode d'export (Détaillé / Global)
   document.querySelectorAll('#modeSwitch button').forEach(b=> b.onclick=()=>setExportMode(b.dataset.mode));
 
-  // Photos
-  $('#photoBtn').onclick=()=>$('#photoInput').click();
-  $('#photoInput').addEventListener('change',e=>{ addPhotos([...e.target.files]); e.target.value=''; });
+  // (Les photos sont désormais gérées par pièce — voir addRoom)
 
   // Partage : envoie le PDF en pièce jointe (menu du téléphone) ; sinon téléchargement
   $('#shareBtn').onclick=sharePDF;

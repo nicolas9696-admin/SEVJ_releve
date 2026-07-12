@@ -134,6 +134,11 @@ pour attirer l'œil de la personne qui chiffre :
 apparaît ; cochée, elle ajoute `+ 1UM` au libellé du disjoncteur dans l'export. La case se masque
 (et se décoche) automatiquement si le disjoncteur n'est plus en mono avec DDR.
 
+**Nouveautés (v20)** : **mode sombre** 🌙 (bouton en-tête), **N° de bon de régie** auto, bouton
+**Tout replier / déployer** les pièces, **réordonner** les pièces (▲▼) + **compteur d'articles** visible,
+**photos par pièce** (au lieu d'une galerie globale ; groupées par pièce dans l'export),
+**sauvegarde/restauration `.json`** (données **+ photos**, section Chantier), et **déconnexion auto** après 15 min d'inactivité.
+
 **Sauvegarde automatique** 💾 — le relevé en cours (champs, lignes et photos) est enregistré
 en continu sur le téléphone et **restauré automatiquement** à la réouverture. « Réinitialiser »
 efface ce brouillon.
