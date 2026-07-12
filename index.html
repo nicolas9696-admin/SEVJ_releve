@@ -157,9 +157,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #fiche .sig-grid img{display:block; max-width:100%; height:70px; object-fit:contain; border-bottom:1px solid var(--ink)}
 #fiche .sig-grid .empty-sig{height:70px; border-bottom:1px solid var(--ink)}
 #fiche .cli td:first-child{width:32%; background:#EAF0F6; color:var(--navy); font-weight:600}
-/* ---------- Sélecteur d'article en cascade ---------- */
-.artbox .art-fam,.artbox .art-mod,.artbox .art-free,.artbox .art-search{width:100%}
-.artbox .art-search{font-size:13px}
+/* ---------- Choix d'article (bouton + fenêtre) ---------- */
+.artbox .art-free{width:100%}
+.art-pick{width:100%; text-align:left; padding:11px 12px; border:1px solid var(--line); border-radius:10px;
+  background:#fff; color:var(--ink); font-size:15px; font-weight:600; cursor:pointer; font-family:inherit; line-height:1.35}
+.art-pick.empty{color:var(--navy2); font-weight:700; border:2px dashed var(--navy2)}
+.art-pick .chg{float:right; font-size:11px; font-weight:700; color:var(--navy2); background:var(--bg); padding:2px 8px; border-radius:20px}
 .mat-tools{display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap}
 .mat-eldas{font-size:12px; color:var(--navy2); font-weight:700}
 .mat-eldas b{font-family:monospace}
@@ -169,6 +172,23 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .colchk.on{background:var(--navy); color:#fff; border-color:var(--navy)}
 .colchk input{width:15px; height:15px; margin:0}
 #fiche .eldas{color:var(--navy2); font-weight:700; font-family:monospace}
+/* fenêtre de choix */
+.pick-sheet{max-width:640px; margin:12px auto; height:calc(100dvh - 24px); display:flex; flex-direction:column}
+.pick-search{padding:10px 12px; border-bottom:1px solid var(--line); flex:0 0 auto}
+.pick-search input{width:100%; font-size:15px}
+.pick-list{flex:1 1 auto; overflow:auto; -webkit-overflow-scrolling:touch}
+.pick-grp{position:sticky; top:0; z-index:1; background:var(--navy); color:#fff; padding:11px 12px; font-weight:700;
+  font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px}
+.pick-grp .cnt{margin-left:auto; background:rgba(255,255,255,.2); border-radius:20px; padding:1px 9px; font-size:11px; font-weight:700}
+.pick-grp::before{content:'▸'; font-size:11px}
+.pick-grp.open::before{content:'▾'}
+.pick-items.collapsed{display:none}
+.pick-row{padding:13px 14px; border-bottom:1px solid var(--line); cursor:pointer; display:flex; align-items:center; gap:8px}
+.pick-row:active{background:var(--bg)}
+.pick-row .pn{flex:1; font-size:14px; line-height:1.3}
+.pick-row .pe{color:var(--navy2); font-family:monospace; font-size:11px; white-space:nowrap}
+.pick-none{padding:18px; color:var(--mut); font-size:13px}
+.pick-foot{flex:0 0 auto; padding:10px 12px; border-top:1px solid var(--line)}
 .add{
   width:100%; padding:12px; border:2px dashed var(--navy2); background:#fff; color:var(--navy);
   border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; margin-top:2px;
@@ -442,14 +462,16 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   <button class="btn-main" id="regGenBtn" disabled>Générer le bon de régie</button>
 </div>
 
-<!-- Modale : charte de couleurs d'une gamme -->
-<div class="overlay" id="colorOverlay">
-  <div class="sheet" style="max-width:520px">
+<!-- Fenêtre de choix d'article -->
+<div class="overlay" id="pickOverlay">
+  <div class="sheet pick-sheet">
     <div class="sheet-hd">
-      <span class="t" id="colorTitle">Couleurs disponibles</span>
-      <button class="x" id="closeColor">Fermer</button>
+      <span class="t">Choisir un article</span>
+      <button class="x" id="pickClose">Fermer</button>
     </div>
-    <div class="sheet-body" style="padding:14px; text-align:center"><img id="colorImg" alt="" style="max-width:100%; height:auto; border-radius:8px"></div>
+    <div class="pick-search"><input id="pickSearch" type="text" placeholder="🔎 rechercher (nom ou N° ELDAS)…" autocomplete="off"></div>
+    <div class="pick-list" id="pickList"></div>
+    <div class="pick-foot"><button class="add" id="pickFree" style="margin:0">✎ Saisir un article librement</button></div>
   </div>
 </div>
 
@@ -591,47 +613,28 @@ function famMark(sec, fam){
   return null;
 }
 
-/* HTML du sélecteur en cascade pour une section ('app'|'boite'|'chem') */
+/* Point coloré de gamme (menus) : .liv 🔴, .due 🟢 */
+function famDot(sec, fam){ const mk=famMark(sec,fam); return mk?mk.d+' ':''; }
+/* HTML d'un champ article (bouton d'ouverture de la fenêtre de choix + couleurs) */
 function matBoxHtml(sec, label){
-  const fams=buildFamilies(sec);
-  const famOpts=fams.map(f=>{ const mk=famMark(sec,f.fam);
-    return `<option value="${esc(f.fam)}"${mk?` style="color:${mk.c}"`:''}>${mk?mk.d+' ':''}${esc(f.fam)}</option>`; }).join('')
-    +`<option value="__autre">Autre (saisie libre)</option>`;
   return `<div class="artbox" data-artbox data-sec="${sec}">
     <label class="fld">${label}</label>
-    <select class="art-fam" data-f="fam"><option value="">— choisir la famille —</option>${famOpts}</select>
-    <input class="art-search" type="text" placeholder="🔎 rechercher un article (facultatif)…" autocomplete="off" style="margin-top:8px">
-    <select class="art-mod" data-artmod hidden style="margin-top:8px"></select>
+    <button type="button" class="art-pick empty" data-artpick>＋ Choisir un article</button>
     <input class="art-free" data-f="artbase" type="text" placeholder="Nom de l'article (saisie libre)…" hidden style="margin-top:8px" autocomplete="off">
     <div class="art-colors" data-artcolors hidden></div>
-    <input type="hidden" data-f="article"><input type="hidden" data-f="eldas"><input type="hidden" data-f="color"><input type="hidden" data-f="colbold">
+    <input type="hidden" data-f="fam"><input type="hidden" data-f="article"><input type="hidden" data-f="eldas"><input type="hidden" data-f="color"><input type="hidden" data-f="colbold">
     <div class="mat-tools"><span class="mat-eldas"></span></div>
   </div>`;
 }
-/* Câblage du sélecteur en cascade */
+/* Câblage d'un champ article */
 function wireMat(box){
   const sec=box.dataset.sec, fams=buildFamilies(sec);
-  const famSel=box.querySelector('.art-fam'), modSel=box.querySelector('[data-artmod]'), free=box.querySelector('.art-free');
-  const searchInp=box.querySelector('.art-search'), colorsWrap=box.querySelector('[data-artcolors]');
-  const baseEl=box.querySelector('[data-f="artbase"]'), artEl=box.querySelector('[data-f="article"]');
+  const pickBtn=box.querySelector('[data-artpick]'), free=box.querySelector('.art-free'), colorsWrap=box.querySelector('[data-artcolors]');
+  const famEl=box.querySelector('[data-f="fam"]'), baseEl=box.querySelector('[data-f="artbase"]'), artEl=box.querySelector('[data-f="article"]');
   const eldasEl=box.querySelector('[data-f="eldas"]'), colorEl=box.querySelector('[data-f="color"]');
   const colBoldEl=box.querySelector('[data-f="colbold"]'), eldasLbl=box.querySelector('.mat-eldas');
   const famData=name=>fams.find(f=>f.fam===name);
-  const allItems=()=> MAT.filter(m=>m.s===sec).slice().sort((a,b)=> matSize(a.n)-matSize(b.n) || a.n.localeCompare(b.n));
-  /* Remplit le menu des modèles : famille choisie -> ses items ; sinon si recherche -> tout ; filtré par la recherche */
-  function fillModels(keepSel){
-    const q=(searchInp.value||'').toLowerCase().trim();
-    const toks=q.split(/\s+/).filter(Boolean);
-    const fd=famData(famSel.value);
-    let pool = fd ? fd.items : (toks.length ? allItems() : []);
-    if(toks.length) pool = pool.filter(m=>{ const hay=(m.n+' '+(m.e||'')).toLowerCase(); return toks.every(t=>hay.includes(t)); });
-    const sel=keepSel?modSel.value:'';
-    modSel.innerHTML='<option value="">— choisir la taille / le modèle —</option>'+pool.map(m=>{ const mk=famMark(sec, familyOf(sec,m.n));
-      return `<option value="${esc(m.n)}" data-e="${esc(m.e||'')}"${mk?` style="color:${mk.c}"`:''}>${mk?mk.d+' ':''}${esc(m.n)}${m.e?' · '+esc(m.e):''}</option>`; }).join('');
-    if(sel){ modSel.value=sel; }
-    modSel.hidden = famSel.value==='__autre' ? true : (fd ? false : (toks.length? false : true));
-  }
-  function colorsOf(){ const fd=famData(famSel.value); return fd&&fd.colors?fd.colors:null; }
+  function colorsOf(){ const fd=famData(famEl.value); return fd&&fd.colors?fd.colors:null; }
   function renderColors(sel){
     const cl=colorsOf();
     if(!cl){ colorsWrap.hidden=true; colorsWrap.innerHTML=''; return; }
@@ -646,42 +649,66 @@ function wireMat(box){
       : (changed ? 'couleur <b>'+esc(colorEl.value)+'</b> — sans ELDAS'
       : (artEl.value ? '<span style="color:#999">sans ELDAS</span>' : ''));
   }
+  function updateBtn(){ const has=!!artEl.value; pickBtn.classList.toggle('empty', !has);
+    pickBtn.innerHTML = has ? famDot(sec, famEl.value)+esc(artEl.value)+' <span class="chg">changer</span>' : '＋ Choisir un article'; }
   function compute(){
-    if(famSel.value==='__autre'){ baseEl.value=free.value; artEl.value=free.value.trim(); eldasEl.value=''; colorEl.value=''; colBoldEl.value=''; updateLbl(); return; }
-    const opt=modSel.selectedOptions[0]; const base=modSel.value||''; baseEl.value=base;
+    if(famEl.value==='__autre'){ baseEl.value=free.value; artEl.value=free.value.trim(); eldasEl.value=''; colorEl.value=''; colBoldEl.value=''; updateLbl(); updateBtn(); return; }
+    const base=baseEl.value||''; const item=base?MAT.find(m=>m.s===sec&&m.n===base):null;
     const cl=colorsOf();
-    let art=base, eldas=opt?(opt.dataset.e||''):'', col='', bold='';
+    let art=base, eldas=item?(item.e||''):'', col='', bold='';
     if(cl && base){ col=colorEl.value||cl.def; if(col!==cl.def){ art=applyColor(base, cl.def, col); eldas=''; bold=col; } }
     artEl.value=art; eldasEl.value=eldas; colorEl.value = cl? col : ''; colBoldEl.value=bold;
-    updateLbl();
+    updateLbl(); updateBtn();
   }
   function dispatch(){ artEl.dispatchEvent(new Event('change',{bubbles:true})); }   // -> applyCond (Bergmann) + syncChemLinks + save
   function setColor(c){ colorEl.value=c; renderColors(c); compute(); dispatch(); }
-  famSel.addEventListener('change',()=>{
-    const autre=famSel.value==='__autre';
-    free.hidden=!autre; searchInp.hidden=autre; colorEl.value=''; modSel.value='';
-    if(autre){ colorsWrap.hidden=true; modSel.hidden=true; }
-    else { fillModels(false); const cl=colorsOf(); renderColors(cl?cl.def:''); }
-    compute(); dispatch();
-  });
-  searchInp.addEventListener('input', ()=>{ fillModels(true); });
-  modSel.addEventListener('change',()=>{
-    // recherche transverse sans famille -> déduire la famille de l'article choisi (pour les couleurs)
-    if(!famData(famSel.value) && modSel.value){ const f=familyOf(sec, modSel.value); if(famData(f)){ famSel.value=f; } }
-    const cl=colorsOf(); colorEl.value=cl?cl.def:''; renderColors(cl?cl.def:''); compute(); dispatch();
-  });
+  /* Appelé par la fenêtre de choix : item du catalogue, ou '__free' pour saisie libre */
+  box._pickSelect=function(item){
+    if(item==='__free'){ famEl.value='__autre'; free.hidden=false; free.value=''; baseEl.value=''; colorsWrap.hidden=true; compute(); dispatch(); setTimeout(()=>free.focus(),30); return; }
+    famEl.value=familyOf(sec, item.n); baseEl.value=item.n; free.hidden=true; colorEl.value='';
+    const cl=colorsOf(); renderColors(cl?cl.def:''); compute(); dispatch();
+  };
+  pickBtn.onclick=()=>openPicker(box);
   free.addEventListener('input', ()=>{ compute(); if(window.scheduleSave) scheduleSave(); });
   free.addEventListener('change',()=>{ dispatch(); });
-  /* Restauration : reconstruit l'UI depuis fam/artbase/color déjà remplis */
+  /* Restauration depuis fam/artbase/color déjà remplis */
   box._matRefresh=function(){
-    const fam=famSel.value; searchInp.value=''; searchInp.hidden = fam==='__autre';
-    if(fam==='__autre'){ free.hidden=false; modSel.hidden=true; colorsWrap.hidden=true; free.value=baseEl.value; }
-    else if(fam){ free.hidden=true; fillModels(false); modSel.value=baseEl.value||''; modSel.hidden=false;
-      const cl=colorsOf(); renderColors(colorEl.value|| (cl?cl.def:'')); }
-    else { free.hidden=true; modSel.hidden=true; colorsWrap.hidden=true; }
-    updateLbl();
+    if(famEl.value==='__autre'){ free.hidden=false; free.value=baseEl.value; colorsWrap.hidden=true; }
+    else if(famEl.value){ free.hidden=true; const cl=colorsOf(); renderColors(colorEl.value||(cl?cl.def:'')); }
+    else { free.hidden=true; colorsWrap.hidden=true; }
+    updateLbl(); updateBtn();
   };
-  updateLbl();
+  updateLbl(); updateBtn();
+}
+/* ===== Fenêtre de choix d'article (plein écran, recherche + liste groupée) ===== */
+let _pickBox=null;
+function openPicker(box){
+  _pickBox=box;
+  $('#pickSearch').value=''; renderPickList('');
+  $('#pickOverlay').classList.add('on'); setTimeout(()=>{ try{ $('#pickSearch').focus(); }catch(e){} }, 60);
+}
+function closePicker(){ $('#pickOverlay').classList.remove('on'); _pickBox=null; }
+function pickRow(sec,m){
+  return `<div class="pick-row" data-pickn="${esc(m.n)}">${famDot(sec, familyOf(sec,m.n))}<span class="pn">${esc(m.n)}</span>${m.e?`<span class="pe">${esc(m.e)}</span>`:''}</div>`;
+}
+function renderPickList(q){
+  if(!_pickBox) return;
+  const sec=_pickBox.dataset.sec, fams=buildFamilies(sec), list=$('#pickList');
+  const norm=s=>String(s||'').toLowerCase().replace(/×/g,'x').replace(/\s+/g,' ');
+  const toks=norm(q).trim().split(' ').filter(Boolean);
+  let html='';
+  if(toks.length){                                   // recherche : liste à plat filtrée
+    const all=MAT.filter(m=>m.s===sec).slice().sort((a,b)=> matSize(a.n)-matSize(b.n) || a.n.localeCompare(b.n));
+    const res=all.filter(m=>{ const hay=norm(m.n+' '+(m.e||'')); return toks.every(t=>hay.includes(t)); });
+    html = res.length ? res.map(m=>pickRow(sec,m)).join('') : '<div class="pick-none">Aucun article trouvé — utilise « Saisir librement » en bas.</div>';
+  } else {                                            // parcours : familles repliables (dépliées par défaut)
+    html = fams.map((f,i)=>`<div class="pick-grp open" data-fi="${i}">${famDot(sec,f.fam)}${esc(f.fam)}<span class="cnt">${f.items.length}</span></div>`+
+      `<div class="pick-items" data-fi="${i}">${f.items.map(m=>pickRow(sec,m)).join('')}</div>`).join('');
+  }
+  list.innerHTML=html;
+  list.querySelectorAll('.pick-row').forEach(row=> row.onclick=()=>{ const m=MAT.find(x=>x.s===sec&&x.n===row.dataset.pickn);
+    if(m && _pickBox){ _pickBox._pickSelect(m); closePicker(); if(window.scheduleSave) scheduleSave(); } });
+  list.querySelectorAll('.pick-grp').forEach(g=> g.onclick=()=>{ const it=list.querySelector('.pick-items[data-fi="'+g.dataset.fi+'"]'); if(it){ it.classList.toggle('collapsed'); g.classList.toggle('open'); } });
 }
 
 /* ================= Repeatable builders ================= */
@@ -1607,11 +1634,13 @@ function updateRegMonteur(){ const p=$('#regMonteurName'); if(p) p.textContent =
 /* ---- Aperçu HTML (letterhead officiel) ---- */
 function buildRegieFiche(d){
   const L=[];
-  L.push(`<div class="doc-hd" style="align-items:center">
-    <img src="regie-logo.png" alt="SEVJ" style="height:44px">
-    <div class="r"><div class="ttl" style="color:#79AFA2">BON DE RÉGIE</div>
-      <div class="ref">${esc(d.chantier||'')}</div>
-      <div class="dt">${esc(d.lieu||'')}${d.lieu?', le ':''}${frDate(d.date)}</div></div></div>`);
+  L.push(`<div style="border-bottom:2px solid #79AFA2; padding-bottom:12px; margin-bottom:16px">
+    <img src="regie-logo.png" alt="SEVJ" style="height:42px; display:block">
+    <div style="margin-top:18px">
+      <div class="ttl" style="color:#79AFA2; font-size:20px; font-weight:800; letter-spacing:1px">BON DE RÉGIE</div>
+      ${d.chantier?`<div class="ref">${esc(d.chantier)}</div>`:''}
+      <div class="dt">${esc(d.lieu||'')}${d.lieu?', le ':''}${frDate(d.date)}</div>
+    </div></div>`);
   L.push(`<h3>Client</h3><table class="cli">`);
   L.push(row2('Nom / Société', esc(d.client.nom||'—')));
   const adr=[d.client.adr,d.client.npaLoc].filter(Boolean).join(', '); if(adr) L.push(row2('Adresse', esc(adr)));
@@ -1641,8 +1670,8 @@ function buildRegiePDF(d){
   const sanitize = data => { if(data.cell) data.cell.text = data.cell.text.map(pdfSafe); };
   // En-tête : motif haut-droite + logo officiel haut-gauche
   try{ if(REGIE.deco) doc.addImage(REGIE.deco,'JPEG', W-42, 0, 42, 42*REGIE_RATIO.deco); }catch(e){}
-  try{ if(REGIE.logo) doc.addImage(REGIE.logo,'JPEG', M, 13, 36, 36*REGIE_RATIO.logo); }catch(e){}
-  let y=38;
+  try{ if(REGIE.logo) doc.addImage(REGIE.logo,'JPEG', M, 13, 34, 34*REGIE_RATIO.logo); }catch(e){}
+  let y = 13 + 34*REGIE_RATIO.logo + 10;   // titre sous le logo, avec un espace
   doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(121,175,162);
   doc.text('BON DE REGIE', M, y); y+=6;
   doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...CLR.mut);
@@ -1821,7 +1850,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v16 — catalogue + bon de régie';
+const APP_VERSION='v18 — catalogue + bon de régie';
 function init(){
   $('#logoImg').src=LOGO;
   const av=$('#appVer'); if(av) av.textContent=APP_VERSION;
@@ -1846,7 +1875,10 @@ function init(){
   $('#closeOut').onclick=()=>$('#outputOverlay').classList.remove('on');
   $('#printBtn').onclick=downloadPDF;
   // Charte de couleurs (boutons 🎨 du catalogue + THFWG)
-  const cc=$('#closeColor'); if(cc) cc.onclick=()=>$('#colorOverlay').classList.remove('on');
+  // Fenêtre de choix d'article
+  $('#pickClose').onclick=closePicker;
+  $('#pickSearch').addEventListener('input', e=>renderPickList(e.target.value));
+  $('#pickFree').onclick=()=>{ if(_pickBox){ _pickBox._pickSelect('__free'); closePicker(); if(window.scheduleSave) scheduleSave(); } };
   $('#resetBtn').onclick=async ()=>{
     if(!confirm('Vider le formulaire et recharger la dernière version de l’app ?')) return;
     clearDraft();

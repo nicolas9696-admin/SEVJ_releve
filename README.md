@@ -60,9 +60,10 @@ La case *Travail en hauteur (> 3.50 m)* affiche automatiquement la **majoration 
 ### Catalogue matériel 📇 (N° ELDAS)
 Les sections **Prises/Interrupteurs**, **Boîtes** et **Cheminements** proposent un **menu déroulant
 recherchable** du matériel de base SEVJ (issu de `Reference_materiel_SEVJ.xlsx`) :
-- **Sélection en cascade** : **Famille** (menu déroulant groupé — Tube ALU, TIT, KRFWG, Canal LF,
-  Bergmann… ; EDIZIO.due / EDIZIO.liv **séparés** ; CEE ; NUP/NEVO…) → **Taille / modèle**
-  (triée du plus petit au plus grand : M16→M63, 15×15→110×60…) → **Couleur** (cases à cocher).
+- **Fenêtre de choix** : le bouton **« ＋ Choisir un article »** ouvre une fenêtre plein écran avec
+  une **barre de recherche** en haut et la **liste groupée par famille** (repliable), triée du plus
+  petit au plus grand (M16→M63, 15×15→110×60…). On tape sur l'article. **EDIZIO.due 🟢 / EDIZIO.liv 🔴**
+  bien séparés et repérés. La recherche accepte `x` ou `×` (ex. `3xT13`). Puis **Couleur** (cases à cocher).
 - **Couleur** : le nom garde la taille mais le mot couleur est remplacé par celui coché. Comme les
   **N° ELDAS ne sont donnés que pour la couleur par défaut**, choisir une autre couleur **retire l'ELDAS**
   et affiche la **couleur en gras** dans l'export. (Couleurs dispo : KRFWG bleu/noir/gris/brun/jaune/rouge/vert/violet ; EDIZIO blanc/noir/anthracite/crème/beige/brun/gris.)
