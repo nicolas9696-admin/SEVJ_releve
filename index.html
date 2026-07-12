@@ -241,7 +241,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .btn-2{background:var(--bg); color:var(--navy); border:1px solid var(--line)!important}
 /* ---------- Champ mot de passe (œil) ---------- */
 .pw-wrap{position:relative}
-.pw-wrap input{padding-right:44px}
+.pw-wrap input{width:100%; padding-right:44px}
 .pw-eye{position:absolute; top:50%; right:6px; transform:translateY(-50%); width:34px; height:34px;
   border:none; background:transparent; color:var(--navy2); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0}
 .pw-eye svg{width:20px; height:20px}
@@ -1952,7 +1952,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v20 — catalogue + bon de régie';
+const APP_VERSION='v21 — catalogue + bon de régie';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
