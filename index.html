@@ -126,6 +126,7 @@ textarea{min-height:70px; resize:vertical}
   width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center}
 .row .fold{position:absolute; top:8px; right:76px; border:none; background:#eef2f6; color:var(--navy2);
   width:28px; height:28px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; line-height:1}
+.row.no-dup .fold{right:42px}   /* pas de bouton dupliquer (protocole) → colle à la corbeille */
 .row .row-name-sum{display:none; font-weight:700; color:var(--navy); font-size:14.5px; margin-left:4px}
 .row.folded{padding-bottom:12px; margin-bottom:10px}
 .row.folded > *{display:none!important}
@@ -1476,15 +1477,16 @@ function pushSections(L, agg, rawCables){
     + (o.eldas?` <span class="eldas">ELDAS ${esc(o.eldas)}</span>`:'')
     + (o.names&&o.names.length?` <span class="names">(${o.names.map(esc).join(', ')})</span>`:'');
   if(agg.chemins.length){ L.push(secRow('Cheminement')); agg.chemins.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'm', o.red))); }
-  if(rawCables){   // mode détaillé : 1 ligne par câble + total par pièce
+  if(rawCables){   // mode détaillé : 1 ligne par câble, regroupé par spec, sous-total par spec
     if(rawCables.length){
       L.push(secRow('Câblage'));
-      let tot=0;
-      rawCables.forEach(c=>{ const q=parseFloat(c.long); if(!isNaN(q)) tot+=q;
-        const spec=cableLabel(c);
-        const des=c.name? `<b>${esc(c.name)}</b> · ${esc(spec)}` : esc(spec);
-        L.push(itemRowH(des, c.long||'', 'm', false)); });
-      L.push(totRowH('Total câblage', Math.round(tot*100)/100, 'm'));
+      const groups=groupCablesBySpec(rawCables);
+      groups.forEach(gr=>{
+        gr.cables.forEach(c=>{
+          const des=c.name? `<b>${esc(c.name)}</b> · ${esc(gr.spec)}` : esc(gr.spec);
+          L.push(itemRowH(des, c.long||'', 'm', false)); });
+        L.push(totRowH('Total câblage · '+gr.spec, gr.tot, 'm'));
+      });
     }
   } else if(agg.cables.length){ L.push(secRow('Câblage')); agg.cables.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'm', o.red))); }
   if(agg.apps.length){ L.push(secRow('Appareillage')); agg.apps.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
@@ -1492,6 +1494,16 @@ function pushSections(L, agg, rawCables){
   if(agg.disj.length){ L.push(secRow('Tableau / protections')); agg.disj.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
 }
 function totRowH(label,q,u){ return `<tr class="tot-row"><td>${esc(label)}</td><td class="q">${esc(String(q))}</td><td class="u">${esc(u)}</td></tr>`; }
+/* Regroupe des câbles par spec identique (cableLabel), en gardant l'ordre d'apparition,
+   et calcule le sous-total de longueur par spec. */
+function groupCablesBySpec(cables){
+  const map=new Map();
+  (cables||[]).forEach(c=>{ const spec=cableLabel(c);
+    if(!map.has(spec)) map.set(spec,{spec, cables:[], tot:0});
+    const g=map.get(spec); g.cables.push(c);
+    const q=parseFloat(c.long); if(!isNaN(q)) g.tot+=q; });
+  return [...map.values()].map(g=>({spec:g.spec, cables:g.cables, tot:Math.round(g.tot*100)/100}));
+}
 function pushTemps(L,d){
   L.push('<h3>Temps estimé</h3><table><tr><th>Désignation</th><th class="q">Qté</th><th class="u">Unité</th></tr>');
   L.push(itemRow(tempsDesc(d), totalHeures(d), 'h'));
@@ -1672,11 +1684,12 @@ function aggToBody(agg, rawCables){
     return lbl+(o.eldas? '  [ELDAS '+o.eldas+']':'')+(o.names&&o.names.length? ' ('+o.names.join(', ')+')':''); };
   const item=(des,q,u,red)=>{ const st=red?{textColor:CLR.danger}:null; const cell=v=> st?{content:String(v),styles:st}:String(v); body.push([cell(des),cell(q),cell(u)]); };
   if(agg.chemins.length){ sec('Cheminement'); agg.chemins.forEach(o=>item(dwn(o), o.qty||'', 'm', o.red)); }
-  if(rawCables){   // mode détaillé : 1 ligne par câble + total par pièce
-    if(rawCables.length){ sec('Câblage'); let tot=0;
-      rawCables.forEach(c=>{ const q=parseFloat(c.long); if(!isNaN(q)) tot+=q;
-        const spec=cableLabel(c); item(c.name? c.name+' · '+spec : spec, c.long||'', 'm', false); });
-      totRow('Total câblage', Math.round(tot*100)/100, 'm'); }
+  if(rawCables){   // mode détaillé : 1 ligne par câble, regroupé par spec, sous-total par spec
+    if(rawCables.length){ sec('Câblage');
+      groupCablesBySpec(rawCables).forEach(gr=>{
+        gr.cables.forEach(c=> item(c.name? c.name+' · '+gr.spec : gr.spec, c.long||'', 'm', false));
+        totRow('Total câblage · '+gr.spec, gr.tot, 'm'); });
+    }
   } else if(agg.cables.length){ sec('Câblage'); agg.cables.forEach(o=>item(dwn(o), o.qty||'', 'm', o.red)); }
   if(agg.apps.length){ sec('Appareillage'); agg.apps.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
   if(agg.boites.length){ sec('Boîtes de dérivation'); agg.boites.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
@@ -2110,10 +2123,12 @@ const P_FIELDS=['#pVerifInit','#pEssaisRep','#pObjet','#pInstruments','#pInstrum
 function installPrefix(){ const y=String(new Date().getFullYear()).slice(-2); return 'INST-'+y+'-'; }
 function applyProtoInstr(){ const s=$('#pInstruments'), a=$('#pInstrumentsAutre'); if(s&&a) a.hidden = s.value!=='Autre…'; }
 function addProtoRow(){
-  const r=el('div','row');
+  const r=el('div','row no-dup');
   r.innerHTML=`
     <button class="rm" title="Supprimer">×</button>
-    <div class="tag">Installation</div>
+    <button type="button" class="fold" title="Réduire / déployer">▾</button>
+    <div class="tag">Groupe</div>
+    <span class="row-name-sum"></span>
     <div class="grid" style="margin-bottom:8px">
       <div><label class="fld">N° / Groupe [Repère]</label><input data-pf="rep" type="text" placeholder="ex : 1"></div>
       <div><label class="fld">Type/Caract.</label><select data-pf="type"><option value=""></option><option>B</option><option>C</option><option>D</option><option>Fusible</option><option>HPC</option></select></div>
@@ -2144,17 +2159,39 @@ function addProtoRow(){
       <div><label class="fld">Tension U [V]</label><input data-pf="tension" type="text"></div>
     </div>`;
   r.querySelector('.rm').onclick=()=>{ r.remove(); renumberProto(); updateProtoReq(); protoSave(); };
+  r.querySelector('.fold').onclick=()=>protoFold(r);
   r.querySelectorAll('[data-pf]').forEach(e=>{ e.addEventListener('input',()=>{updateProtoReq(); protoSave();}); e.addEventListener('change',()=>{updateProtoReq(); protoSave();}); });
   $('#protoRows').appendChild(r); renumberProto();
 }
-function renumberProto(){ [...document.querySelectorAll('#protoRows .row .tag')].forEach((t,i)=> t.textContent='Installation #'+(i+1)); }
+/* Réduit / déploie un groupe (n'affiche que le repère + désignation) */
+function protoFold(r, force){
+  const folded = force!=null ? force : !r.classList.contains('folded');
+  r.classList.toggle('folded', folded);
+  const fb=r.querySelector('.fold'); if(fb) fb.textContent = folded ? '▸' : '▾';
+  if(folded){
+    const rep=((r.querySelector('[data-pf="rep"]')||{}).value||'').trim();
+    const desig=((r.querySelector('[data-pf="desig"]')||{}).value||'').trim();
+    const lbl=[rep&&('N° '+rep), desig].filter(Boolean).join(' · ') || '(vide)';
+    const s=r.querySelector('.row-name-sum'); if(s) s.textContent=lbl;
+  }
+  protoSave();
+}
+/* Numérote les groupes + couleur distinctive par groupe */
+function renumberProto(){
+  [...document.querySelectorAll('#protoRows .row')].forEach((r,i)=>{
+    const color=ROOM_COLORS[i%ROOM_COLORS.length];
+    r.style.borderLeftColor=color;
+    const t=r.querySelector('.tag'); if(t){ t.style.background=color; t.textContent='Groupe #'+(i+1); }
+    const s=r.querySelector('.row-name-sum'); if(s) s.style.color=color;
+  });
+}
 function collectProto(){
   const g=(r,f)=>{const e=r.querySelector(`[data-pf="${f}"]`); return e?(e.type==='checkbox'?e.checked:e.value.trim()):'';};
   const rows=[...document.querySelectorAll('#protoRows .row')].map(r=>({
     rep:g(r,'rep'), type:g(r,'type'), desig:g(r,'desig'), imagn:g(r,'imagn'), itherm:g(r,'itherm'),
     visuel:g(r,'visuel'), essais:g(r,'essais'), pe:g(r,'pe'), riso:g(r,'riso'), idiff:g(r,'idiff'),
     iccpe:g(r,'iccpe'), iccln:g(r,'iccln'), idn:g(r,'idn'), test:g(r,'test'), champ:g(r,'champ'),
-    tension:g(r,'tension')
+    tension:g(r,'tension'), __folded:r.classList.contains('folded')?1:0
   })).filter(x=> x.rep||x.desig);
   const v=id=>{const e=$(id); return e?(e.type==='checkbox'?e.checked:e.value.trim()):'';};
   return {
@@ -2190,7 +2227,8 @@ function protoRestore(){
   set('#pExecNom',d.execNom); set('#pExecDate',d.execDate); set('#pCtrlNom',d.ctrlNom); set('#pCtrlDate',d.ctrlDate);
   $('#protoRows').innerHTML='';
   (d.rows||[]).forEach(state=>{ addProtoRow(); const r=document.querySelector('#protoRows .row:last-child');
-    Object.entries(state).forEach(([f,val])=>{ const e=r.querySelector(`[data-pf="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=!!val; else e.value=val; } }); });
+    Object.entries(state).forEach(([f,val])=>{ const e=r.querySelector(`[data-pf="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=!!val; else e.value=val; } });
+    if(state.__folded) protoFold(r, true); });
   renumberProto(); applyProtoInstr();
 }
 function generateProto(){
@@ -2417,7 +2455,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v30 — dupliquer un article vers une pièce + réduire les articles';
+const APP_VERSION='v32 — protocole : groupes nommés, réductibles, couleur distincte';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
