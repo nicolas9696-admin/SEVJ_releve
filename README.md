@@ -4,6 +4,10 @@ Application mobile (page web) à **deux onglets** :
 - **📋 Relevé chantier** — relever les informations sur site et générer une **Fiche informative**
   pour la personne qui établit l'offre.
 - **🧾 Bon de régie** — établir un bon signé pour les **travaux hors offre à facturer**.
+- **🔬 Protocole** — remplir le **procès-verbal de 1ʳᵉ vérification (OIBT)** : en-tête, tableau
+  d'installations & mesures (organe de protection, examen visuel, PE/isolement/Icc/DDR/champ/tension,
+  paraphes), types d'autorisation (Art. 13/14/15/14.4), **signature du monteur**. Export **PDF paysage**
+  reproduisant le formulaire officiel. Sauvegarde auto du texte (signature non enregistrée).
 
 Tout tient dans `index.html` (+ les images `regie-*.png` du letterhead) — aucune installation, aucun serveur.
 

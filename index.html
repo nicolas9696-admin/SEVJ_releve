@@ -165,6 +165,33 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .tabbar button{flex:1; padding:12px 8px; border:1px solid var(--line); background:#fff; color:var(--navy2);
   border-radius:12px; font-size:14px; font-weight:700; cursor:pointer}
 .tabbar button.on{background:var(--navy); color:#fff; border-color:var(--navy)}
+/* ---------- Écran d'accueil (hub) ---------- */
+.home-hero{text-align:center; margin:14px 0 22px}
+.home-hero h1{margin:0; font-size:24px; font-weight:800; color:var(--navy)}
+.home-hero p{margin:6px 0 0; color:var(--mut); font-size:14px}
+.home-tiles{display:flex; flex-direction:column; gap:14px}
+.tile{display:flex; align-items:center; gap:15px; width:100%; text-align:left; cursor:pointer;
+  padding:18px 16px; border-radius:18px; background:var(--card); border:1px solid var(--line);
+  box-shadow:0 4px 16px rgba(31,59,91,.08); transition:transform .12s ease, box-shadow .12s ease}
+.tile:hover{transform:translateY(-2px); box-shadow:0 8px 22px rgba(31,59,91,.14)}
+.tile:active{transform:scale(.985)}
+.tile .ic{flex:0 0 auto; width:60px; height:60px; border-radius:15px; font-size:28px;
+  display:flex; align-items:center; justify-content:center; color:#fff;
+  box-shadow:0 4px 12px rgba(0,0,0,.18)}
+.tile-releve .ic{background:linear-gradient(135deg,#2E5C8A,#1F3B5B)}
+.tile-regie  .ic{background:linear-gradient(135deg,#1c9c6b,#127a52)}
+.tile-proto  .ic{background:linear-gradient(135deg,#7a5cc0,#553a99)}
+.tile .tx{flex:1; min-width:0}
+.tile .tx .t{display:block; font-size:18px; font-weight:800; color:var(--navy)}
+.tile .tx .d{display:block; font-size:12.5px; color:var(--mut); margin-top:3px; line-height:1.35}
+.tile .arrow{flex:0 0 auto; font-size:22px; font-weight:700; color:var(--navy2); opacity:.7}
+/* ---------- Barre de navigation de fonction ---------- */
+.func-nav{display:flex; align-items:center; gap:12px; margin:0 0 14px}
+.func-nav .home-btn{display:inline-flex; align-items:center; gap:6px; padding:9px 15px;
+  border:1px solid var(--line); background:var(--card); color:var(--navy); border-radius:12px;
+  font-size:14px; font-weight:700; cursor:pointer; transition:transform .1s ease}
+.func-nav .home-btn:active{transform:scale(.96)}
+.func-nav .ft{font-size:16px; font-weight:800; color:var(--navy)}
 /* ---------- Signatures ---------- */
 .sig-wrap{display:grid; grid-template-columns:1fr 1fr; gap:12px}
 @media(max-width:560px){ .sig-wrap{grid-template-columns:1fr} }
@@ -177,6 +204,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #fiche .sig-grid .sc{flex:1}
 #fiche .sig-grid img{display:block; max-width:100%; height:70px; object-fit:contain; border-bottom:1px solid var(--ink)}
 #fiche .sig-grid .empty-sig{height:70px; border-bottom:1px solid var(--ink)}
+#fiche .sig-grid.sig-sm img,#fiche .sig-grid.sig-sm .empty-sig{height:40px}
 #fiche .cli td:first-child{width:32%; background:#EAF0F6; color:var(--navy); font-weight:600}
 /* ---------- Choix d'article (bouton + fenêtre) ---------- */
 .artbox .art-free{width:100%}
@@ -294,24 +322,51 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 <header>
   <div class="hdr-row">
     <img id="logoImg" alt="SEVJ">
-    <button type="button" id="themeBtn" class="theme-btn" title="Mode clair / sombre" aria-label="Mode clair / sombre">🌙</button>
-    <div class="hdr-ref">
-      <label for="ref">Référence</label>
-      <input id="ref" type="text" placeholder="INI_date_chantier" autocomplete="off">
-    </div>
+    <button type="button" id="themeBtn" class="theme-btn" style="margin-left:auto" title="Mode clair / sombre" aria-label="Mode clair / sombre">🌙</button>
   </div>
   <div class="who">Relevé par : <b id="whoName">— non connecté —</b> <span id="appVer" style="opacity:.55; font-size:10px; margin-left:8px"></span></div>
 </header>
 
 <main>
-  <!-- Onglets -->
-  <div class="tabbar" id="tabbar">
-    <button type="button" data-tab="releve" class="on">📋 Relevé chantier</button>
-    <button type="button" data-tab="regie">🧾 Bon de régie</button>
+  <!-- ================= ÉCRAN D'ACCUEIL ================= -->
+  <div id="homeScreen">
+    <div class="home-hero">
+      <h1>Que veux-tu faire&nbsp;?</h1>
+      <p>Choisis une fonction pour commencer.</p>
+    </div>
+    <div class="home-tiles">
+      <button type="button" class="tile tile-releve" data-goto="releve">
+        <span class="ic">📋</span>
+        <span class="tx"><span class="t">Relevé chantier</span><span class="d">Pièces, cheminements, câbles, appareillage → fiche PDF</span></span>
+        <span class="arrow">→</span>
+      </button>
+      <button type="button" class="tile tile-regie" data-goto="regie">
+        <span class="ic">🧾</span>
+        <span class="tx"><span class="t">Bon de régie</span><span class="d">Travaux hors offre, signatures monteur + client</span></span>
+        <span class="arrow">→</span>
+      </button>
+      <button type="button" class="tile tile-proto" data-goto="proto">
+        <span class="ic"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="5" y="2.5" width="14" height="19" rx="2.6"/>
+          <rect x="7.5" y="4.8" width="9" height="5" rx="1"/>
+          <circle cx="12" cy="15.4" r="3.3"/>
+          <path d="M12 15.4V12.6"/>
+          <path d="M8 21.5v1.2M16 21.5v1.2"/>
+        </svg></span>
+        <span class="tx"><span class="t">Protocole d'essai et de mesure</span><span class="d">Procès-verbal de la première vérification (OIBT)</span></span>
+        <span class="arrow">→</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Barre de navigation de fonction (retour accueil) -->
+  <div class="func-nav" id="funcNav" hidden>
+    <button type="button" class="home-btn" id="homeBtn">🏠 Accueil</button>
+    <span class="ft" id="funcTitle"></span>
   </div>
 
   <!-- Collaborateur / connexion (partagé — sert de signature monteur) -->
-  <section class="card req" data-req="collab">
+  <section class="card req" data-req="collab" id="collabCard" hidden>
     <h2><span class="n"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6v1H4z"/></svg></span> Collaborateur</h2>
     <div class="body">
       <p class="hint">Commence par te connecter : sélectionne ton nom et saisis ton mot de passe pour signer le relevé.</p>
@@ -338,7 +393,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     </div>
   </section>
 
-  <div id="tabReleve">
+  <div id="tabReleve" hidden>
 
   <!-- Chantier -->
   <section class="card req" data-req="chantier">
@@ -354,6 +409,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <div><label class="fld" for="lieu">Lieu</label><input id="lieu" type="text" value="Le Sentier"></div>
         <div><label class="fld" for="date">Date</label><input id="date" type="date"></div>
       </div>
+      <div style="height:10px"></div>
+      <label class="fld" for="ref">Référence</label>
+      <input id="ref" type="text" placeholder="INI_date_chantier" autocomplete="off">
       <div class="chk" style="margin-top:12px"><input id="tabAmiante" type="checkbox"><label for="tabAmiante">Tableau (TAB) en amiante</label></div>
       <input id="pdfImport" type="file" accept="application/pdf,.pdf" style="display:none">
       <button class="add" id="importBtn" style="border-style:solid; margin-top:12px">📥 Importer un relevé (PDF de l'app)</button>
@@ -484,6 +542,82 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 
   </div><!-- /#tabRegie -->
 
+  <!-- ================= ONGLET PROTOCOLE (OIBT) ================= -->
+  <div id="tabProto" hidden>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 12h6M9 15.5h6"/></svg></span> Procès-verbal — en-tête</h2>
+      <div class="body">
+        <p class="hint">Liste des travaux effectués / Procès-verbal de la première vérification (OIBT).</p>
+        <div class="chk"><input id="pVerifInit" type="checkbox"><label for="pVerifInit">Vérification initiale</label></div>
+        <div class="chk"><input id="pEssaisRep" type="checkbox"><label for="pEssaisRep">Essais après réparation</label></div>
+        <div style="height:6px"></div>
+        <label class="fld" for="pObjet">Objet / Période</label><input id="pObjet" type="text" autocomplete="off">
+        <div style="height:10px"></div>
+        <label class="fld" for="pInstruments">Instruments de mesure utilisés</label>
+        <select id="pInstruments">
+          <option value="">— choisir —</option>
+          <option>Fluke 1664 FC</option>
+          <option>Fluke 1663</option>
+          <option>Fluke 1662</option>
+          <option>Telaris PROINSTALL 100 D</option>
+          <option value="Autre…">Autre…</option>
+        </select>
+        <input id="pInstrumentsAutre" type="text" placeholder="Préciser l'instrument" autocomplete="off" hidden style="margin-top:8px">
+        <div style="height:10px"></div>
+        <div class="grid">
+          <div><label class="fld" for="pEntreprise">Entreprise</label><input id="pEntreprise" type="text" value="SEVJ SA"></div>
+          <div><label class="fld" for="pPorteur">Porteur de l'autorisation</label><input id="pPorteur" type="text" autocomplete="off"></div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="grid">
+          <div><label class="fld" for="pNoInstall">N° d'installation</label><input id="pNoInstall" type="text" placeholder="INST-26-0000" autocomplete="off"></div>
+          <div></div>
+        </div>
+        <p class="hint" style="margin-top:6px">Format : <b>INST-26-</b> + les 4 chiffres de l'affaire interne. La numérotation des pages est automatique.</p>
+      </div>
+    </section>
+
+    <section class="card req" data-reqp="rows">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16"/></svg></span> Installations &amp; mesures</h2>
+      <div class="body">
+        <p class="hint">Une ligne par installation / groupe. Les cases <b>OK</b> = examen visuel / essais fonctionnels / champ tournant.</p>
+        <div id="protoRows"></div>
+        <button class="add" id="addProtoRow">＋ Ajouter une installation</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span> Autorisation &amp; contrôle</h2>
+      <div class="body">
+        <label class="fld">Type d'autorisation d'installer limitée</label>
+        <div class="chk"><input id="pArt13" type="checkbox"><label for="pArt13">Art. 13 — installations propres à l'entreprise</label></div>
+        <div class="chk"><input id="pArt14" type="checkbox"><label for="pArt14">Art. 14 — installations spéciales</label></div>
+        <div class="chk"><input id="pArt15" type="checkbox"><label for="pArt15">Art. 15 — autorisation de raccordement</label></div>
+        <div class="chk"><input id="pArt1445" type="checkbox"><label for="pArt1445">14.4 / 15.4 — maintenance et réparation sans autorisation</label></div>
+
+        <h4 style="margin:16px 0 6px; color:var(--navy)">Exécuteur des travaux (contrôle OIBT Art. 25)</h4>
+        <div class="grid">
+          <div><label class="fld" for="pExecNom">Nom</label><input id="pExecNom" type="text" autocomplete="off"></div>
+          <div><label class="fld" for="pExecDate">Date</label><input id="pExecDate" type="date"></div>
+        </div>
+        <div class="sig-box" style="margin-top:10px">
+          <div class="sig-lbl">Signature du monteur <span id="pMonteurName" class="pill">—</span></div>
+          <canvas class="sigpad" data-sig="proto" width="600" height="180"></canvas>
+          <button type="button" class="sig-clear" data-clear="proto">Effacer</button>
+        </div>
+
+        <h4 style="margin:16px 0 6px; color:var(--navy)">Personne titulaire d'une autorisation d'installer limitée</h4>
+        <p class="hint">Signée à la main une fois le document transféré ou imprimé.</p>
+        <div class="grid">
+          <div><label class="fld" for="pCtrlNom">Nom</label><input id="pCtrlNom" type="text" autocomplete="off"></div>
+          <div><label class="fld" for="pCtrlDate">Date</label><input id="pCtrlDate" type="text" placeholder="jj.mm.aaaa"></div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /#tabProto -->
+
 </main>
 
 <div class="bar" id="barReleve">
@@ -493,6 +627,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 <div class="bar" id="barRegie" hidden>
   <button class="btn-2" id="regResetBtn">Effacer le bon</button>
   <button class="btn-main" id="regGenBtn" disabled>Générer le bon de régie</button>
+</div>
+<div class="bar" id="barProto" hidden>
+  <button class="btn-2" id="protoResetBtn">Réinitialiser</button>
+  <button class="btn-main" id="protoGenBtn" disabled>Générer le protocole</button>
 </div>
 
 <!-- Fenêtre de choix d'article -->
@@ -1052,7 +1190,7 @@ async function doLogin(){
     currentUser=c; msg.className='msg ok'; msg.textContent='Connecté ✓';
     $('#whoName').innerHTML = c.name+' <span class="pill">'+c.ini+'</span>';
     $('#pass').value=''; $('#loginBtn').style.display='none'; $('#logoutBtn').style.display='';
-    buildRef(); updateReq(); updateRegMonteur(); updateRegieReq();
+    buildRef(); updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq();
   } else {
     msg.className='msg err'; msg.textContent='Mot de passe incorrect.';
   }
@@ -1060,7 +1198,7 @@ async function doLogin(){
 function doLogout(){
   currentUser=null; $('#whoName').textContent='— non connecté —';
   $('#loginBtn').style.display=''; $('#logoutBtn').style.display='none';
-  $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq();
+  $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq();
 }
 
 /* ================= Champs obligatoires (rouge / vert) ================= */
@@ -1439,6 +1577,7 @@ function aggToBody(agg){
 function downloadPDF(){
   if(!window.jspdf){ alert("Librairie PDF non chargée. Vérifie le dossier « vendor »."); return; }
   if(window._lastDoc==='regie'){ const d=window._lastData||collectRegie(); downloadBlob(buildRegiePDF(d).output('blob'), regieFileName(d)); return; }
+  if(window._lastDoc==='proto'){ const d=window._lastData||collectProto(); downloadBlob(buildProtoPDF(d).output('blob'), protoFileName(d)); return; }
   const d = window._lastData || collect();
   const doc = buildPDFDoc(d, EXPORT_MODE);
   const suffix = EXPORT_MODE==='global'?'_global':'_detail';
@@ -1585,6 +1724,10 @@ async function sharePDF(){
     d = window._lastData || collectRegie();
     name = regieFileName(d);
     blob = buildRegiePDF(d).output('blob');
+  } else if(window._lastDoc==='proto'){
+    d = window._lastData || collectProto();
+    name = protoFileName(d);
+    blob = buildProtoPDF(d).output('blob');
   } else {
     d = window._lastData || collect();
     const suffix = EXPORT_MODE==='global'?'_global':'_detail';
@@ -1821,16 +1964,228 @@ function resetRegie(){
   addRegItem(); updateRegTotal(); updateRegieReq();
 }
 
-/* ---- Onglets ---- */
+/* ---- Accueil / Fonctions ---- */
 let ACTIVE_TAB='releve';
+const FUNC_TITLES={releve:'📋 Relevé chantier', regie:'🧾 Bon de régie', proto:"📟 Protocole d'essai et de mesure"};
+function showHome(){
+  $('#homeScreen').hidden = false;
+  $('#funcNav').hidden = true;
+  $('#collabCard').hidden = true;
+  $('#tabReleve').hidden = true; $('#tabRegie').hidden = true; $('#tabProto').hidden = true;
+  $('#barReleve').hidden = true;  $('#barRegie').hidden = true;  $('#barProto').hidden = true;
+  window.scrollTo(0,0);
+}
 function setTab(t){
-  ACTIVE_TAB=(t==='regie'?'regie':'releve');
-  document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===ACTIVE_TAB));
+  ACTIVE_TAB=(t==='regie'?'regie':(t==='proto'?'proto':'releve'));
+  $('#homeScreen').hidden = true;
+  $('#funcNav').hidden = false;
+  $('#collabCard').hidden = false;
+  const ft=$('#funcTitle'); if(ft) ft.textContent=FUNC_TITLES[ACTIVE_TAB]||'';
   $('#tabReleve').hidden = ACTIVE_TAB!=='releve';
   $('#tabRegie').hidden  = ACTIVE_TAB!=='regie';
+  $('#tabProto').hidden  = ACTIVE_TAB!=='proto';
   $('#barReleve').hidden = ACTIVE_TAB!=='releve';
   $('#barRegie').hidden  = ACTIVE_TAB!=='regie';
+  $('#barProto').hidden  = ACTIVE_TAB!=='proto';
   if(ACTIVE_TAB==='regie'){ $('#regDate').textContent=frDate(todayISO()); updateRegMonteur(); updateRegieReq(); }
+  if(ACTIVE_TAB==='proto'){ updateProtoMonteur(); updateProtoReq(); }
+  window.scrollTo(0,0);
+}
+
+/* ==================================================================
+   PROTOCOLE OIBT (3ᵉ onglet) — procès-verbal de première vérification
+   ================================================================== */
+const PROTO_DRAFT='sevj_proto_v1';
+const P_FIELDS=['#pVerifInit','#pEssaisRep','#pObjet','#pInstruments','#pInstrumentsAutre','#pEntreprise','#pPorteur','#pNoInstall',
+  '#pArt13','#pArt14','#pArt15','#pArt1445','#pExecNom','#pExecDate','#pCtrlNom','#pCtrlDate'];
+function installPrefix(){ const y=String(new Date().getFullYear()).slice(-2); return 'INST-'+y+'-'; }
+function applyProtoInstr(){ const s=$('#pInstruments'), a=$('#pInstrumentsAutre'); if(s&&a) a.hidden = s.value!=='Autre…'; }
+function addProtoRow(){
+  const r=el('div','row');
+  r.innerHTML=`
+    <button class="rm" title="Supprimer">×</button>
+    <div class="tag">Installation</div>
+    <div class="grid" style="margin-bottom:8px">
+      <div><label class="fld">N° / Groupe [Repère]</label><input data-pf="rep" type="text" placeholder="ex : 1"></div>
+      <div><label class="fld">Type/Caract.</label><select data-pf="type"><option value=""></option><option>B</option><option>C</option><option>D</option><option>Fusible</option><option>HPC</option></select></div>
+    </div>
+    <label class="fld">Lieu / désignation [Quoi ? et où ?]</label>
+    <textarea data-pf="desig" placeholder="Lieu et description des travaux…"></textarea>
+    <div class="grid" style="margin-top:8px">
+      <div><label class="fld">Iₙ magn. [A]</label><input data-pf="imagn" type="text" placeholder="ex : 16"></div>
+      <div><label class="fld">Iₙ therm. [A]</label><input data-pf="itherm" type="text"></div>
+    </div>
+    <div class="chk"><input type="checkbox" data-pf="visuel"><label>Examen visuel OK</label></div>
+    <div class="chk"><input type="checkbox" data-pf="essais"><label>Essais fonctionnels OK</label></div>
+    <div style="margin-top:6px"><label class="fld">Conducteur PE — R_PE / R_LOW [Ω / ok]</label><input data-pf="pe" type="text"></div>
+    <div class="grid" style="margin-top:8px">
+      <div><label class="fld">R_iso [MΩ]</label><input data-pf="riso" type="text"></div>
+      <div><label class="fld">I_Diff / I_fuite [mA]</label><input data-pf="idiff" type="text"></div>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div><label class="fld">Icc L-PE [A]</label><input data-pf="iccpe" type="text"></div>
+      <div><label class="fld">Icc L-N [A]</label><input data-pf="iccln" type="text"></div>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div><label class="fld">DDR/RCD I_ΔN [mA]</label><input data-pf="idn" type="text"></div>
+      <div><label class="fld">Test t [ms]</label><input data-pf="test" type="text"></div>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div class="chk"><input type="checkbox" data-pf="champ"><label>Champ tournant OK</label></div>
+      <div><label class="fld">Tension U [V]</label><input data-pf="tension" type="text"></div>
+    </div>`;
+  r.querySelector('.rm').onclick=()=>{ r.remove(); renumberProto(); updateProtoReq(); protoSave(); };
+  r.querySelectorAll('[data-pf]').forEach(e=>{ e.addEventListener('input',()=>{updateProtoReq(); protoSave();}); e.addEventListener('change',()=>{updateProtoReq(); protoSave();}); });
+  $('#protoRows').appendChild(r); renumberProto();
+}
+function renumberProto(){ [...document.querySelectorAll('#protoRows .row .tag')].forEach((t,i)=> t.textContent='Installation #'+(i+1)); }
+function collectProto(){
+  const g=(r,f)=>{const e=r.querySelector(`[data-pf="${f}"]`); return e?(e.type==='checkbox'?e.checked:e.value.trim()):'';};
+  const rows=[...document.querySelectorAll('#protoRows .row')].map(r=>({
+    rep:g(r,'rep'), type:g(r,'type'), desig:g(r,'desig'), imagn:g(r,'imagn'), itherm:g(r,'itherm'),
+    visuel:g(r,'visuel'), essais:g(r,'essais'), pe:g(r,'pe'), riso:g(r,'riso'), idiff:g(r,'idiff'),
+    iccpe:g(r,'iccpe'), iccln:g(r,'iccln'), idn:g(r,'idn'), test:g(r,'test'), champ:g(r,'champ'),
+    tension:g(r,'tension')
+  })).filter(x=> x.rep||x.desig);
+  const v=id=>{const e=$(id); return e?(e.type==='checkbox'?e.checked:e.value.trim()):'';};
+  return {
+    verifInit:v('#pVerifInit'), essaisRep:v('#pEssaisRep'), objet:v('#pObjet'),
+    instruments:(v('#pInstruments')==='Autre…'? v('#pInstrumentsAutre') : v('#pInstruments')),
+    entreprise:v('#pEntreprise'), porteur:v('#pPorteur'), noInstall:v('#pNoInstall'),
+    art13:v('#pArt13'), art14:v('#pArt14'), art15:v('#pArt15'), art1445:v('#pArt1445'),
+    execNom:v('#pExecNom'), execDate:v('#pExecDate'), ctrlNom:v('#pCtrlNom'), ctrlDate:v('#pCtrlDate'),
+    rows, monteur: currentUser?currentUser.name:'', sigProto: sigData('proto')
+  };
+}
+function updateProtoMonteur(){ const p=$('#pMonteurName'); if(p) p.textContent = currentUser?currentUser.name:'— non connecté —';
+  const d=$('#pExecDate'); if(d && !d.value) d.value=todayISO();
+  const ni=$('#pNoInstall'); if(ni && !ni.value) ni.value=installPrefix();
+  const n=$('#pExecNom'); if(n && !n.value && currentUser) n.value=currentUser.name; }
+function updateProtoReq(){
+  const nRows=[...document.querySelectorAll('#protoRows .row')].some(r=>{const t=r.querySelector('[data-pf="rep"]'),d=r.querySelector('[data-pf="desig"]'); return (t&&t.value.trim())||(d&&d.value.trim());});
+  const c=document.querySelector('.card[data-reqp="rows"]'); if(c) c.classList.toggle('ok',!!nRows);
+  const b=$('#protoGenBtn'); if(b) b.disabled = !(currentUser && nRows);
+}
+/* Persistance protocole (texte uniquement, pas la signature) */
+let _pSaveT=null;
+function protoSave(){ clearTimeout(_pSaveT); _pSaveT=setTimeout(()=>{
+  try{ const d=collectProto(); delete d.sigProto; delete d.monteur; localStorage.setItem(PROTO_DRAFT, JSON.stringify(d)); }catch(e){}
+},500); }
+function protoRestore(){
+  let d; try{ d=JSON.parse(localStorage.getItem(PROTO_DRAFT)); }catch(e){}
+  if(!d) return;
+  const set=(id,val)=>{ const e=$(id); if(e){ if(e.type==='checkbox') e.checked=!!val; else if(val!=null) e.value=val; } };
+  set('#pVerifInit',d.verifInit); set('#pEssaisRep',d.essaisRep); set('#pObjet',d.objet); set('#pInstruments',d.instruments);
+  set('#pEntreprise',d.entreprise); set('#pPorteur',d.porteur); set('#pNoInstall',d.noInstall);
+  set('#pArt13',d.art13); set('#pArt14',d.art14); set('#pArt15',d.art15); set('#pArt1445',d.art1445);
+  set('#pExecNom',d.execNom); set('#pExecDate',d.execDate); set('#pCtrlNom',d.ctrlNom); set('#pCtrlDate',d.ctrlDate);
+  $('#protoRows').innerHTML='';
+  (d.rows||[]).forEach(state=>{ addProtoRow(); const r=document.querySelector('#protoRows .row:last-child');
+    Object.entries(state).forEach(([f,val])=>{ const e=r.querySelector(`[data-pf="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=!!val; else e.value=val; } }); });
+  renumberProto(); applyProtoInstr();
+}
+function generateProto(){
+  const d=collectProto(); window._lastData=d; window._lastDoc='proto';
+  $('#fiche').innerHTML=buildProtoFiche(d);
+  $('#modeSwitch').hidden=true;
+  document.querySelector('#outputOverlay').classList.add('on');
+}
+function protoFileName(d){ const base=[d.entreprise&&'SEVJ', 'protocole', (d.noInstall||d.objet||'').replace(/\s+/g,'')].filter(Boolean).join('_')||'protocole'; return base.replace(/[^\wÀ-ſ.-]/g,'_')+'.pdf'; }
+function resetProto(){
+  if(!confirm('Réinitialiser le protocole en cours ?')) return;
+  P_FIELDS.forEach(id=>{ const e=$(id); if(e){ if(e.type==='checkbox') e.checked=false; else e.value = id==='#pEntreprise'?'SEVJ SA':''; } });
+  $('#protoRows').innerHTML=''; document.querySelectorAll('.sigpad[data-sig="proto"]').forEach(c=>c._sig&&c._sig.clear());
+  applyProtoInstr(); addProtoRow(); updateProtoMonteur(); updateProtoReq(); protoSave();
+}
+const pChk=b=>b?'✓':'';
+/* ---- Aperçu HTML du protocole ---- */
+function buildProtoFiche(d){
+  const L=[];
+  L.push(`<div class="doc-hd" style="align-items:flex-start">
+    <div style="text-align:left"><div class="ttl" style="color:var(--navy2); font-size:12px; font-weight:700">PROCÈS-VERBAL · 1ʳᵉ VÉRIFICATION (OIBT)</div>
+    <div class="dt" style="color:var(--mut); font-size:12px">${esc(d.entreprise||'')}${d.noInstall?' · N° inst. '+esc(d.noInstall):''}</div></div>
+    <img src="regie-logo.png" alt="SEVJ" style="height:36px; margin-left:auto"></div>`);
+  L.push(`<p class="obj" style="font-weight:700">Liste des travaux effectués / Procès-verbal de la première vérification pour le porteur de l'autorisation</p>`);
+  L.push(`<p class="obj">${d.verifInit?'☑':'☐'} Vérification initiale &nbsp;&nbsp;&nbsp; ${d.essaisRep?'☑':'☐'} Essais après réparation</p>`);
+  L.push('<table class="cli">');
+  L.push(row2('Objet / Période', esc(d.objet||'—')));
+  L.push(row2('Instruments de mesure', esc(d.instruments||'—')));
+  L.push(row2('Entreprise', esc(d.entreprise||'—')));
+  L.push(row2("Porteur de l'autorisation", esc(d.porteur||'—')));
+  L.push(row2("N° d'installation", esc(d.noInstall||'—')));
+  L.push('</table>');
+  L.push('<h3>Installations &amp; mesures</h3><div style="overflow-x:auto"><table style="min-width:920px; font-size:11px">');
+  L.push('<tr><th colspan="2" rowspan="2">Installations</th><th colspan="3" rowspan="2">Organe de protection</th><th colspan="2" rowspan="2">Examen</th><th colspan="7">Mesures</th><th rowspan="2">Champ tournant</th><th rowspan="2">Tension</th></tr>');
+  L.push('<tr><th>Conducteur PE</th><th colspan="2">Résistances d\'isolement</th><th colspan="2">Courant de court-circuit</th><th colspan="2">Protect. de courant résiduel DDR / RCD</th></tr>');
+  L.push('<tr><th>Repère</th><th>Désignation</th><th>Type / Caract.</th><th>Iₙ magn [A]</th><th>Iₙ therm [A]</th><th>Examen visuel</th><th>Essais fonct.</th><th>R_PE / R_LOW [Ω / ok]</th><th>R_iso [MΩ]</th><th>I_Diff / I_fuite [mA]</th><th>Icc L-PE [A]</th><th>Icc L-N [A]</th><th>I_ΔN [mA]</th><th>Test t [ms]</th><th>[ok]</th><th>U [V]</th></tr>');
+  if(d.rows.length) d.rows.forEach(x=> L.push(`<tr><td>${esc(x.rep)}</td><td>${esc(x.desig)}</td><td>${esc(x.type)}</td><td>${esc(x.imagn)}</td><td>${esc(x.itherm)}</td><td style="text-align:center">${pChk(x.visuel)}</td><td style="text-align:center">${pChk(x.essais)}</td><td>${esc(x.pe)}</td><td>${esc(x.riso)}</td><td>${esc(x.idiff)}</td><td>${esc(x.iccpe)}</td><td>${esc(x.iccln)}</td><td>${esc(x.idn)}</td><td>${esc(x.test)}</td><td style="text-align:center">${pChk(x.champ)}</td><td>${esc(x.tension)}</td></tr>`));
+  else L.push('<tr><td colspan="16" class="empty">Aucune installation.</td></tr>');
+  L.push('</table></div>');
+  const arts=[]; if(d.art13)arts.push('Art. 13'); if(d.art14)arts.push('Art. 14'); if(d.art15)arts.push('Art. 15'); if(d.art1445)arts.push('14.4/15.4');
+  L.push(`<p class="obj"><b>Type d'autorisation d'installer limitée :</b> ${arts.length?esc(arts.join(' · ')):'—'}</p>`);
+  L.push('<h3>Signatures</h3><div class="sig-grid sig-sm">');
+  L.push(`<div class="sc"><div style="font-size:12px;color:#666">Exécuteur / Monteur — ${esc(d.execNom||d.monteur||'—')}</div>${d.sigProto?`<img src="${d.sigProto}">`:'<div class="empty-sig"></div>'}<div style="font-size:11px;color:#666;margin-top:3px">Le ${esc(d.execDate?frDate(d.execDate):'')}</div></div>`);
+  L.push(`<div class="sc"><div style="font-size:12px;color:#666">Personne titulaire d'une autorisation d'installer limitée — ${esc(d.ctrlNom||'—')}</div><div class="empty-sig"></div><div style="font-size:11px;color:#666;margin-top:3px">${esc(d.ctrlDate?('Le '+d.ctrlDate):'Nom · Date · Signature')}</div></div>`);
+  L.push('</div>');
+  return L.join('');
+}
+/* ---- PDF paysage (reproduction du formulaire officiel) ---- */
+function buildProtoPDF(d){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4', orientation:'landscape'});
+  const M=8, W=297, H=210, CW=W-2*M;
+  const sanitize = data => { if(data.cell) data.cell.text = data.cell.text.map(pdfSafe); };
+  try{ if(REGIE.logo) doc.addImage(REGIE.logo,'JPEG', W-M-24, 5, 24, 24*REGIE_RATIO.logo); }catch(e){}
+  doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...CLR.navy);
+  doc.text(pdfSafe("Liste des travaux effectués / Procès-verbal de la première vérification pour le porteur de l'autorisation"), M, 9);
+  doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink);
+  doc.text(pdfSafe((d.verifInit?'[X]':'[ ]')+' Verification initiale      '+(d.essaisRep?'[X]':'[ ]')+' Essais apres reparation'), M, 14);
+  const col2=M+150;
+  const fld=(x,label,val,yy)=>{ doc.setFont('helvetica','bold'); doc.text(pdfSafe(label),x,yy); const lw=doc.getTextWidth(pdfSafe(label))+2; doc.setFont('helvetica','normal'); doc.text(pdfSafe(val||''), x+lw, yy); };
+  let y=20;
+  fld(M,'Objet / Periode:', d.objet, y);           fld(col2,'Entreprise:', d.entreprise, y); y+=5;
+  fld(M,'Instruments de mesure:', d.instruments, y); fld(col2,"Porteur de l'autorisation:", d.porteur, y); y+=5;
+  fld(col2,"N° d'installation:", d.noInstall, y); y+=5;
+  // Tableau installations
+  const widths=[14,52,12,15,15,10,10,24,17,17,17,17,17,15,12,14];
+  const colStyles={}; widths.forEach((w,i)=> colStyles[i]={cellWidth:w, halign:(i>=5&&i!==7)?'center':'left'});
+  colStyles[1].halign='left'; colStyles[7].halign='left';
+  const body=d.rows.map(x=>[x.rep,x.desig,x.type,x.imagn,x.itherm, x.visuel?'X':'', x.essais?'X':'', x.pe,x.riso,x.idiff,x.iccpe,x.iccln,x.idn,x.test, x.champ?'X':'', x.tension]);
+  if(!body.length) body.push([{content:'Aucune installation.', colSpan:16, styles:{textColor:CLR.mut, fontStyle:'italic'}}]);
+  doc.autoTable({ startY:y+1, theme:'grid', margin:{left:M,right:M},
+    styles:{fontSize:6.6, cellPadding:1, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top', overflow:'linebreak'},
+    headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', fontSize:6.3, halign:'center', lineColor:CLR.line, lineWidth:0.1},
+    columnStyles:colStyles,
+    head:[
+      [ {content:'Installations',colSpan:2,rowSpan:2}, {content:'Organe de protection',colSpan:3,rowSpan:2}, {content:'Examen',colSpan:2,rowSpan:2},
+        {content:'Mesures',colSpan:7}, {content:'Champ tournant',colSpan:1,rowSpan:2}, {content:'Tension',colSpan:1,rowSpan:2} ],
+      [ {content:'Conducteur PE',colSpan:1}, {content:"Résistances d'isolement",colSpan:2}, {content:'Courant de court-circuit',colSpan:2}, {content:'Protect. de courant résiduel DDR / RCD',colSpan:2} ],
+      ['Repère','Désignation','Type / Caract.','In magn [A]','In therm [A]','Examen visuel','Essais fonct.','R_PE / R_LOW [Ohm / ok]','R_iso [MOhm]','I_Diff / I_fuite [mA]','Icc L-PE [A]','Icc L-N [A]','IdN [mA]','Test t [ms]','[ok]','U [V]']
+    ], body, didParseCell:sanitize });
+  y=doc.lastAutoTable.finalY+4;
+  // Type d'autorisation
+  if(y>H-30){ doc.addPage(); y=16; }
+  const arts=(d.art13?'[X]':'[ ]')+' Art.13   '+(d.art14?'[X]':'[ ]')+' Art.14   '+(d.art15?'[X]':'[ ]')+' Art.15   '+(d.art1445?'[X]':'[ ]')+' 14.4/15.4';
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy); doc.text(pdfSafe("Type d'autorisation d'installer limitee:"), M, y);
+  doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink); doc.text(pdfSafe(arts), M+62, y);
+  y+=8;
+  // Signatures : exécuteur (avec image) + organe de contrôle
+  const colW=(CW-10)/2, sigH=14, sigImgW=52;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
+  doc.text(pdfSafe('Executeur des travaux (OIBT Art. 25) - '+(d.execNom||d.monteur||'-')), M, y);
+  doc.text(pdfSafe("Personne titulaire d'une autorisation d'installer limitee - "+(d.ctrlNom||'-')), M+colW+10, y);
+  y+=2;
+  if(d.sigProto){ try{ doc.addImage(d.sigProto,'PNG', M, y, sigImgW, sigH); }catch(e){} }
+  doc.setDrawColor(...CLR.ink); doc.setLineWidth(0.2);
+  doc.line(M, y+sigH+2, M+colW, y+sigH+2); doc.line(M+colW+10, y+sigH+2, M+2*colW+10, y+sigH+2);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...CLR.mut);
+  doc.text(pdfSafe('Le '+(d.execDate?frDate(d.execDate):'')), M, y+sigH+7);
+  doc.text(pdfSafe(d.ctrlDate?('Le '+d.ctrlDate):'Nom / Date / Signature'), M+colW+10, y+sigH+7);
+  // pied pagination
+  const pc=doc.getNumberOfPages();
+  for(let i=1;i<=pc;i++){ doc.setPage(i); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,150,150);
+    doc.text(pdfSafe('SEVJ · Protocole OIBT'), M, H-4); doc.text(i+' / '+pc, W-M, H-4, {align:'right'}); }
+  return doc;
 }
 
 /* ================= Persistance (brouillon auto) ================= */
@@ -1952,7 +2307,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v21 — catalogue + bon de régie';
+const APP_VERSION='v27 — réf. dans onglets, tuile protocole (icône testeur)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -2024,8 +2379,11 @@ function init(){
   // Partage : envoie le PDF en pièce jointe (menu du téléphone) ; sinon téléchargement
   $('#shareBtn').onclick=sharePDF;
 
+  /* ===== Accueil / navigation ===== */
+  document.querySelectorAll('.tile[data-goto]').forEach(b=> b.onclick=()=>setTab(b.dataset.goto));
+  $('#homeBtn').onclick=showHome;
+
   /* ===== Bon de régie ===== */
-  document.querySelectorAll('#tabbar button').forEach(b=> b.onclick=()=>setTab(b.dataset.tab));
   $('#addRegItem').onclick=()=>{ addRegItem(); };
   $('#regGenBtn').onclick=generateRegie;
   $('#regResetBtn').onclick=resetRegie;
@@ -2036,6 +2394,16 @@ function init(){
   preloadRegieAssets();
   addRegItem();                 // une ligne au départ
   updateRegMonteur(); updateRegieReq();
+
+  /* ===== Protocole OIBT ===== */
+  $('#addProtoRow').onclick=()=>{ addProtoRow(); };
+  $('#protoGenBtn').onclick=generateProto;
+  $('#protoResetBtn').onclick=resetProto;
+  P_FIELDS.forEach(id=>{ const e=$(id); if(e) e.addEventListener('input',()=>{ updateProtoReq(); protoSave(); }); e&&e.addEventListener('change',()=>{ updateProtoReq(); protoSave(); }); });
+  $('#pInstruments').addEventListener('change', applyProtoInstr);
+  protoRestore(); applyProtoInstr();
+  if(!document.querySelector('#protoRows .row')) addProtoRow();
+  updateProtoMonteur(); updateProtoReq();
 
   ['#chantier','#date'].forEach(s=>$(s).addEventListener('input',buildRef));
   $('#ref').addEventListener('input',()=>{refEdited=true;});
@@ -2058,7 +2426,7 @@ function init(){
   syncChemLinks();
   updateMO();
   buildRef();     // recalcule la référence (vide si rien n'est saisi)
-  setTab('releve');   // état d'onglet cohérent au démarrage (barre du bas correcte)
+  showHome();   // démarre sur la page d'accueil (choix de la fonction)
 
   // Service worker (mode hors-ligne) + mise à jour automatique
   if('serviceWorker' in navigator){
