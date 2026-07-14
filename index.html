@@ -121,6 +121,26 @@ textarea{min-height:70px; resize:vertical}
 }
 .row .tag{display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--navy2);
   text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; padding:3px 11px; border-radius:20px}
+/* Outils par article : réduire + dupliquer (à gauche de la corbeille) */
+.row .dup{position:absolute; top:8px; right:42px; border:none; background:#e2ecf5; color:var(--navy);
+  width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center}
+.row .fold{position:absolute; top:8px; right:76px; border:none; background:#eef2f6; color:var(--navy2);
+  width:28px; height:28px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; line-height:1}
+.row .row-name-sum{display:none; font-weight:700; color:var(--navy); font-size:14.5px; margin-left:4px}
+.row.folded{padding-bottom:12px; margin-bottom:10px}
+.row.folded > *{display:none!important}
+.row.folded > .tag{display:inline-block!important; margin-bottom:0}
+.row.folded > .row-name-sum{display:inline!important}
+.row.folded > .rm,.row.folded > .dup,.row.folded > .fold{display:flex!important}
+:root[data-theme="dark"] .row .dup{background:#22303d}
+:root[data-theme="dark"] .row .fold{background:#1c2732}
+.dup-flash{animation:dupflash 1.3s ease}
+@keyframes dupflash{0%{background:#fff5cc}100%{background:#fbfdff}}
+.dup-list{padding:14px; display:flex; flex-direction:column; gap:9px}
+.dup-list .dup-choice{border:1px solid var(--line); background:var(--card); color:var(--navy); border-radius:12px;
+  padding:14px 16px; font-size:15px; font-weight:700; text-align:left; cursor:pointer}
+.dup-list .dup-choice:active{transform:scale(.99)}
+.dup-list .dup-hint{color:var(--mut); font-size:13px; margin:0 2px 4px}
 input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 /* ---------- Pièces ---------- */
 .room{border:1px solid var(--line); border-left:6px solid var(--rc,var(--navy2)); border-radius:14px; margin:0 0 16px;
@@ -650,6 +670,17 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   </div>
 </div>
 
+<!-- Fenêtre de duplication : choix de la pièce de destination -->
+<div class="overlay" id="dupOverlay">
+  <div class="sheet" style="max-width:520px">
+    <div class="sheet-hd">
+      <span class="t">Dupliquer l'article vers…</span>
+      <button class="x" id="dupClose">Fermer</button>
+    </div>
+    <div class="dup-list" id="dupList"></div>
+  </div>
+</div>
+
 <!-- Output overlay -->
 <div class="overlay" id="outputOverlay">
   <div class="sheet">
@@ -1078,11 +1109,67 @@ function computeRoomNames(){
 /* conditional field logic + remove button */
 function wire(r){
   r.querySelector('.rm').onclick = ()=>{ r.remove(); if(window.scheduleSave) scheduleSave(); syncChemLinks(); };
+  // Outils article (pas pour les remarques) : réduire + dupliquer vers une pièce
+  if(!r.querySelector('[data-f="txt"]')){
+    const fold=el('button','fold'); fold.type='button'; fold.title='Réduire / déployer'; fold.textContent='▾';
+    const dup=el('button','dup'); dup.type='button'; dup.title='Dupliquer vers une pièce';
+    dup.innerHTML='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+    const sum=el('span','row-name-sum');
+    r.appendChild(fold); r.appendChild(dup); r.appendChild(sum);
+    fold.onclick=()=>toggleFold(r);
+    dup.onclick=()=>openDupPicker(r);
+  }
   r.querySelectorAll('select[data-f], input[data-f]').forEach(inp=>{
     inp.addEventListener('change', ()=>{ applyCond(r); if(r.closest('[data-sub="chemins"]')) syncChemLinks(); });
     inp.addEventListener('input',  ()=>{ applyCond(r); if(r.closest('[data-sub="chemins"]')) syncChemLinks(); });
   });
   applyCond(r);
+}
+/* Réduit / déploie un article (n'affiche que le nom quand réduit) */
+function rowSummaryLabel(r){
+  const nm=r.querySelector('[data-f="name"]'); if(nm && nm.value.trim()) return nm.value.trim();
+  const art=r.querySelector('[data-f="article"]'); if(art && art.value.trim()) return art.value.trim();
+  return '(sans nom)';
+}
+function toggleFold(r, force){
+  const folded = force!=null ? force : !r.classList.contains('folded');
+  r.classList.toggle('folded', folded);
+  const fb=r.querySelector('.fold'); if(fb) fb.textContent = folded ? '▸' : '▾';
+  if(folded){ const s=r.querySelector('.row-name-sum'); if(s) s.textContent=rowSummaryLabel(r); }
+  if(window.scheduleSave) scheduleSave();
+}
+/* ---- Duplication d'un article vers une pièce au choix ---- */
+let _dupSource=null, _dupSub=null;
+function openDupPicker(sourceRow){
+  const subCont=sourceRow.closest('[data-sub]'); if(!subCont) return;
+  _dupSource=sourceRow; _dupSub=subCont.dataset.sub;
+  const srcRoom=sourceRow.closest('.room');
+  const map=computeRoomNames();
+  const list=$('#dupList'); list.innerHTML='';
+  const hint=el('p','dup-hint'); hint.textContent='Choisis la pièce dans laquelle copier cet article :';
+  list.appendChild(hint);
+  [...document.querySelectorAll('#rooms .room')].forEach(room=>{
+    const name=map.get(room)||roomBase(room);
+    const b=el('button','dup-choice'); b.type='button';
+    b.innerHTML=(room===srcRoom?'↺ ':'→ ')+esc(name)+(room===srcRoom?' <span style="opacity:.6;font-weight:600">(même pièce)</span>':'');
+    b.onclick=()=>{ doDuplicate(room); closeDup(); };
+    list.appendChild(b);
+  });
+  $('#dupOverlay').classList.add('on');
+}
+function closeDup(){ $('#dupOverlay').classList.remove('on'); _dupSource=null; _dupSub=null; }
+function doDuplicate(targetRoom){
+  const src=_dupSource, sub=_dupSub; if(!src||!sub) return;
+  const state=rowState(src);
+  if(sub==='cables' && targetRoom!==src.closest('.room')) state.links='';   // liens cheminements invalides hors pièce
+  const cont=targetRoom.querySelector('[data-sub="'+sub+'"]');
+  ROOM_ADDERS[sub](cont);
+  const newRow=cont.querySelector('.row:last-child');
+  fillRow(newRow, state);
+  syncChemLinks(); if(window.scheduleSave) scheduleSave();
+  targetRoom.classList.remove('collapsed');
+  newRow.classList.add('dup-flash'); setTimeout(()=>newRow.classList.remove('dup-flash'),1300);
+  newRow.scrollIntoView({behavior:'smooth', block:'center'});
 }
 function applyCond(r){
   const val = f => { const e=r.querySelector(`[data-f="${f}"]`); return e?e.value:''; };
@@ -2217,7 +2304,7 @@ const D_CHECK=['#vendredi','#apprenti','#tabAmiante'];
 const SUBS=['chemins','cables','apps','boites','disj'];
 let _saveT=null;
 function scheduleSave(){ clearTimeout(_saveT); _saveT=setTimeout(saveDraft,500); }
-function rowState(r){ const o={}; r.querySelectorAll('[data-f]').forEach(e=>{ o[e.dataset.f]= e.type==='checkbox'?e.checked:e.value; }); return o; }
+function rowState(r){ const o={}; r.querySelectorAll('[data-f]').forEach(e=>{ o[e.dataset.f]= e.type==='checkbox'?e.checked:e.value; }); if(r.classList.contains('folded')) o.__folded=1; return o; }
 function fillRow(r,state){
   if(!r||!state) return;
   const g=r.querySelector('[data-f="genre"]');       // (ancien schéma) genre pilote la liste modèle
@@ -2225,6 +2312,7 @@ function fillRow(r,state){
   Object.entries(state).forEach(([f,v])=>{ const e=r.querySelector(`[data-f="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=v; else e.value=v; } });
   applyCond(r);
   const mb=r.querySelector('[data-artbox]'); if(mb && mb._matRefresh) mb._matRefresh();  // reconstruit famille/taille/couleur + ELDAS
+  if(state.__folded) toggleFold(r, true);
 }
 function roomState(room){
   const o={name:roomRawName(room), color:(+room.dataset.color||0), collapsed:room.classList.contains('collapsed')};
@@ -2329,7 +2417,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v29 — export détaillé : 1 ligne/câble + total câblage/pièce';
+const APP_VERSION='v30 — dupliquer un article vers une pièce + réduire les articles';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -2368,6 +2456,9 @@ function init(){
   $('#pickClose').onclick=closePicker;
   $('#pickSearch').addEventListener('input', e=>renderPickList(e.target.value));
   $('#pickFree').onclick=()=>{ if(_pickBox){ _pickBox._pickSelect('__free'); closePicker(); if(window.scheduleSave) scheduleSave(); } };
+  // Fenêtre de duplication (choix de la pièce)
+  $('#dupClose').onclick=closeDup;
+  $('#dupOverlay').addEventListener('click', e=>{ if(e.target.id==='dupOverlay') closeDup(); });
   $('#resetBtn').onclick=async ()=>{
     if(!confirm('Vider le formulaire et recharger la dernière version de l’app ?')) return;
     clearDraft();
