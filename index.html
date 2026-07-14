@@ -257,6 +257,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .photo-grid .ph img{width:100%; height:100%; object-fit:cover; display:block}
 .photo-grid .ph button{position:absolute; top:4px; right:4px; width:24px; height:24px; border:none; border-radius:7px;
   background:rgba(176,42,42,.9); color:#fff; font-size:15px; font-weight:700; cursor:pointer; line-height:1}
+/* Photos dans l'aperçu / export : grandes, non rognées */
+#fiche .fiche-photos{display:flex; flex-direction:column; gap:10px; margin:8px 0 12px}
+#fiche .fiche-photos img{display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:6px}
 /* ---------- Footer bar ---------- */
 .bar{
   position:fixed; left:0; right:0; bottom:0; z-index:60; background:#fff;
@@ -1369,7 +1372,7 @@ function buildFiche(d, mode){
     L.push('<h3>Photos</h3>');
     roomsWithPhotos.forEach(r=>{ const col=r.color||'#1F3B5B';
       L.push(`<div class="room-title" style="color:${col};border-bottom-color:${col}">${esc(r.name)}</div>`);
-      L.push('<div class="photo-grid" style="margin-bottom:8px">'+r.photos.map(p=>`<div class="ph"><img src="${p.data}"></div>`).join('')+'</div>');
+      L.push('<div class="fiche-photos">'+r.photos.map(p=>`<img src="${p.data}">`).join('')+'</div>');
     });
   }
 
@@ -1682,27 +1685,27 @@ function buildPDFDoc(d, mode){
   doc.text(pdfSafe(d.user?d.user.name:'-'), M+w, y+2);
   y+=10;
 
-  /* Photos (par pièce, 2 colonnes) */
+  /* Photos (par pièce, 1 colonne pleine largeur — lisibles) */
   const roomsWithPhotos=(d.rooms||[]).filter(r=>r.photos&&r.photos.length);
   if(roomsWithPhotos.length){
     if(y>H-40){ doc.addPage(); y=16; }
     heading('Photos');
-    const gap=6, colW=(CW-gap)/2;
+    const gap=8, maxH=H-M-14;   // hauteur max sur une page (marge basse + pied)
     roomsWithPhotos.forEach(room=>{
-      if(y>H-24){ doc.addPage(); y=16; }
+      if(y>H-30){ doc.addPage(); y=16; }
       const rc=hexToRgb(room.color||'#1F3B5B');
       doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...rc);
       doc.text(pdfSafe(room.name), M, y+3); y+=7;
-      let col=0, rowY=y, rowH=0;
       room.photos.forEach(p=>{
         let ratio=0.75; try{ const pr=doc.getImageProperties(p.data); ratio=pr.height/pr.width; }catch(e){}
-        let iw=colW, ih=colW*ratio; if(ih>95){ ih=95; iw=ih/ratio; }
-        if(col===0 && rowY+ih>H-14){ doc.addPage(); rowY=16; rowH=0; }
-        try{ doc.addImage(p.data,'JPEG', M+col*(colW+gap), rowY, iw, ih); }catch(e){}
-        rowH=Math.max(rowH,ih); col++;
-        if(col===2){ col=0; rowY+=rowH+gap; rowH=0; }
+        let iw=CW, ih=CW*ratio;
+        if(ih>maxH){ ih=maxH; iw=ih/ratio; }        // trop haute : on limite à la page
+        if(y+ih>H-14){ doc.addPage(); y=16; }        // pas assez de place : nouvelle page
+        const x=M+(CW-iw)/2;                          // centrée
+        try{ doc.addImage(p.data,'JPEG', x, y, iw, ih); }catch(e){}
+        y += ih+gap;
       });
-      y = rowY + (col===1 ? rowH+gap : 0) + 4;
+      y += 4;
     });
   }
 
@@ -2307,7 +2310,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v27 — réf. dans onglets, tuile protocole (icône testeur)';
+const APP_VERSION='v28 — photos export Relevé en grand (pleine largeur)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
