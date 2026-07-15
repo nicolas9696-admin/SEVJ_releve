@@ -1164,7 +1164,7 @@ function addProtection(){
       <div class="cond" data-c="marque" style="margin-top:10px"><label class="fld">Préciser la marque</label><input data-f="marqueautre" type="text" placeholder="marque / référence"></div>
       <div class="chk" data-existchk><input type="checkbox" data-f="existant"><label>Déjà existant (non compté dans l'export)</label></div>
     </div>
-    <div class="chk"><input type="checkbox" data-f="dispo"><label>Selon DispoSuite (image du schéma — non compté)</label></div>
+    <div class="chk"><input type="checkbox" data-f="dispo"><label>Selon DispoSuite</label></div>
     <div class="cond" data-c="dispo" style="margin-top:6px">
       <input class="prot-img-input" type="file" accept="image/*" multiple hidden>
       <button type="button" class="add prot-img-btn" style="font-size:13px">🖼️ Ajouter une image</button>
@@ -1251,8 +1251,8 @@ function addRoom(name, colorIdx){
     <div class="room-body">
       <div class="sub">
         <div class="departs" data-departs></div>
-        <p class="hint" data-nodep style="margin-top:2px">Assigne une protection à cette pièce depuis le <b>Tableau</b>, ou ajoute directement un élément ci-dessous.</p>
-        <button type="button" class="add" data-add-free style="border-style:solid; margin-top:8px; font-size:13px">＋ Boîte / appareil (sans protection)</button>
+        <p class="hint" data-nodep style="margin-top:2px">Assigne une protection à cette pièce depuis le <b>Tableau</b>, ou ajoute directement un élément ci-dessous (sa protection est alors définie dans le schéma <b>DispoSuite</b>).</p>
+        <button type="button" class="add" data-add-free style="border-style:solid; margin-top:8px; font-size:13px">＋ Boîte / appareil (à lier DispoSuite)</button>
         <div class="tlegend"><span><i style="background:#e0a25c"></i> depuis le départ (protection)</span><span><i style="background:#4fc3b8"></i> depuis une boîte</span></div>
       </div>
       <div class="sub">
@@ -1339,7 +1339,7 @@ const T_ICON = {
 };
 const T_ADD   = { disjoncteur:addDisj, boite:addBoite, point:addApp };
 const T_CLASS = { disjoncteur:'dj', boite:'bx', point:'pt' };
-const T_LABEL = { disjoncteur:'Disjoncteur', boite:'Boîte', point:'Point' };
+const T_LABEL = { disjoncteur:'Disjoncteur', boite:'Boîte', point:'Appareil' };
 
 /* crée un nœud (disjoncteur / boîte / point) — corps = formulaire existant + liaison */
 function makeNode(type){
@@ -1422,11 +1422,11 @@ function makeNode(type){
   updateNodeSummary(node);
   return node;
 }
-/* petit sélecteur Point / Boîte au branchement */
+/* petit sélecteur Appareil / Boîte au branchement */
 function openTypePicker(kids, brancher){
   const ex=brancher.querySelector('.typepick'); if(ex){ ex.remove(); return; }
   const p=el('div','typepick');
-  p.innerHTML=`<button data-t="point"><span class="ti pt">${T_ICON.point}</span>Point</button>
+  p.innerHTML=`<button data-t="point"><span class="ti pt">${T_ICON.point}</span>Appareil</button>
                <button data-t="boite"><span class="ti bx">${T_ICON.boite}</span>Boîte</button>`;
   p.querySelectorAll('button').forEach(b=>b.onclick=()=>{
     const br=el('div','tbranch'); br.appendChild(makeNode(b.dataset.t));
@@ -1451,12 +1451,12 @@ function updateNodeSummary(node){
   node.querySelector(':scope > .tnode-hd > .tnc > .tli').innerHTML=li?esc(li):'';
 }
 /* un départ = en-tête (protection du Tableau) + arbre démarrant par boîte/appareil.
-   free=true : départ « sans protection » (ex. DispoSuite) — on peut quand même ajouter boîte/appareil. */
+   free=true : départ dont la protection est définie dans le schéma DispoSuite — on ajoute quand même boîte/appareil. */
 function makeDepartEl(pid, free){
   const d=el('div','depart'); if(pid) d.dataset.pid=pid; if(free){ d.dataset.free='1'; d.classList.add('free'); }
   const hd=el('div','depart-hd');
   hd.innerHTML=`<span class="dep-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M12 7v5"/><circle cx="12" cy="16" r="1.3" fill="#fff"/></svg></span>
-    <div class="depc"><div class="depnm">${free?'Éléments — sans protection':'Départ'}</div><div class="deptli"></div></div>
+    <div class="depc"><div class="depnm">${free?'Éléments — à lier DispoSuite':'Départ'}</div><div class="deptli"></div></div>
     <span class="dep-fold" title="Réduire / déployer">▾</span>${free?'<button class="dep-del" title="Supprimer">×</button>':''}`;
   const kids=el('div','tkids '+(free?'spine-bx':'spine-dj'));
   const brancher=el('div','brancher');
@@ -1465,7 +1465,7 @@ function makeDepartEl(pid, free){
   brancher.appendChild(bBtn); kids.appendChild(brancher);
   d.appendChild(hd); d.appendChild(kids);
   hd.onclick=(e)=>{ if(e.target.closest('.dep-del')) return; d.classList.toggle('folded'); };  // tout l'en-tête coloré (dé)plie
-  const del=hd.querySelector('.dep-del'); if(del) del.onclick=(e)=>{ e.stopPropagation(); if(confirm('Supprimer ce départ sans protection ?')){ d.remove(); scheduleSave(); } };
+  const del=hd.querySelector('.dep-del'); if(del) del.onclick=(e)=>{ e.stopPropagation(); if(confirm('Supprimer ce groupe d\'éléments à lier DispoSuite ?')){ d.remove(); scheduleSave(); } };
   return d;
 }
 function addFreeDepart(room){
@@ -1945,7 +1945,8 @@ function pushSections(L, agg, rawCables, rawChemins){
       });
     }
   } else if(agg.cables.length){ L.push(secRow('Câblage')); agg.cables.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'm', o.red))); }
-  if(agg.apps.length){ L.push(secRow('Appareillage')); agg.apps.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
+  if(agg.apps.length){ L.push(secRow('Appareillage')); agg.apps.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red)));
+    if(agg.demontage) L.push(itemRowH('<b>'+esc(FORFAIT_DEM)+'</b>', agg.demontage, 'pce', false)); }
   if(agg.boites.length){ L.push(secRow('Boîtes de dérivation')); agg.boites.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
   if(agg.disj.length){ L.push(secRow('Tableau / protections')); agg.disj.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
 }
@@ -1991,14 +1992,22 @@ function groupItems(list, labelFn, qtyFn, redFn){
 /* Libellé d'un cheminement dans l'export : l'article/type choisi (+ note hauteur) */
 function chemDesig(c){ let s=c.article||'Cheminement'; if(c.haut) s+=' — travail en hauteur > 3.50 m (majoration 1.5×)'; return s; }
 function isDue(a){ return /EDIZIO ?due/i.test(a.article||''); }
+/* Appareil « Déjà sur place (démonté / remonté) » : rien n'est fourni — pas de réf. ELDAS
+   ni de mise en évidence commande ; le travail est chiffré via un forfait démontage/remontage. */
+function isAppExistant(a){ return (a.statut||'').indexOf('Déjà sur place')>=0; }
+const FORFAIT_DEM = "Forfait démontage / remontage d'appareils existants";
 /* Agrège les articles d'un ensemble {chemins,cables,apps,boites,disj} */
 function aggregate(items){
+  const apps=items.apps||[];
+  const demQty = apps.filter(isAppExistant).reduce((s,a)=>{ const q=parseFloat(a.qte); return s+(isNaN(q)?0:q); },0);
   return {
     chemins: groupItems(items.chemins.filter(c=>!c.existant), chemDesig, c=>c.long),
     cables:  groupItems(items.cables, cableLabel, c=>c.long),
-    apps:    groupItems(items.apps, appLabel, a=>a.qte, isDue),
+    apps:    groupItems(apps.map(a=> isAppExistant(a) ? Object.assign({}, a, {eldas:''}) : a),
+                        appLabel, a=>a.qte, a=>!isAppExistant(a) && isDue(a)),
     boites:  groupItems(items.boites, b=>b.article, b=>b.qte),
     disj:    groupItems(items.disj, x=>disjLabel(x), x=>x.qte),
+    demontage: Math.round(demQty*100)/100,
   };
 }
 /* Fusionne toutes les pièces en un seul ensemble (mode global) */
@@ -2159,7 +2168,10 @@ function aggToBody(agg, rawCables, rawChemins){
         totRow('Total câblage · '+gr.spec, gr.tot, 'm'); });
     }
   } else if(agg.cables.length){ sec('Câblage'); agg.cables.forEach(o=>item(dwn(o), o.qty||'', 'm', o.red)); }
-  if(agg.apps.length){ sec('Appareillage'); agg.apps.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
+  if(agg.apps.length){ sec('Appareillage'); agg.apps.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red));
+    if(agg.demontage) body.push([{content:FORFAIT_DEM, styles:{fontStyle:'bold'}},
+      {content:String(agg.demontage), styles:{fontStyle:'bold', halign:'center'}},
+      {content:'pce', styles:{fontStyle:'bold', halign:'center'}}]); }
   if(agg.boites.length){ sec('Boîtes de dérivation'); agg.boites.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
   if(agg.disj.length){ sec('Tableau / protections'); agg.disj.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
   return body;
@@ -3114,7 +3126,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v36-arbre — protocole (0,66 · fusibles · courbes) + fix partage/perte';
+const APP_VERSION='v38-arbre — libellés : Appareil, à lier DispoSuite';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
