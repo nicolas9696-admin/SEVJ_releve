@@ -1883,6 +1883,19 @@ function buildFiche(d, mode){
     L.push(`</table>`);
   }
 
+  /* ---- Tableau : schéma DispoSuite (fourniture non comptée) ---- */
+  const dispos=(d.protections||[]).filter(p=>p.dispo);
+  if(dispos.length){
+    L.push('<h3>Tableau — schéma DispoSuite</h3>');
+    L.push('<p class="obj" style="color:#666">Fourniture du tableau selon schéma DispoSuite ci-dessous — <b>non comptée</b> dans le descriptif.</p>');
+    dispos.forEach(p=>{
+      const t=[p.name, p.ptype].filter(Boolean).join(' · ');
+      if(t) L.push(`<div class="room-title" style="color:var(--navy); border-bottom-color:var(--navy)">${esc(t)}</div>`);
+      if(p.images && p.images.length) L.push('<div class="fiche-photos">'+p.images.map(im=>`<img src="${im.data}">`).join('')+'</div>');
+      else L.push('<p class="empty">Image du schéma non jointe.</p>');
+    });
+  }
+
   /* ---- Temps (global, une seule fois) ---- */
   pushTemps(L, d);
 
@@ -2229,6 +2242,32 @@ function buildPDFDoc(d, mode){
   } else {
     heading('Descriptif des travaux - global (toutes pieces additionnees)');
     drawTable(aggToBody(aggregate(mergeRooms(rooms)))); y+=5;
+  }
+
+  /* Tableau : schéma DispoSuite (fourniture non comptée) — images pleine largeur */
+  const dispos=(d.protections||[]).filter(p=>p.dispo);
+  if(dispos.length){
+    if(y>H-40){ doc.addPage(); y=16; }
+    heading('Tableau — schéma DispoSuite');
+    doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(...CLR.mut);
+    const it=doc.splitTextToSize(pdfSafe('Fourniture du tableau selon schéma DispoSuite ci-dessous — non comptée dans le descriptif.'), CW);
+    doc.text(it, M, y); y+=it.length*3.9+3;
+    const gap=8, maxH=H-M-14;
+    dispos.forEach(p=>{
+      const t=[p.name, p.ptype].filter(Boolean).join(' · ');
+      if(t){ if(y>H-30){ doc.addPage(); y=16; }
+        doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...CLR.navy);
+        doc.text(pdfSafe(t), M, y+3); y+=7; }
+      (p.images||[]).forEach(im=>{
+        let ratio=0.75; try{ const pr=doc.getImageProperties(im.data); ratio=pr.height/pr.width; }catch(e){}
+        let iw=CW, ih=CW*ratio;
+        if(ih>maxH){ ih=maxH; iw=ih/ratio; }
+        if(y+ih>H-14){ doc.addPage(); y=16; }
+        try{ doc.addImage(im.data,'JPEG', M+(CW-iw)/2, y, iw, ih); }catch(e){}
+        y+=ih+gap;
+      });
+      y+=2;
+    });
   }
 
   /* Temps (global, une seule fois) */
@@ -2979,7 +3018,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v34-arbre — bande liaison cliquable + duplication des articles';
+const APP_VERSION='v35-arbre — schéma DispoSuite dans l\'export';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
