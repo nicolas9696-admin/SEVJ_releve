@@ -866,14 +866,26 @@ const MAT_EXTRA = [
   {n:'Tube TIT M50 gris clair', e:'', c:'Tubes / gaines', s:'chem'},
   {n:'Tube TIT M63 gris clair', e:'', c:'Tubes / gaines', s:'chem'},
   {n:'Tube ALU M16 lucide', e:'', c:'Tubes / gaines', s:'chem'},
-  {n:'Tube Bergmann (existant)', e:'', c:'Tubes / gaines', s:'chem'},
+  {n:'Tube Bergmann (existant)', e:'', c:'Existant', s:'chem'},
+  {n:'Cheminement existant', e:'', c:'Existant', s:'chem'},
+  {n:'Boîte existante', e:'', c:'Existant', s:'boite'},
+  {n:'Prise existante', e:'', c:'Existant', s:'app'},
+  {n:'Interrupteur existant', e:'', c:'Existant', s:'app'},
+  {n:'Point lumineux existant', e:'', c:'Existant', s:'app'},
   {n:'Chemin de câble', e:'', c:'Chemin de câble', s:'chem'},
   {n:'Point lumineux (DCL)', e:'', c:'Point lumineux', s:'app'},
   {n:'Point lumineux plafond', e:'', c:'Point lumineux', s:'app'},
   {n:'Point lumineux mural / applique', e:'', c:'Point lumineux', s:'app'},
   {n:'Spot encastré', e:'', c:'Point lumineux', s:'app'},
 ];
-const MAT = ((typeof MATERIEL!=='undefined') ? MATERIEL : []).concat(MAT_EXTRA);
+/* Garde-fou : un même article (même section + même nom) ne doit jamais apparaître deux fois
+   dans le sélecteur — la 1ʳᵉ occurrence gagne. */
+function dedupMat(list){
+  const seen=new Set();
+  return list.filter(m=>{ const k=m.s+'|'+String(m.n||'').trim().toLowerCase();
+    if(seen.has(k)) return false; seen.add(k); return true; });
+}
+const MAT = dedupMat(((typeof MATERIEL!=='undefined') ? MATERIEL : []).concat(MAT_EXTRA));
 /* Taille d'un article pour le tri (tube M20, canal 60×40, prise 3×T13…) — plus petit d'abord */
 function matSize(name){
   const m=String(name||'').match(/\bM\s?(\d+)/i); if(m) return +m[1];
@@ -887,18 +899,19 @@ const FAMILY_COLORS = {
   'EDIZIO.liv':  {def:'blanc', list:['blanc','noir','anthracite','crème','beige','brun','gris']},
 };
 const FAM_ORDER = {
-  chem:['Tube ALU','Tube TIT','Tube KRFWG','Canal LF','Tube Bergmann','Chemin de câble','Autre'],
-  app:['EDIZIO.due','EDIZIO.liv','Point lumineux','Prise CEE / industrielle','NUP/NEVO (étanche)','Autre'],
-  boite:['Boîte','Autre'],
+  chem:['Tube ALU','Tube TIT','Tube KRFWG','Canal LF','Chemin de câble','Existant','Autre'],
+  app:['EDIZIO.due','EDIZIO.liv','Point lumineux','Prise CEE / industrielle','NUP/NEVO (étanche)','Existant','Autre'],
+  boite:['Boîte','Existant','Autre'],
 };
 function familyOf(sec, name){
   const n=name||'';
+  // « Existant » : groupe à part (Bergmann compris) — sélectionner un de ces articles force l'état existant
+  if(/existante?\b/i.test(n)) return 'Existant';
   if(sec==='chem'){
     if(/tube\s*alu/i.test(n)) return 'Tube ALU';
     if(/\bTIT\b/i.test(n)) return 'Tube TIT';
     if(/KRFWG/i.test(n)) return 'Tube KRFWG';
     if(/canal/i.test(n)) return 'Canal LF';
-    if(/bergmann/i.test(n)) return 'Tube Bergmann';
     if(/chemin de c/i.test(n)) return 'Chemin de câble';
     return 'Autre';
   }
@@ -1581,13 +1594,34 @@ function applyCond(r){
   show('[data-c="filn"]',    val('type')==='Fil');
   show('[data-c="nbautre"]', val('type')==='Fil' && val('nb')==='plus…');
   show('[data-c="phase"]',   r.querySelector('[data-f="phase"]') && val('type')!=='Fil');
-  // cheminement : article contenant "Bergmann" -> forcément existant + avertissement tirage compliqué
+  // cheminement : article de la famille « Existant » (Bergmann compris) -> forcément existant, verrouillé
   const etatSel = r.querySelector('[data-f="etat"]');
   if(etatSel){
-    const isBerg = /bergmann/i.test(val('article'));
-    if(isBerg){ etatSel.value='Déjà existant'; etatSel.disabled=true; etatSel.dataset.berg='1'; }
-    else { if(etatSel.dataset.berg){ etatSel.value='À poser (neuf)'; delete etatSel.dataset.berg; } etatSel.disabled=false; }
-    show('[data-c="bergmann"]', isBerg);
+    const art = val('article');
+    const isBerg  = /bergmann/i.test(art);
+    const isExist = isBerg || /existante?\b/i.test(art);
+    if(isExist){ etatSel.value='Déjà existant'; etatSel.disabled=true; etatSel.dataset.forced='1'; }
+    else { if(etatSel.dataset.forced){ etatSel.value='À poser (neuf)'; delete etatSel.dataset.forced; } etatSel.disabled=false; }
+    show('[data-c="bergmann"]', isBerg);        // avertissement « tirage compliqué » : Bergmann seulement
+  }
+  // boîte : article « Boîte existante » -> case « déjà existante » cochée et verrouillée
+  if(r.querySelector('[data-artbox][data-sec="boite"]')){
+    const exChk = r.querySelector('[data-f="existant"]');
+    if(exChk){
+      const isExist = /existante?\b/i.test(val('article'));
+      if(isExist){ exChk.checked=true; exChk.disabled=true; exChk.dataset.forced='1'; }
+      else if(exChk.dataset.forced){ exChk.checked=false; exChk.disabled=false; delete exChk.dataset.forced; }
+    }
+  }
+  // appareil : article de la famille « Existant » -> statut « Déjà sur place », verrouillé
+  // (=> pas d'ELDAS dans l'export + compté dans le forfait démontage / remontage)
+  if(r.querySelector('[data-artbox][data-sec="app"]')){
+    const st = r.querySelector('[data-f="statut"]');
+    if(st){
+      const isExist = /existante?\b/i.test(val('article'));
+      if(isExist){ st.value=STATUT_LIST[1]; st.disabled=true; st.dataset.forced='1'; }
+      else if(st.dataset.forced){ st.value=STATUT_LIST[0]; st.disabled=false; delete st.dataset.forced; }
+    }
   }
   // disjoncteur : marque à préciser
   show('[data-c="marque"]',  val('marque')==='À préciser…');
@@ -3182,7 +3216,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v41-arbre — rester connecté sur le téléphone';
+const APP_VERSION='v43-arbre — appareils existants (prise, inter, point lum.) → forfait';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
