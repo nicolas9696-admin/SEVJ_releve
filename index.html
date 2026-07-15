@@ -227,7 +227,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 /* item de liaison : en-tête (nom · replier · suppr) + corps repliable */
 .liais-item{border:1px solid var(--line); border-radius:9px; margin-bottom:8px; overflow:hidden; background:#fbfdff}
 .liais-item:last-child{margin-bottom:0}
-.liais-item-hd{display:flex; align-items:center; gap:6px; padding:6px 8px; background:#eef3f9}
+.liais-item-hd{display:flex; align-items:center; gap:6px; padding:6px 8px; background:#eef3f9; cursor:pointer; user-select:none}
+.liais-item-hd:hover{background:#e4ecf5}
+.liais-item-hd .ldup{border:none; background:none; color:var(--navy2); cursor:pointer; padding:3px 5px;
+  flex:0 0 auto; display:flex; align-items:center}
 .liais-item-hd .lname{flex:0 0 auto; font-size:12px; font-weight:800; color:var(--navy); text-transform:uppercase; letter-spacing:.3px}
 .liais-item-hd .lsum{flex:1; font-size:11px; color:var(--mut); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .liais-item-hd .lfold{border:none; background:none; color:var(--navy2); font-size:12px; cursor:pointer; padding:2px 5px; flex:0 0 auto}
@@ -1290,6 +1293,45 @@ function addRoom(name, colorIdx){
 }
 
 /* ================= Arbre de départs ================= */
+const DUP_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+/* Duplique un nœud entier (article + liaison + ce qui en dépend) à l'emplacement choisi */
+function openNodeDupPicker(node){
+  const list=$('#dupList'); list.innerHTML='';
+  const hint=el('p','dup-hint');
+  hint.textContent="Dupliquer cet élément (avec sa liaison et ce qui en dépend) vers :";
+  list.appendChild(hint);
+  const addChoice=(label, kids, here)=>{
+    const brancher=kids.querySelector(':scope > .brancher'); if(!brancher) return;
+    const b=el('button','dup-choice'); b.type='button';
+    b.innerHTML=(here?'↺ ':'→ ')+esc(label)+(here?' <span style="opacity:.6;font-weight:600">(ici)</span>':'');
+    b.onclick=()=>{ doNodeDuplicate(node, kids, brancher); closeDup(); };
+    list.appendChild(b);
+  };
+  const ownKids=node.closest('.tbranch') ? node.closest('.tbranch').parentElement : null;
+  if(ownKids) addChoice('Même emplacement', ownKids, true);
+  const map=computeRoomNames();
+  [...document.querySelectorAll('#rooms .room')].forEach(room=>{
+    const rn=map.get(room)||roomBase(room);
+    room.querySelectorAll(':scope [data-departs] > .depart').forEach(dep=>{
+      const kids=dep.querySelector(':scope > .tkids'); if(!kids || kids===ownKids) return;
+      const dn=((dep.querySelector('.depnm')||{}).textContent||'Départ').trim();
+      addChoice(rn+' · '+dn, kids, false);
+    });
+  });
+  $('#dupOverlay').classList.add('on');
+}
+function doNodeDuplicate(node, kids, brancher){
+  rebuildNode(kids, brancher, nodeState(node));
+  const branches=[...kids.querySelectorAll(':scope > .tbranch')];
+  const nb=branches[branches.length-1];
+  if(nb){
+    const dep=nb.closest('.depart'); if(dep) dep.classList.remove('folded');
+    const room=nb.closest('.room'); if(room) room.classList.remove('collapsed');
+    nb.classList.add('dup-flash'); setTimeout(()=>nb.classList.remove('dup-flash'),1300);
+    nb.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+  scheduleSave();
+}
 const T_ICON = {
   disjoncteur:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M12 7v5"/><circle cx="12" cy="16" r="1.3" fill="#fff"/></svg>',
   boite:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/></svg>',
@@ -1306,21 +1348,24 @@ function makeNode(type){
   hd.innerHTML=`<span class="tic ${T_CLASS[type]}">${T_ICON[type]}</span>
     <div class="tnc"><div class="tnm">${T_LABEL[type]}</div><div class="tli"></div></div>
     <span class="tfold" title="Réduire / déployer">▾</span>
-    <div class="tact"><button class="del" title="Supprimer">×</button></div>`;
+    <div class="tact"><button class="dupn" type="button" title="Dupliquer">${DUP_SVG}</button><button class="del" title="Supprimer">×</button></div>`;
   const body=el('div','tnode-body');
   T_ADD[type](body);                                   // formulaire métier (réutilisé)
   if(type!=='disjoncteur'){                            // liaison : ① cheminement(s) → ② câble (auto = Σ chem + 3 m)
     const li=el('div','liais');
     // enveloppe une ligne réutilisée : en-tête (nom · replier ▾ · supprimer ×) + corps repliable
-    const wrapItem=(label, row, onDel)=>{
+    const wrapItem=(label, row, onDel, onDup)=>{
       const box=el('div','liais-item');
       const hd=el('div','liais-item-hd');
-      hd.innerHTML=`<span class="lname">${label}</span><span class="lsum"></span><button class="lfold" type="button" title="Réduire">▾</button><button class="ldel" type="button" title="Supprimer">×</button>`;
+      hd.innerHTML=`<span class="lname">${label}</span><span class="lsum"></span><button class="lfold" type="button" title="Réduire / déployer">▾</button>${onDup?`<button class="ldup" type="button" title="Dupliquer">${DUP_SVG}</button>`:''}<button class="ldel" type="button" title="Supprimer">×</button>`;
       const bd=el('div','liais-item-bd'); bd.appendChild(row);
       box.appendChild(hd); box.appendChild(bd);
-      hd.querySelector('.lfold').onclick=()=>{ const f=box.classList.toggle('folded'); hd.querySelector('.lfold').textContent=f?'▸':'▾'; };
+      // toute la bande (dé)plie — sauf les boutons dupliquer / supprimer
+      hd.onclick=e=>{ if(e.target.closest('.ldel')||e.target.closest('.ldup')) return;
+        const f=box.classList.toggle('folded'); hd.querySelector('.lfold').textContent=f?'▸':'▾'; };
       const del=hd.querySelector('.ldel');
       if(onDel) del.onclick=()=>{ box.remove(); onDel(); scheduleSave(); }; else del.style.display='none';
+      const dupb=hd.querySelector('.ldup'); if(dupb) dupb.onclick=()=>onDup(box);
       box._row=row; return box;
     };
     // ① Cheminement(s)
@@ -1341,9 +1386,17 @@ function makeNode(type){
       const cl=cableCont.querySelector('.row [data-f="long"]');
       if(cl){ cl.value = s>0 ? String(Math.round((s+3)*100)/100) : ''; cl.dispatchEvent(new Event('input',{bubbles:true})); }
     }
-    function addChem(){
+    function addChem(state){
       const t=el('div'); addChemin(t); const row=t.firstElementChild;
-      chemCont.appendChild(wrapItem('Cheminement', row, recalcCableLen)); recalcCableLen();
+      const box=wrapItem('Cheminement', row, recalcCableLen, dupChem);
+      chemCont.appendChild(box);
+      if(state) fillRow(row, state);
+      recalcCableLen(); return box;
+    }
+    function dupChem(box){
+      const nb=addChem(rowState(box._row));
+      nb.classList.add('dup-flash'); setTimeout(()=>nb.classList.remove('dup-flash'),1300);
+      recalcCableLen(); scheduleSave();
     }
     cb.onclick=()=>{ addChem(); scheduleSave(); };
     addChem();                                           // un cheminement par défaut
@@ -1363,6 +1416,7 @@ function makeNode(type){
   // interactions
   hd.onclick=(e)=>{ if(e.target.closest('.tact')) return; node.classList.toggle('folded'); updateNodeSummary(node); };  // tout l'en-tête (dé)plie (sauf le ×)
   hd.querySelector('.del').onclick=()=>{ if(confirm('Supprimer ce nœud et ce qui en dépend ?')){ (node.closest('.tbranch')||node).remove(); scheduleSave(); } };
+  hd.querySelector('.dupn').onclick=()=>openNodeDupPicker(node);
   body.addEventListener('input', ()=>updateNodeSummary(node));
   body.addEventListener('change', ()=>updateNodeSummary(node));
   updateNodeSummary(node);
@@ -1495,16 +1549,7 @@ function computeRoomNames(){
 /* conditional field logic + remove button */
 function wire(r){
   r.querySelector('.rm').onclick = ()=>{ r.remove(); if(window.scheduleSave) scheduleSave(); syncChemLinks(); };
-  // Outils article (pas pour les remarques) : réduire + dupliquer vers une pièce
-  if(!r.querySelector('[data-f="txt"]')){
-    const fold=el('button','fold'); fold.type='button'; fold.title='Réduire / déployer'; fold.textContent='▾';
-    const dup=el('button','dup'); dup.type='button'; dup.title='Dupliquer vers une pièce';
-    dup.innerHTML='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
-    const sum=el('span','row-name-sum');
-    r.appendChild(fold); r.appendChild(dup); r.appendChild(sum);
-    fold.onclick=()=>toggleFold(r);
-    dup.onclick=()=>openDupPicker(r);
-  }
+  // (Les outils dupliquer / réduire vivent désormais sur le nœud de l'arbre et sur la bande de liaison.)
   r.querySelectorAll('select[data-f], input[data-f]').forEach(inp=>{
     inp.addEventListener('change', ()=>{ applyCond(r); if(r.closest('[data-sub="chemins"]')) syncChemLinks(); });
     inp.addEventListener('input',  ()=>{ applyCond(r); if(r.closest('[data-sub="chemins"]')) syncChemLinks(); });
@@ -1524,39 +1569,7 @@ function toggleFold(r, force){
   if(folded){ const s=r.querySelector('.row-name-sum'); if(s) s.textContent=rowSummaryLabel(r); }
   if(window.scheduleSave) scheduleSave();
 }
-/* ---- Duplication d'un article vers une pièce au choix ---- */
-let _dupSource=null, _dupSub=null;
-function openDupPicker(sourceRow){
-  const subCont=sourceRow.closest('[data-sub]'); if(!subCont) return;
-  _dupSource=sourceRow; _dupSub=subCont.dataset.sub;
-  const srcRoom=sourceRow.closest('.room');
-  const map=computeRoomNames();
-  const list=$('#dupList'); list.innerHTML='';
-  const hint=el('p','dup-hint'); hint.textContent='Choisis la pièce dans laquelle copier cet article :';
-  list.appendChild(hint);
-  [...document.querySelectorAll('#rooms .room')].forEach(room=>{
-    const name=map.get(room)||roomBase(room);
-    const b=el('button','dup-choice'); b.type='button';
-    b.innerHTML=(room===srcRoom?'↺ ':'→ ')+esc(name)+(room===srcRoom?' <span style="opacity:.6;font-weight:600">(même pièce)</span>':'');
-    b.onclick=()=>{ doDuplicate(room); closeDup(); };
-    list.appendChild(b);
-  });
-  $('#dupOverlay').classList.add('on');
-}
-function closeDup(){ $('#dupOverlay').classList.remove('on'); _dupSource=null; _dupSub=null; }
-function doDuplicate(targetRoom){
-  const src=_dupSource, sub=_dupSub; if(!src||!sub) return;
-  const state=rowState(src);
-  if(sub==='cables' && targetRoom!==src.closest('.room')) state.links='';   // liens cheminements invalides hors pièce
-  const cont=targetRoom.querySelector('[data-sub="'+sub+'"]');
-  ROOM_ADDERS[sub](cont);
-  const newRow=cont.querySelector('.row:last-child');
-  fillRow(newRow, state);
-  syncChemLinks(); if(window.scheduleSave) scheduleSave();
-  targetRoom.classList.remove('collapsed');
-  newRow.classList.add('dup-flash'); setTimeout(()=>newRow.classList.remove('dup-flash'),1300);
-  newRow.scrollIntoView({behavior:'smooth', block:'center'});
-}
+function closeDup(){ $('#dupOverlay').classList.remove('on'); }
 function applyCond(r){
   const val = f => { const e=r.querySelector(`[data-f="${f}"]`); return e?e.value:''; };
   const show = (sel,on)=>{ const e=r.querySelector(sel); if(e) e.classList.toggle('on',!!on); };
@@ -2966,7 +2979,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v32 — protocole : groupes nommés, réductibles, couleur distincte';
+const APP_VERSION='v34-arbre — bande liaison cliquable + duplication des articles';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
