@@ -265,6 +265,20 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .tnode-body .row > .rm,.tnode-body .row > .fold,.tnode-body .row > .dup,
 .tnode-body .row > .tag,.tnode-body .row > .row-name-sum{display:none}
 .tnode-body .row{position:static}
+/* ---------- Mobile : récupérer de la largeur dans l'arbre ----------
+   Chaque niveau coûtait 35 px (tkids 11 + tbranch 24) et les marges fixes 122 px :
+   à 3-4 raccordements il ne restait presque plus rien pour les champs. On resserre
+   l'indentation (35 -> 16 px/niveau) et les marges, sans toucher au rendu bureau. */
+@media(max-width:560px){
+  main{padding:14px 8px}
+  .card .body{padding:14px 10px}
+  .room-body{padding:12px 6px}
+  .depart > .tkids{margin:8px 5px 10px}
+  .tnode-body{padding:10px 6px}
+  .tkids{margin-left:3px}
+  .tbranch,.brancher{padding-left:13px}
+  .tbranch::after,.brancher::after{width:9px}
+}
 /* ---------- Sélecteur mode export ---------- */
 .modeswitch{display:inline-flex; background:rgba(255,255,255,.15); border-radius:9px; padding:2px}
 .modeswitch button{border:none; background:transparent; color:#fff; font-weight:700; font-size:12px;
@@ -900,7 +914,8 @@ const FAMILY_COLORS = {
 };
 const FAM_ORDER = {
   chem:['Tube ALU','Tube TIT','Tube KRFWG','Canal LF','Chemin de câble','Existant','Autre'],
-  app:['EDIZIO.due','EDIZIO.liv','Point lumineux','Prise CEE / industrielle','NUP/NEVO (étanche)','Existant','Autre'],
+  app:['EDIZIO.due ENC','EDIZIO.due AP','EDIZIO.liv ENC','EDIZIO.liv AP',
+       'Point lumineux','Prise CEE / industrielle','NUP/NEVO (étanche)','Existant','Autre'],
   boite:['Boîte','Existant','Autre'],
 };
 function familyOf(sec, name){
@@ -916,8 +931,11 @@ function familyOf(sec, name){
     return 'Autre';
   }
   if(sec==='app'){
-    if(/edizio\s*due/i.test(n)) return 'EDIZIO.due';
-    if(/edizio\.?liv/i.test(n)) return 'EDIZIO.liv';
+    // ENC (encastré) et AP (apparent) forment des groupes séparés au sein d'une gamme.
+    // Sans mention dans le nom (ex. « Plaque d'obturation EDIZIOdue 88×88mm ») -> ENC par défaut.
+    const m = /\bENC\b/i.test(n) ? ' ENC' : (/\bAP\b/i.test(n) ? ' AP' : ' ENC');
+    if(/edizio\s*due/i.test(n)) return 'EDIZIO.due'+m;
+    if(/edizio\.?liv/i.test(n)) return 'EDIZIO.liv'+m;
     if(/point lumineux|luminaire|applique|spot|éclairage|\bDCL\b/i.test(n)) return 'Point lumineux';
     if(/\bCEE\b/i.test(n)) return 'Prise CEE / industrielle';
     if(/NUP|NEVO/i.test(n)) return 'NUP/NEVO (étanche)';
@@ -925,21 +943,25 @@ function familyOf(sec, name){
   }
   return 'Boîte';   // boîtes : une seule catégorie
 }
+/* Couleurs d'une famille — le suffixe « ENC » / « AP » est ignoré (même gamme, mêmes couleurs) */
+function famBase(fam){ return String(fam||'').replace(/\s+(ENC|AP)$/,''); }
+function colorsOfFam(fam){ return FAMILY_COLORS[fam] || FAMILY_COLORS[famBase(fam)] || null; }
 /* Familles d'une section, triées, chaque famille triée par taille croissante */
 function buildFamilies(sec){
   const map={};
   MAT.filter(m=>m.s===sec).forEach(m=>{ const f=familyOf(sec,m.n); (map[f]=map[f]||[]).push(m); });
   Object.values(map).forEach(arr=> arr.sort((a,b)=> matSize(a.n)-matSize(b.n) || a.n.localeCompare(b.n)));
   const order=FAM_ORDER[sec]||Object.keys(map);
-  return order.filter(f=>map[f]&&map[f].length).map(f=>({fam:f, items:map[f], colors:FAMILY_COLORS[f]||null}));
+  return order.filter(f=>map[f]&&map[f].length).map(f=>({fam:f, items:map[f], colors:colorsOfFam(f)}));
 }
 /* Retire le mot couleur par défaut d'un nom et le remplace par la couleur choisie */
 function applyColor(name, def, col){ return (col&&def&&col!==def) ? name.replace(new RegExp('\\b'+def+'\\b','i'), col) : name; }
 /* Repère visuel gamme dans les menus (appareils) : .liv rouge 🔴, .due vert 🟢 */
 function famMark(sec, fam){
   if(sec!=='app') return null;
-  if(fam==='EDIZIO.liv') return {c:'#b02a2a', d:'🔴'};
-  if(fam==='EDIZIO.due') return {c:'#1c7c3f', d:'🟢'};
+  const b=famBase(fam);                       // « EDIZIO.liv ENC » -> « EDIZIO.liv »
+  if(b==='EDIZIO.liv') return {c:'#b02a2a', d:'🔴'};
+  if(b==='EDIZIO.due') return {c:'#1c7c3f', d:'🟢'};
   return null;
 }
 
@@ -952,6 +974,10 @@ function matBoxHtml(sec, label){
     <button type="button" class="art-pick empty" data-artpick>＋ Choisir un article</button>
     <input class="art-free" data-f="artbase" type="text" placeholder="Nom de l'article (saisie libre)…" hidden style="margin-top:8px" autocomplete="off">
     <div class="art-colors" data-artcolors hidden></div>
+    <div data-arteldas hidden style="margin-top:10px">
+      <label class="fld">N° ELDAS (optionnel)</label>
+      <input data-f="eldasman" type="text" inputmode="numeric" placeholder="ex : 657115000" autocomplete="off">
+    </div>
     <input type="hidden" data-f="fam"><input type="hidden" data-f="article"><input type="hidden" data-f="eldas"><input type="hidden" data-f="color"><input type="hidden" data-f="colbold">
     <div class="mat-tools"><span class="mat-eldas"></span></div>
   </div>`;
@@ -963,8 +989,18 @@ function wireMat(box){
   const famEl=box.querySelector('[data-f="fam"]'), baseEl=box.querySelector('[data-f="artbase"]'), artEl=box.querySelector('[data-f="article"]');
   const eldasEl=box.querySelector('[data-f="eldas"]'), colorEl=box.querySelector('[data-f="color"]');
   const colBoldEl=box.querySelector('[data-f="colbold"]'), eldasLbl=box.querySelector('.mat-eldas');
+  const eldasManWrap=box.querySelector('[data-arteldas]'), eldasManEl=box.querySelector('[data-f="eldasman"]');
   const famData=name=>fams.find(f=>f.fam===name);
-  function colorsOf(){ const fd=famData(famEl.value); return fd&&fd.colors?fd.colors:null; }
+  // repli sur la gamme de base : un brouillon enregistré avant la séparation ENC/AP
+  // porte encore « EDIZIO.due » — ses couleurs doivent quand même s'afficher.
+  function colorsOf(){ const fd=famData(famEl.value); return (fd&&fd.colors) ? fd.colors : colorsOfFam(famEl.value); }
+  /* Luminaires : le catalogue ne donne pas d'ELDAS -> saisie manuelle, reprise dans l'export */
+  function eldasManOn(){ return sec==='app' && famEl.value==='Point lumineux'; }
+  function syncEldasMan(){
+    const on=eldasManOn();
+    if(eldasManWrap) eldasManWrap.hidden=!on;
+    if(!on && eldasManEl) eldasManEl.value='';
+  }
   function renderColors(sel){
     const cl=colorsOf();
     if(!cl){ colorsWrap.hidden=true; colorsWrap.innerHTML=''; return; }
@@ -982,11 +1018,13 @@ function wireMat(box){
   function updateBtn(){ const has=!!artEl.value; pickBtn.classList.toggle('empty', !has);
     pickBtn.innerHTML = has ? famDot(sec, famEl.value)+esc(artEl.value)+' <span class="chg">changer</span>' : '＋ Choisir un article'; }
   function compute(){
+    syncEldasMan();
     if(famEl.value==='__autre'){ baseEl.value=free.value; artEl.value=free.value.trim(); eldasEl.value=''; colorEl.value=''; colBoldEl.value=''; updateLbl(); updateBtn(); return; }
     const base=baseEl.value||''; const item=base?MAT.find(m=>m.s===sec&&m.n===base):null;
     const cl=colorsOf();
     let art=base, eldas=item?(item.e||''):'', col='', bold='';
     if(cl && base){ col=colorEl.value||cl.def; if(col!==cl.def){ art=applyColor(base, cl.def, col); eldas=''; bold=col; } }
+    if(eldasManOn() && base) eldas=(eldasManEl.value||'').trim();     // luminaire : ELDAS saisi à la main
     artEl.value=art; eldasEl.value=eldas; colorEl.value = cl? col : ''; colBoldEl.value=bold;
     updateLbl(); updateBtn();
   }
@@ -1001,11 +1039,16 @@ function wireMat(box){
   pickBtn.onclick=()=>openPicker(box);
   free.addEventListener('input', ()=>{ compute(); if(window.scheduleSave) scheduleSave(); });
   free.addEventListener('change',()=>{ dispatch(); });
+  if(eldasManEl){
+    eldasManEl.addEventListener('input', ()=>{ compute(); if(window.scheduleSave) scheduleSave(); });
+    eldasManEl.addEventListener('change',()=>{ dispatch(); });
+  }
   /* Restauration depuis fam/artbase/color déjà remplis */
   box._matRefresh=function(){
     if(famEl.value==='__autre'){ free.hidden=false; free.value=baseEl.value; colorsWrap.hidden=true; }
     else if(famEl.value){ free.hidden=true; const cl=colorsOf(); renderColors(colorEl.value||(cl?cl.def:'')); }
     else { free.hidden=true; colorsWrap.hidden=true; }
+    if(eldasManWrap) eldasManWrap.hidden=!eldasManOn();   // ne pas effacer la valeur restaurée
     updateLbl(); updateBtn();
   };
   updateLbl(); updateBtn();
@@ -3216,7 +3259,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v43-arbre — appareils existants (prise, inter, point lum.) → forfait';
+const APP_VERSION='v46-arbre — EDIZIO sans mention ENC/AP → ENC';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
