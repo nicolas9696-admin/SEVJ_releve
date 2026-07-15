@@ -487,26 +487,34 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   <section class="card req" data-req="collab" id="collabCard" hidden>
     <h2><span class="n"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6v1H4z"/></svg></span> Collaborateur</h2>
     <div class="body">
-      <p class="hint">Commence par te connecter : sélectionne ton nom et saisis ton mot de passe pour signer le relevé.</p>
-      <div class="grid">
-        <div>
-          <label class="fld" for="collab">Nom</label>
-          <select id="collab"><option value="">— choisir —</option></select>
-        </div>
-        <div>
-          <label class="fld" for="pass">Mot de passe</label>
-          <div class="pw-wrap">
-            <input id="pass" type="password" autocomplete="off">
-            <button type="button" id="pwToggle" class="pw-eye" aria-label="Afficher le mot de passe" title="Afficher / masquer">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
+      <p class="hint">Commence par te connecter : sélectionne ton nom et saisis ton mot de passe pour signer le relevé.
+      Ton téléphone peut <b>proposer d'enregistrer ce mot de passe</b> et le remplir automatiquement ensuite.</p>
+      <!-- Vrai <form> + autocomplete : indispensable pour que le gestionnaire de mots de passe
+           du téléphone (Google / Apple / Firefox) propose d'enregistrer puis de remplir. -->
+      <form id="loginForm" autocomplete="on">
+        <div class="grid">
+          <div>
+            <label class="fld" for="collab">Nom</label>
+            <select id="collab"><option value="">— choisir —</option></select>
+            <input id="collabUser" name="username" type="text" autocomplete="username" hidden>
+          </div>
+          <div>
+            <label class="fld" for="pass">Mot de passe</label>
+            <div class="pw-wrap">
+              <input id="pass" name="password" type="password" autocomplete="current-password">
+              <button type="button" id="pwToggle" class="pw-eye" aria-label="Afficher le mot de passe" title="Afficher / masquer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-      <div style="margin-top:10px; display:flex; gap:10px; align-items:center">
-        <button class="add" style="margin:0" id="loginBtn">Se connecter</button>
-        <button class="add" style="margin:0; display:none; border-color:var(--line); color:var(--mut)" id="logoutBtn">Se déconnecter</button>
-      </div>
+        <div class="chk" style="margin-top:8px"><input id="stayLogged" type="checkbox"><label for="stayLogged">Rester connecté sur ce téléphone</label></div>
+        <p class="hint" style="margin:0 0 2px">À n'activer que sur <b>ton</b> téléphone : tant que tu ne te déconnectes pas, toute personne qui l'utilise pourra signer à ton nom.</p>
+        <div style="margin-top:10px; display:flex; gap:10px; align-items:center">
+          <button class="add" style="margin:0" id="loginBtn" type="submit">Se connecter</button>
+          <button class="add" style="margin:0; display:none; border-color:var(--line); color:var(--mut)" id="logoutBtn" type="button">Se déconnecter</button>
+        </div>
+      </form>
       <div class="msg" id="loginMsg"></div>
     </div>
   </section>
@@ -681,6 +689,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <div style="height:6px"></div>
         <label class="fld" for="pObjet">Objet / Période</label><input id="pObjet" type="text" autocomplete="off">
         <div style="height:10px"></div>
+        <label class="fld" for="pAdresse">Adresse</label>
+        <input id="pAdresse" type="text" placeholder="ex : Pré-des-Rives 8, 1341 L'Abbaye" autocomplete="street-address">
+        <div style="height:10px"></div>
         <label class="fld" for="pInstruments">Instruments de mesure utilisés</label>
         <select id="pInstruments">
           <option value="">— choisir —</option>
@@ -694,12 +705,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <div style="height:10px"></div>
         <div class="grid">
           <div><label class="fld" for="pEntreprise">Entreprise</label><input id="pEntreprise" type="text" value="SEVJ SA"></div>
-          <div><label class="fld" for="pPorteur">Porteur de l'autorisation</label><input id="pPorteur" type="text" autocomplete="off"></div>
-        </div>
-        <div style="height:10px"></div>
-        <div class="grid">
           <div><label class="fld" for="pNoInstall">N° d'installation</label><input id="pNoInstall" type="text" placeholder="INST-26-0000" autocomplete="off"></div>
-          <div></div>
         </div>
         <p class="hint" style="margin-top:6px">Format : <b>INST-26-</b> + les 4 chiffres de l'affaire interne. La numérotation des pages est automatique.</p>
       </div>
@@ -717,13 +723,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     <section class="card">
       <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span> Autorisation &amp; contrôle</h2>
       <div class="body">
-        <label class="fld">Type d'autorisation d'installer limitée</label>
-        <div class="chk"><input id="pArt13" type="checkbox"><label for="pArt13">Art. 13 — installations propres à l'entreprise</label></div>
-        <div class="chk"><input id="pArt14" type="checkbox"><label for="pArt14">Art. 14 — installations spéciales</label></div>
-        <div class="chk"><input id="pArt15" type="checkbox"><label for="pArt15">Art. 15 — autorisation de raccordement</label></div>
-        <div class="chk"><input id="pArt1445" type="checkbox"><label for="pArt1445">14.4 / 15.4 — maintenance et réparation sans autorisation</label></div>
+        <p class="hint" style="margin:0 0 4px">Le <b>type d'autorisation d'installer limitée</b> (Art. 13 / 14 / 15 / 14.4-15.4) apparaît dans l'export avec des cases vides, à cocher à la main une fois le document imprimé ou transféré.</p>
 
-        <h4 style="margin:16px 0 6px; color:var(--navy)">Exécuteur des travaux (contrôle OIBT Art. 25)</h4>
+        <h4 style="margin:16px 0 6px; color:var(--navy)">Exécuteur des travaux (OIBT Art. 24 — Première vérification)</h4>
         <div class="grid">
           <div><label class="fld" for="pExecNom">Nom</label><input id="pExecNom" type="text" autocomplete="off"></div>
           <div><label class="fld" for="pExecDate">Date</label><input id="pExecDate" type="date"></div>
@@ -1670,6 +1672,34 @@ function initCollab(){
   const s=$('#collab');
   COLLABORATORS.forEach((c,i)=> s.insertAdjacentHTML('beforeend',
     `<option value="${i}">${c.name}${c.appr?' (apprenti)':''}</option>`));
+  // le gestionnaire de mots de passe a besoin d'un champ « username » : on le tient à jour depuis le nom choisi
+  const sync=()=>{ const u=$('#collabUser'); const c=COLLABORATORS[+s.value]; if(u) u.value = c?c.name:''; };
+  s.addEventListener('change', sync); sync();
+}
+/* « Rester connecté » : on ne mémorise QUE l'identité (initiales) — jamais le mot de passe
+   ni son hash. Le mot de passe reste, lui, dans le trousseau du téléphone si l'utilisateur
+   l'y a enregistré. */
+const SESSION_KEY='sevj_session_v1';
+function saveSession(c){ try{ localStorage.setItem(SESSION_KEY, JSON.stringify({ini:c.ini})); }catch(e){} }
+function clearSession(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} }
+function restoreSession(){
+  let s=null; try{ s=JSON.parse(localStorage.getItem(SESSION_KEY)); }catch(e){}
+  if(!s || !s.ini) return false;
+  const c=COLLABORATORS.find(x=>x.ini===s.ini);
+  if(!c){ clearSession(); return false; }        // collaborateur retiré de la liste
+  applyLogin(c);
+  const st=$('#stayLogged'); if(st) st.checked=true;
+  const msg=$('#loginMsg'); if(msg){ msg.className='msg ok'; msg.textContent='Connecté ✓ (session mémorisée sur ce téléphone)'; }
+  return true;
+}
+/* Met l'interface en état « connecté » (commun au login et à la session restaurée) */
+function applyLogin(c){
+  currentUser=c;
+  $('#whoName').innerHTML = c.name+' <span class="pill">'+c.ini+'</span>';
+  $('#loginBtn').style.display='none'; $('#logoutBtn').style.display='';
+  const s=$('#collab'); const idx=COLLABORATORS.indexOf(c); if(s && idx>=0) s.value=String(idx);
+  const u=$('#collabUser'); if(u) u.value=c.name;
+  buildRef(); updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq();
 }
 async function doLogin(){
   const idx=$('#collab').value, pw=$('#pass').value, msg=$('#loginMsg');
@@ -1677,16 +1707,20 @@ async function doLogin(){
   const c=COLLABORATORS[+idx];
   const h=await hashPw(pw);
   if(h===c.hash){
-    currentUser=c; msg.className='msg ok'; msg.textContent='Connecté ✓';
-    $('#whoName').innerHTML = c.name+' <span class="pill">'+c.ini+'</span>';
-    $('#pass').value=''; $('#loginBtn').style.display='none'; $('#logoutBtn').style.display='';
-    buildRef(); updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq();
+    applyLogin(c);
+    msg.className='msg ok'; msg.textContent='Connecté ✓';
+    if($('#stayLogged') && $('#stayLogged').checked) saveSession(c); else clearSession();
+    // on vide le champ un instant plus tard : s'il est vidé tout de suite, le navigateur
+    // ne voit plus de mot de passe et ne propose pas de l'enregistrer.
+    setTimeout(()=>{ $('#pass').value=''; }, 1500);
   } else {
     msg.className='msg err'; msg.textContent='Mot de passe incorrect.';
   }
 }
 function doLogout(){
-  currentUser=null; $('#whoName').textContent='— non connecté —';
+  currentUser=null; clearSession();
+  const st=$('#stayLogged'); if(st) st.checked=false;
+  $('#whoName').textContent='— non connecté —';
   $('#loginBtn').style.display=''; $('#logoutBtn').style.display='none';
   $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq();
 }
@@ -2630,8 +2664,8 @@ function setTab(t){
    PROTOCOLE OIBT (3ᵉ onglet) — procès-verbal de première vérification
    ================================================================== */
 const PROTO_DRAFT='sevj_proto_v1';
-const P_FIELDS=['#pVerifInit','#pEssaisRep','#pObjet','#pInstruments','#pInstrumentsAutre','#pEntreprise','#pPorteur','#pNoInstall',
-  '#pArt13','#pArt14','#pArt15','#pArt1445','#pExecNom','#pExecDate','#pCtrlNom','#pCtrlDate'];
+const P_FIELDS=['#pVerifInit','#pEssaisRep','#pObjet','#pAdresse','#pInstruments','#pInstrumentsAutre','#pEntreprise','#pNoInstall',
+  '#pExecNom','#pExecDate','#pCtrlNom','#pCtrlDate'];
 function installPrefix(){ const y=String(new Date().getFullYear()).slice(-2); return 'INST-'+y+'-'; }
 function applyProtoInstr(){ const s=$('#pInstruments'), a=$('#pInstrumentsAutre'); if(s&&a) a.hidden = s.value!=='Autre…'; }
 function addProtoRow(){
@@ -2707,6 +2741,14 @@ function applyProtoCond(r){
   show('fusautre', v('fusmod')==='Autre…');
   show('icc066h', chk('icc066'));
 }
+/* Type d'autorisation d'installer limitée — cases laissées vides dans l'export,
+   à cocher à la main une fois le document imprimé / transféré. */
+const ARTS_LIST=[
+  {n:'Art. 13',      t:"travaux effectués sur des installations propres à l'entreprise"},
+  {n:'Art. 14',      t:'travaux effectués sur des installations spéciales'},
+  {n:'Art. 15',      t:'autorisation de raccordement'},
+  {n:'14.4 / 15.4',  t:'travaux de maintenance et de réparation sans autorisation'},
+];
 /* Libellé « Type / Caract. » pour l'export (courbe ou fusible + modèle, saisie libre incluse) */
 function protoTypeLabel(x){
   let t = x.type==='Autre…' ? (x.typeautre||'Autre') : (x.type||'');
@@ -2728,7 +2770,7 @@ function iccOutH(val, on){
   const s=(val||'').trim(); if(!s) return '';
   if(!on) return esc(s);
   const f=icc066(s); if(f===null) return esc(s);
-  return esc(s)+'<br><span style="color:#666">'+esc(String(f))+' (× 0,66)</span>';
+  return esc(s)+'<br><span style="color:#666; white-space:nowrap">'+esc(String(f))+' (× 0,66)</span>';
 }
 /* Réduit / déploie un groupe (n'affiche que le repère + désignation) */
 function protoFold(r, force){
@@ -2763,10 +2805,9 @@ function collectProto(){
   })).filter(x=> x.rep||x.desig);
   const v=id=>{const e=$(id); return e?(e.type==='checkbox'?e.checked:e.value.trim()):'';};
   return {
-    verifInit:v('#pVerifInit'), essaisRep:v('#pEssaisRep'), objet:v('#pObjet'),
+    verifInit:v('#pVerifInit'), essaisRep:v('#pEssaisRep'), objet:v('#pObjet'), adresse:v('#pAdresse'),
     instruments:(v('#pInstruments')==='Autre…'? v('#pInstrumentsAutre') : v('#pInstruments')),
-    entreprise:v('#pEntreprise'), porteur:v('#pPorteur'), noInstall:v('#pNoInstall'),
-    art13:v('#pArt13'), art14:v('#pArt14'), art15:v('#pArt15'), art1445:v('#pArt1445'),
+    entreprise:v('#pEntreprise'), noInstall:v('#pNoInstall'),
     execNom:v('#pExecNom'), execDate:v('#pExecDate'), ctrlNom:v('#pCtrlNom'), ctrlDate:v('#pCtrlDate'),
     rows, monteur: currentUser?currentUser.name:'', sigProto: sigData('proto')
   };
@@ -2789,9 +2830,8 @@ function protoRestore(){
   let d; try{ d=JSON.parse(localStorage.getItem(PROTO_DRAFT)); }catch(e){}
   if(!d) return;
   const set=(id,val)=>{ const e=$(id); if(e){ if(e.type==='checkbox') e.checked=!!val; else if(val!=null) e.value=val; } };
-  set('#pVerifInit',d.verifInit); set('#pEssaisRep',d.essaisRep); set('#pObjet',d.objet); set('#pInstruments',d.instruments);
-  set('#pEntreprise',d.entreprise); set('#pPorteur',d.porteur); set('#pNoInstall',d.noInstall);
-  set('#pArt13',d.art13); set('#pArt14',d.art14); set('#pArt15',d.art15); set('#pArt1445',d.art1445);
+  set('#pVerifInit',d.verifInit); set('#pEssaisRep',d.essaisRep); set('#pObjet',d.objet); set('#pAdresse',d.adresse); set('#pInstruments',d.instruments);
+  set('#pEntreprise',d.entreprise); set('#pNoInstall',d.noInstall);
   set('#pExecNom',d.execNom); set('#pExecDate',d.execDate); set('#pCtrlNom',d.ctrlNom); set('#pCtrlDate',d.ctrlDate);
   $('#protoRows').innerHTML='';
   (d.rows||[]).forEach(state=>{ addProtoRow(); const r=document.querySelector('#protoRows .row:last-child');
@@ -2825,12 +2865,12 @@ function buildProtoFiche(d){
   L.push(`<p class="obj">${d.verifInit?'☑':'☐'} Vérification initiale &nbsp;&nbsp;&nbsp; ${d.essaisRep?'☑':'☐'} Essais après réparation</p>`);
   L.push('<table class="cli">');
   L.push(row2('Objet / Période', esc(d.objet||'—')));
+  L.push(row2('Adresse', esc(d.adresse||'—')));
   L.push(row2('Instruments de mesure', esc(d.instruments||'—')));
   L.push(row2('Entreprise', esc(d.entreprise||'—')));
-  L.push(row2("Porteur de l'autorisation", esc(d.porteur||'—')));
   L.push(row2("N° d'installation", esc(d.noInstall||'—')));
   L.push('</table>');
-  L.push('<h3>Installations &amp; mesures</h3><div style="overflow-x:auto"><table style="min-width:920px; font-size:11px">');
+  L.push('<h3>Installations &amp; mesures</h3><div style="overflow-x:auto"><table style="min-width:1080px; font-size:11px">');
   L.push('<tr><th colspan="2" rowspan="2">Installations</th><th colspan="3" rowspan="2">Organe de protection</th><th colspan="2" rowspan="2">Examen</th><th colspan="7">Mesures</th><th rowspan="2">Champ tournant</th><th rowspan="2">Tension</th></tr>');
   L.push('<tr><th>Conducteur PE</th><th colspan="2">Résistances d\'isolement</th><th colspan="2">Courant de court-circuit</th><th colspan="2">Protect. de courant résiduel DDR / RCD</th></tr>');
   L.push('<tr><th>Repère</th><th>Désignation</th><th>Type / Caract.</th><th>Iₙ magn [A]</th><th>Iₙ therm [A]</th><th>Examen visuel</th><th>Essais fonct.</th><th>R_PE / R_LOW [Ω / ok]</th><th>R_iso [MΩ]</th><th>I_Diff / I_fuite [mA]</th><th>Icc L-PE [A]</th><th>Icc L-N [A]</th><th>I_ΔN [mA]</th><th>Test t [ms]</th><th>[ok]</th><th>U [V]</th></tr>');
@@ -2839,10 +2879,10 @@ function buildProtoFiche(d){
   L.push('</table></div>');
   if(d.rows.some(x=>x.icc066))
     L.push('<p class="obj" style="color:#666"><b>Facteur 0,66 :</b> pour les groupes concernés, la 2ᵉ valeur indiquée sous le courant de court-circuit (Icc L-PE / Icc L-N) correspond à la valeur mesurée <b>multipliée par 0,66</b>.</p>');
-  const arts=[]; if(d.art13)arts.push('Art. 13'); if(d.art14)arts.push('Art. 14'); if(d.art15)arts.push('Art. 15'); if(d.art1445)arts.push('14.4/15.4');
-  L.push(`<p class="obj"><b>Type d'autorisation d'installer limitée :</b> ${arts.length?esc(arts.join(' · ')):'—'}</p>`);
+  L.push(`<h3>Type d'autorisation d'installer limitée</h3>`);
+  L.push('<ul style="list-style:none; padding-left:0">'+ARTS_LIST.map(a=>`<li style="margin:4px 0">☐ <b>${esc(a.n)}</b> — ${esc(a.t)}</li>`).join('')+'</ul>');
   L.push('<h3>Signatures</h3><div class="sig-grid sig-sm">');
-  L.push(`<div class="sc"><div style="font-size:12px;color:#666">Exécuteur / Monteur — ${esc(d.execNom||d.monteur||'—')}</div>${d.sigProto?`<img src="${d.sigProto}">`:'<div class="empty-sig"></div>'}<div style="font-size:11px;color:#666;margin-top:3px">Le ${esc(d.execDate?frDate(d.execDate):'')}</div></div>`);
+  L.push(`<div class="sc"><div style="font-size:12px;color:#666">Exécuteur des travaux (OIBT Art. 24 — Première vérification) — ${esc(d.execNom||d.monteur||'—')}</div>${d.sigProto?`<img src="${d.sigProto}">`:'<div class="empty-sig"></div>'}<div style="font-size:11px;color:#666;margin-top:3px">Le ${esc(d.execDate?frDate(d.execDate):'')}</div></div>`);
   L.push(`<div class="sc"><div style="font-size:12px;color:#666">Personne titulaire d'une autorisation d'installer limitée — ${esc(d.ctrlNom||'—')}</div><div class="empty-sig"></div><div style="font-size:11px;color:#666;margin-top:3px">${esc(d.ctrlDate?('Le '+d.ctrlDate):'Nom · Date · Signature')}</div></div>`);
   L.push('</div>');
   return L.join('');
@@ -2861,11 +2901,12 @@ function buildProtoPDF(d){
   const col2=M+150;
   const fld=(x,label,val,yy)=>{ doc.setFont('helvetica','bold'); doc.text(pdfSafe(label),x,yy); const lw=doc.getTextWidth(pdfSafe(label))+2; doc.setFont('helvetica','normal'); doc.text(pdfSafe(val||''), x+lw, yy); };
   let y=20;
-  fld(M,'Objet / Periode:', d.objet, y);           fld(col2,'Entreprise:', d.entreprise, y); y+=5;
-  fld(M,'Instruments de mesure:', d.instruments, y); fld(col2,"Porteur de l'autorisation:", d.porteur, y); y+=5;
-  fld(col2,"N° d'installation:", d.noInstall, y); y+=5;
+  fld(M,'Objet / Periode:', d.objet, y);            fld(col2,'Entreprise:', d.entreprise, y);          y+=5;
+  fld(M,'Adresse:', d.adresse, y);                  fld(col2,"N° d'installation:", d.noInstall, y);    y+=5;
+  fld(M,'Instruments de mesure:', d.instruments, y);                                                   y+=5;
   // Tableau installations
-  const widths=[14,52,12,15,15,10,10,24,17,17,17,17,17,15,12,14];
+  //          Rep Désignation Type Imag Ith  Vis Ess R_PE Riso IDiff IccPE IccLN IdN Test ok  U
+  const widths=[12, 46,        19, 13, 13,  10, 10, 21,  15,  16,   25,   25,   14, 13,  10, 13];
   const colStyles={}; widths.forEach((w,i)=> colStyles[i]={cellWidth:w, halign:(i>=5&&i!==7)?'center':'left'});
   colStyles[1].halign='left'; colStyles[7].halign='left';
   const body=d.rows.map(x=>[x.rep,x.desig,protoTypeLabel(x),x.imagn,x.itherm, x.visuel?'X':'', x.essais?'X':'', x.pe,x.riso,x.idiff,
@@ -2892,16 +2933,27 @@ function buildProtoPDF(d){
     doc.text(pdfSafe("pour les groupes concernes, la 2e valeur indiquee sous Icc L-PE / Icc L-N correspond a la valeur mesuree multipliee par 0,66."), M+lw, y);
     y+=6;
   }
-  // Type d'autorisation
-  if(y>H-30){ doc.addPage(); y=16; }
-  const arts=(d.art13?'[X]':'[ ]')+' Art.13   '+(d.art14?'[X]':'[ ]')+' Art.14   '+(d.art15?'[X]':'[ ]')+' Art.15   '+(d.art1445?'[X]':'[ ]')+' 14.4/15.4';
-  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy); doc.text(pdfSafe("Type d'autorisation d'installer limitee:"), M, y);
-  doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink); doc.text(pdfSafe(arts), M+62, y);
+  // Type d'autorisation : cases vides, à cocher à la main après impression / transfert
+  if(y>H-34){ doc.addPage(); y=16; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
+  doc.text(pdfSafe("Type d'autorisation d'installer limitee :"), M, y); y+=5;
+  doc.setFontSize(8);
+  ARTS_LIST.forEach((a,i)=>{
+    const x = M + (i%2)*((CW)/2);          // 2 colonnes
+    if(i%2===0 && i>0) y+=4.6;
+    doc.setDrawColor(...CLR.ink); doc.setLineWidth(0.25);
+    doc.rect(x, y-2.9, 3.2, 3.2);          // case à cocher vide
+    doc.setFont('helvetica','bold'); doc.setTextColor(...CLR.navy);
+    doc.text(pdfSafe(a.n), x+4.8, y);
+    const lw=doc.getTextWidth(pdfSafe(a.n))+6.5;
+    doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink);
+    doc.text(pdfSafe('— '+a.t), x+lw, y);
+  });
   y+=8;
   // Signatures : exécuteur (avec image) + organe de contrôle
   const colW=(CW-10)/2, sigH=14, sigImgW=52;
   doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
-  doc.text(pdfSafe('Executeur des travaux (OIBT Art. 25) - '+(d.execNom||d.monteur||'-')), M, y);
+  doc.text(pdfSafe('Executeur des travaux (OIBT Art. 24 - Premiere verification) - '+(d.execNom||d.monteur||'-')), M, y);
   doc.text(pdfSafe("Personne titulaire d'une autorisation d'installer limitee - "+(d.ctrlNom||'-')), M+colW+10, y);
   y+=2;
   if(d.sigProto){ try{ doc.addImage(d.sigProto,'PNG', M, y, sigImgW, sigH); }catch(e){} }
@@ -3074,7 +3126,11 @@ function restoreDraft(){
   }catch(e){}
   return ok;
 }
-function clearDraft(){ try{ Object.keys(localStorage).filter(k=>k.indexOf('sevj_')===0).forEach(k=>localStorage.removeItem(k)); }catch(e){} }
+/* Vide le brouillon — mais PAS la session « rester connecté » : « Réinitialiser » sert à
+   repartir d'un formulaire vide, pas à déconnecter le monteur. */
+function clearDraft(){ try{ Object.keys(localStorage)
+  .filter(k=>k.indexOf('sevj_')===0 && k!==SESSION_KEY)
+  .forEach(k=>localStorage.removeItem(k)); }catch(e){} }
 
 /* ===== Sauvegarde / restauration manuelle (.json, données + photos) ===== */
 function exportBackup(){
@@ -3126,7 +3182,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v38-arbre — libellés : Appareil, à lier DispoSuite';
+const APP_VERSION='v41-arbre — rester connecté sur le téléphone';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -3140,6 +3196,7 @@ function init(){
   $('#themeBtn').onclick=()=>{ const nt=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'; applyTheme(nt); try{ localStorage.setItem(THEME_KEY,nt); }catch(e){} };
   $('#date').value=new Date().toISOString().slice(0,10);
   initCollab();
+  restoreSession();          // « Rester connecté » : reprend l'identité mémorisée (jamais le mot de passe)
   // Sections vides au départ : l'utilisateur ajoute les lignes via les boutons « + ».
 
   // Sections repliables (relevé) : fermées par défaut. Les obligatoires (.req) et les Pièces restent ouvertes.
@@ -3153,7 +3210,9 @@ function init(){
   document.querySelectorAll('.add[data-add]').forEach(b=>{
     b.onclick=()=>{ ({cable:addCable,chemin:addChemin,app:addApp,boite:addBoite,disj:addDisj,remarque:addRemarque}[b.dataset.add])(); syncChemLinks(); scheduleSave(); };
   });
-  $('#loginBtn').onclick=doLogin;
+  // submit du <form> (et pas onclick) : c'est ce que le navigateur guette pour proposer
+  // d'enregistrer le mot de passe. preventDefault : pas de rechargement de page.
+  $('#loginForm').addEventListener('submit', e=>{ e.preventDefault(); doLogin(); });
   $('#logoutBtn').onclick=doLogout;
   $('#pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   $('#pwToggle').onclick=()=>{ const p=$('#pass'), b=$('#pwToggle'); const show=p.type==='password';
