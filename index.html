@@ -2166,6 +2166,7 @@ function aggToBody(agg, rawCables, rawChemins){
 }
 function downloadPDF(){
   if(!window.jspdf){ alert("Librairie PDF non chargée. Vérifie le dossier « vendor »."); return; }
+  saveDraft();                       // sécurité : rien ne doit être perdu si le navigateur quitte la page
   if(window._lastDoc==='regie'){ const d=window._lastData||collectRegie(); downloadBlob(buildRegiePDF(d).output('blob'), regieFileName(d)); return; }
   if(window._lastDoc==='proto'){ const d=window._lastData||collectProto(); downloadBlob(buildProtoPDF(d).output('blob'), protoFileName(d)); return; }
   const d = window._lastData || collect();
@@ -2335,6 +2336,7 @@ function buildPDFDoc(d, mode){
 /* Partage natif : PDF en pièce jointe via le menu du téléphone */
 async function sharePDF(){
   if(!window.jspdf){ alert("Librairie PDF non chargée."); return; }
+  saveDraft();                       // sécurité : rien ne doit être perdu si le navigateur quitte la page
   let d, name, blob;
   if(window._lastDoc==='regie'){
     d = window._lastData || collectRegie();
@@ -2355,16 +2357,20 @@ async function sharePDF(){
     try{ await navigator.share({files:[file], title:'Fiche '+(d.ref||''), text:'Fiche informative '+(d.ref||'')}); }
     catch(e){ /* annulé par l'utilisateur */ }
   } else {
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url), 4000);
-    alert("Partage direct indisponible sur cet appareil : le PDF a été téléchargé, tu peux le joindre manuellement.");
+    downloadBlob(blob, name);
+    alert("Partage direct indisponible sur ce navigateur (Firefox notamment).\n\n"
+        + "Le PDF s'ouvre dans un nouvel onglet : utilise le menu du navigateur pour l'enregistrer ou le partager.\n\n"
+        + "Ton relevé reste ouvert et sauvegardé dans cet onglet.");
   }
 }
 function downloadBlob(blob, name){
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  const a=document.createElement('a'); a.href=url; a.download=name;
+  // Firefox Android ignore parfois « download » sur une URL blob : sans target il QUITTE l'app
+  // (écran noir, puis retour arrière = relevé perdu). Avec _blank, l'app reste intacte dans son onglet.
+  a.target='_blank'; a.rel='noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);   // laisse le temps au téléchargement / au visualiseur
 }
 
 /* ==================================================================
@@ -2625,7 +2631,26 @@ function addProtoRow(){
     <span class="row-name-sum"></span>
     <div class="grid" style="margin-bottom:8px">
       <div><label class="fld">N° / Groupe [Repère]</label><input data-pf="rep" type="text" placeholder="ex : 1"></div>
-      <div><label class="fld">Type/Caract.</label><select data-pf="type"><option value=""></option><option>B</option><option>C</option><option>D</option><option>Fusible</option><option>HPC</option></select></div>
+      <div><label class="fld">Type / Caract.</label><select data-pf="type">
+        <option value=""></option>
+        <optgroup label="Courbes actuelles"><option>B</option><option>C</option><option>D</option></optgroup>
+        <optgroup label="Courbes anciennes"><option>L</option><option>S</option><option>V</option></optgroup>
+        <optgroup label="Fusibles"><option>Fusible</option><option>HPC</option></optgroup>
+        <option value="Autre…">Autre…</option>
+      </select></div>
+    </div>
+    <div data-pcond="typeautre" hidden style="margin-bottom:8px">
+      <label class="fld">Préciser le type / la caractéristique</label>
+      <input data-pf="typeautre" type="text" placeholder="ex : courbe K">
+    </div>
+    <div data-pcond="fus" hidden style="margin-bottom:8px">
+      <div class="grid">
+        <div><label class="fld">Modèle de fusible</label><select data-pf="fusmod">
+          <option value=""></option><option>DI</option><option>DII</option><option>DIII</option>
+          <option value="Autre…">Autre…</option>
+        </select></div>
+        <div data-pcond="fusautre" hidden><label class="fld">Préciser le modèle</label><input data-pf="fusmodautre" type="text" placeholder="ex : NH00"></div>
+      </div>
     </div>
     <label class="fld">Lieu / désignation [Quoi ? et où ?]</label>
     <textarea data-pf="desig" placeholder="Lieu et description des travaux…"></textarea>
@@ -2644,6 +2669,8 @@ function addProtoRow(){
       <div><label class="fld">Icc L-PE [A]</label><input data-pf="iccpe" type="text"></div>
       <div><label class="fld">Icc L-N [A]</label><input data-pf="iccln" type="text"></div>
     </div>
+    <div class="chk"><input type="checkbox" data-pf="icc066"><label>Appliquer le facteur <b>0,66</b> aux courants de court-circuit</label></div>
+    <p class="hint" data-pcond="icc066h" hidden style="margin:0 0 4px">La valeur mesurée reste affichée ; une 2ᵉ valeur (× 0,66) apparaît en plus dans l'export.</p>
     <div class="grid" style="margin-top:8px">
       <div><label class="fld">DDR/RCD I_ΔN [mA]</label><input data-pf="idn" type="text"></div>
       <div><label class="fld">Test t [ms]</label><input data-pf="test" type="text"></div>
@@ -2654,8 +2681,42 @@ function addProtoRow(){
     </div>`;
   r.querySelector('.rm').onclick=()=>{ r.remove(); renumberProto(); updateProtoReq(); protoSave(); };
   r.querySelector('.fold').onclick=()=>protoFold(r);
-  r.querySelectorAll('[data-pf]').forEach(e=>{ e.addEventListener('input',()=>{updateProtoReq(); protoSave();}); e.addEventListener('change',()=>{updateProtoReq(); protoSave();}); });
-  $('#protoRows').appendChild(r); renumberProto();
+  r.querySelectorAll('[data-pf]').forEach(e=>{ e.addEventListener('input',()=>{applyProtoCond(r); updateProtoReq(); protoSave();}); e.addEventListener('change',()=>{applyProtoCond(r); updateProtoReq(); protoSave();}); });
+  $('#protoRows').appendChild(r); applyProtoCond(r); renumberProto();
+}
+/* Champs conditionnels d'un groupe : « Autre… » (saisie libre) + modèle de fusible */
+function applyProtoCond(r){
+  const v=f=>{const e=r.querySelector(`[data-pf="${f}"]`); return e?e.value:'';};
+  const chk=f=>{const e=r.querySelector(`[data-pf="${f}"]`); return e?e.checked:false;};
+  const show=(k,on)=>{const e=r.querySelector(`[data-pcond="${k}"]`); if(e) e.hidden=!on;};
+  const t=v('type');
+  show('typeautre', t==='Autre…');
+  show('fus', t==='Fusible'||t==='HPC');
+  show('fusautre', v('fusmod')==='Autre…');
+  show('icc066h', chk('icc066'));
+}
+/* Libellé « Type / Caract. » pour l'export (courbe ou fusible + modèle, saisie libre incluse) */
+function protoTypeLabel(x){
+  let t = x.type==='Autre…' ? (x.typeautre||'Autre') : (x.type||'');
+  if(x.type==='Fusible'||x.type==='HPC'){
+    const m = x.fusmod==='Autre…' ? (x.fusmodautre||'') : (x.fusmod||'');
+    if(m) t += ' · '+m;
+  }
+  return t;
+}
+/* Valeur Icc pour l'export : mesurée, + 2ᵉ valeur × 0,66 si le facteur est coché */
+function icc066(val){ const n=parseFloat((val||'').trim().replace(',','.')); return isNaN(n)?null:Math.round(n*0.66*100)/100; }
+/* version PDF (texte brut, saut de ligne) */
+function iccOut(val, on){
+  const s=(val||'').trim(); if(!s || !on) return s;
+  const f=icc066(s); return f===null ? s : s+'\n'+f+' (x 0,66)';
+}
+/* version aperçu HTML (échappée) */
+function iccOutH(val, on){
+  const s=(val||'').trim(); if(!s) return '';
+  if(!on) return esc(s);
+  const f=icc066(s); if(f===null) return esc(s);
+  return esc(s)+'<br><span style="color:#666">'+esc(String(f))+' (× 0,66)</span>';
 }
 /* Réduit / déploie un groupe (n'affiche que le repère + désignation) */
 function protoFold(r, force){
@@ -2682,9 +2743,10 @@ function renumberProto(){
 function collectProto(){
   const g=(r,f)=>{const e=r.querySelector(`[data-pf="${f}"]`); return e?(e.type==='checkbox'?e.checked:e.value.trim()):'';};
   const rows=[...document.querySelectorAll('#protoRows .row')].map(r=>({
-    rep:g(r,'rep'), type:g(r,'type'), desig:g(r,'desig'), imagn:g(r,'imagn'), itherm:g(r,'itherm'),
+    rep:g(r,'rep'), type:g(r,'type'), typeautre:g(r,'typeautre'), fusmod:g(r,'fusmod'), fusmodautre:g(r,'fusmodautre'),
+    desig:g(r,'desig'), imagn:g(r,'imagn'), itherm:g(r,'itherm'),
     visuel:g(r,'visuel'), essais:g(r,'essais'), pe:g(r,'pe'), riso:g(r,'riso'), idiff:g(r,'idiff'),
-    iccpe:g(r,'iccpe'), iccln:g(r,'iccln'), idn:g(r,'idn'), test:g(r,'test'), champ:g(r,'champ'),
+    iccpe:g(r,'iccpe'), iccln:g(r,'iccln'), icc066:g(r,'icc066'), idn:g(r,'idn'), test:g(r,'test'), champ:g(r,'champ'),
     tension:g(r,'tension'), __folded:r.classList.contains('folded')?1:0
   })).filter(x=> x.rep||x.desig);
   const v=id=>{const e=$(id); return e?(e.type==='checkbox'?e.checked:e.value.trim()):'';};
@@ -2722,6 +2784,7 @@ function protoRestore(){
   $('#protoRows').innerHTML='';
   (d.rows||[]).forEach(state=>{ addProtoRow(); const r=document.querySelector('#protoRows .row:last-child');
     Object.entries(state).forEach(([f,val])=>{ const e=r.querySelector(`[data-pf="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=!!val; else e.value=val; } });
+    applyProtoCond(r);
     if(state.__folded) protoFold(r, true); });
   renumberProto(); applyProtoInstr();
 }
@@ -2759,9 +2822,11 @@ function buildProtoFiche(d){
   L.push('<tr><th colspan="2" rowspan="2">Installations</th><th colspan="3" rowspan="2">Organe de protection</th><th colspan="2" rowspan="2">Examen</th><th colspan="7">Mesures</th><th rowspan="2">Champ tournant</th><th rowspan="2">Tension</th></tr>');
   L.push('<tr><th>Conducteur PE</th><th colspan="2">Résistances d\'isolement</th><th colspan="2">Courant de court-circuit</th><th colspan="2">Protect. de courant résiduel DDR / RCD</th></tr>');
   L.push('<tr><th>Repère</th><th>Désignation</th><th>Type / Caract.</th><th>Iₙ magn [A]</th><th>Iₙ therm [A]</th><th>Examen visuel</th><th>Essais fonct.</th><th>R_PE / R_LOW [Ω / ok]</th><th>R_iso [MΩ]</th><th>I_Diff / I_fuite [mA]</th><th>Icc L-PE [A]</th><th>Icc L-N [A]</th><th>I_ΔN [mA]</th><th>Test t [ms]</th><th>[ok]</th><th>U [V]</th></tr>');
-  if(d.rows.length) d.rows.forEach(x=> L.push(`<tr><td>${esc(x.rep)}</td><td>${esc(x.desig)}</td><td>${esc(x.type)}</td><td>${esc(x.imagn)}</td><td>${esc(x.itherm)}</td><td style="text-align:center">${pChk(x.visuel)}</td><td style="text-align:center">${pChk(x.essais)}</td><td>${esc(x.pe)}</td><td>${esc(x.riso)}</td><td>${esc(x.idiff)}</td><td>${esc(x.iccpe)}</td><td>${esc(x.iccln)}</td><td>${esc(x.idn)}</td><td>${esc(x.test)}</td><td style="text-align:center">${pChk(x.champ)}</td><td>${esc(x.tension)}</td></tr>`));
+  if(d.rows.length) d.rows.forEach(x=> L.push(`<tr><td>${esc(x.rep)}</td><td>${esc(x.desig)}</td><td>${esc(protoTypeLabel(x))}</td><td>${esc(x.imagn)}</td><td>${esc(x.itherm)}</td><td style="text-align:center">${pChk(x.visuel)}</td><td style="text-align:center">${pChk(x.essais)}</td><td>${esc(x.pe)}</td><td>${esc(x.riso)}</td><td>${esc(x.idiff)}</td><td>${iccOutH(x.iccpe,x.icc066)}</td><td>${iccOutH(x.iccln,x.icc066)}</td><td>${esc(x.idn)}</td><td>${esc(x.test)}</td><td style="text-align:center">${pChk(x.champ)}</td><td>${esc(x.tension)}</td></tr>`));
   else L.push('<tr><td colspan="16" class="empty">Aucune installation.</td></tr>');
   L.push('</table></div>');
+  if(d.rows.some(x=>x.icc066))
+    L.push('<p class="obj" style="color:#666"><b>Facteur 0,66 :</b> pour les groupes concernés, la 2ᵉ valeur indiquée sous le courant de court-circuit (Icc L-PE / Icc L-N) correspond à la valeur mesurée <b>multipliée par 0,66</b>.</p>');
   const arts=[]; if(d.art13)arts.push('Art. 13'); if(d.art14)arts.push('Art. 14'); if(d.art15)arts.push('Art. 15'); if(d.art1445)arts.push('14.4/15.4');
   L.push(`<p class="obj"><b>Type d'autorisation d'installer limitée :</b> ${arts.length?esc(arts.join(' · ')):'—'}</p>`);
   L.push('<h3>Signatures</h3><div class="sig-grid sig-sm">');
@@ -2791,7 +2856,8 @@ function buildProtoPDF(d){
   const widths=[14,52,12,15,15,10,10,24,17,17,17,17,17,15,12,14];
   const colStyles={}; widths.forEach((w,i)=> colStyles[i]={cellWidth:w, halign:(i>=5&&i!==7)?'center':'left'});
   colStyles[1].halign='left'; colStyles[7].halign='left';
-  const body=d.rows.map(x=>[x.rep,x.desig,x.type,x.imagn,x.itherm, x.visuel?'X':'', x.essais?'X':'', x.pe,x.riso,x.idiff,x.iccpe,x.iccln,x.idn,x.test, x.champ?'X':'', x.tension]);
+  const body=d.rows.map(x=>[x.rep,x.desig,protoTypeLabel(x),x.imagn,x.itherm, x.visuel?'X':'', x.essais?'X':'', x.pe,x.riso,x.idiff,
+    iccOut(x.iccpe,x.icc066), iccOut(x.iccln,x.icc066), x.idn,x.test, x.champ?'X':'', x.tension]);
   if(!body.length) body.push([{content:'Aucune installation.', colSpan:16, styles:{textColor:CLR.mut, fontStyle:'italic'}}]);
   doc.autoTable({ startY:y+1, theme:'grid', margin:{left:M,right:M},
     styles:{fontSize:6.6, cellPadding:1, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top', overflow:'linebreak'},
@@ -2804,6 +2870,16 @@ function buildProtoPDF(d){
       ['Repère','Désignation','Type / Caract.','In magn [A]','In therm [A]','Examen visuel','Essais fonct.','R_PE / R_LOW [Ohm / ok]','R_iso [MOhm]','I_Diff / I_fuite [mA]','Icc L-PE [A]','Icc L-N [A]','IdN [mA]','Test t [ms]','[ok]','U [V]']
     ], body, didParseCell:sanitize });
   y=doc.lastAutoTable.finalY+4;
+  // Note : facteur 0,66 appliqué aux courants de court-circuit
+  if(d.rows.some(x=>x.icc066)){
+    if(y>H-24){ doc.addPage(); y=16; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...CLR.navy);
+    doc.text(pdfSafe('Facteur 0,66 :'), M, y);
+    const lw=doc.getTextWidth(pdfSafe('Facteur 0,66 :'))+2;
+    doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink);
+    doc.text(pdfSafe("pour les groupes concernes, la 2e valeur indiquee sous Icc L-PE / Icc L-N correspond a la valeur mesuree multipliee par 0,66."), M+lw, y);
+    y+=6;
+  }
   // Type d'autorisation
   if(y>H-30){ doc.addPage(); y=16; }
   const arts=(d.art13?'[X]':'[ ]')+' Art.13   '+(d.art14?'[X]':'[ ]')+' Art.14   '+(d.art15?'[X]':'[ ]')+' Art.15   '+(d.art1445?'[X]':'[ ]')+' 14.4/15.4';
@@ -2830,7 +2906,7 @@ function buildProtoPDF(d){
 }
 
 /* ================= Persistance (brouillon auto) ================= */
-const DRAFT='sevj_draft_arbre_v1', DRAFT_PHOTOS='sevj_draft_photos_arbre_v1';
+const DRAFT='sevj_draft_arbre_v1', DRAFT_PHOTOS='sevj_draft_photos_arbre_v1', DRAFT_PIMG='sevj_draft_protimgs_arbre_v1';
 const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#dureeH'];
 const D_CHECK=['#vendredi','#apprenti','#tabAmiante'];
 const SUBS=['chemins','cables','apps','boites','disj'];
@@ -2885,9 +2961,26 @@ function draftObject(){
   d.rooms=[...document.querySelectorAll('#rooms .room')].map(roomState);
   return d;
 }
+/* Brouillon « léger » : les images (base64) sont stockées à part, sinon le quota
+   localStorage explose et TOUT le relevé est perdu au rechargement. */
+function draftObjectLight(){
+  const d=draftObject();
+  (d.protections||[]).forEach(p=>{ delete p.images; });
+  return d;
+}
+let _quotaWarned=false;
+function warnQuota(){
+  if(_quotaWarned) return; _quotaWarned=true;
+  alert("⚠ Mémoire du navigateur pleine : le relevé n'a pas pu être sauvegardé automatiquement.\n\n"
+      + "Fais tout de suite « 💾 Sauvegarder (.json) » pour ne rien perdre, puis retire quelques photos / images de schéma.");
+}
 function saveDraft(){
-  try{ localStorage.setItem(DRAFT, JSON.stringify(draftObject())); }catch(e){}
+  let ok=true;
+  try{ localStorage.setItem(DRAFT, JSON.stringify(draftObjectLight())); }
+  catch(e){ ok=false; warnQuota(); }                       // ne jamais échouer en silence : c'est la donnée critique
   try{ localStorage.setItem(DRAFT_PHOTOS, JSON.stringify([...document.querySelectorAll('#rooms .room')].map(r=>r._photos||[]))); }catch(e){ /* quota : photos non sauvées */ }
+  try{ localStorage.setItem(DRAFT_PIMG, JSON.stringify([...document.querySelectorAll('#protections .prot')].map(p=>p._images||[]))); }catch(e){ /* quota : images non sauvées */ }
+  return ok;
 }
 /* Recharge le formulaire depuis un objet (brouillon local ou import PDF) */
 function applyDraft(d){
@@ -2964,6 +3057,9 @@ function restoreDraft(){
   try{ const p=JSON.parse(localStorage.getItem(DRAFT_PHOTOS));
     if(Array.isArray(p)) [...document.querySelectorAll('#rooms .room')].forEach((room,i)=>{ if(Array.isArray(p[i])){ room._photos=p[i]; renderRoomPhotos(room); } });
   }catch(e){}
+  try{ const pi=JSON.parse(localStorage.getItem(DRAFT_PIMG));   // images de schéma (stockées à part)
+    if(Array.isArray(pi)) [...document.querySelectorAll('#protections .prot')].forEach((p,i)=>{ if(Array.isArray(pi[i])){ p._images=pi[i]; renderProtImages(p); } });
+  }catch(e){}
   return ok;
 }
 function clearDraft(){ try{ Object.keys(localStorage).filter(k=>k.indexOf('sevj_')===0).forEach(k=>localStorage.removeItem(k)); }catch(e){} }
@@ -2995,7 +3091,7 @@ function b64enc(s){ return btoa(unescape(encodeURIComponent(s))); }
 function b64dec(s){ return decodeURIComponent(escape(atob(s))); }
 /* Ajoute les données du relevé (JSON base64) après le PDF, dans un commentaire ignoré des lecteurs */
 function pdfBlobWithData(doc){
-  const marker='\n'+SEVJ_MARK+b64enc(JSON.stringify(draftObject()))+'\n';
+  const marker='\n'+SEVJ_MARK+b64enc(JSON.stringify(draftObjectLight()))+'\n';   // sans images : PDF léger
   const pdf=new Uint8Array(doc.output('arraybuffer'));
   const mk=new TextEncoder().encode(marker);
   const out=new Uint8Array(pdf.length+mk.length); out.set(pdf,0); out.set(mk,pdf.length);
@@ -3018,7 +3114,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v35-arbre — schéma DispoSuite dans l\'export';
+const APP_VERSION='v36-arbre — protocole (0,66 · fusibles · courbes) + fix partage/perte';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
