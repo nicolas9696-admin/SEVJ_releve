@@ -126,8 +126,7 @@ textarea{min-height:70px; resize:vertical}
   width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center}
 .row .fold{position:absolute; top:8px; right:76px; border:none; background:#eef2f6; color:var(--navy2);
   width:28px; height:28px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; line-height:1}
-.row.no-dup .fold{right:42px}   /* pas de bouton dupliquer (protocole) → colle à la corbeille */
-.row.no-dup > .tag,.row.no-dup > .row-name-sum{cursor:pointer; user-select:none}   /* ruban cliquable */
+.row.proto-row > .tag,.row.proto-row > .row-name-sum{cursor:pointer; user-select:none}   /* ruban cliquable */
 .row .row-name-sum{display:none; font-weight:700; color:var(--navy); font-size:14.5px; margin-left:4px}
 .row.folded{padding-bottom:12px; margin-bottom:10px}
 .row.folded > *{display:none!important}
@@ -723,6 +722,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
           <div><label class="fld" for="pNoInstall">N° d'installation</label><input id="pNoInstall" type="text" placeholder="INST-26-0000" autocomplete="off"></div>
         </div>
         <p class="hint" style="margin-top:6px">Format : <b>INST-26-</b> + les 4 chiffres de l'affaire interne. La numérotation des pages est automatique.</p>
+        <div style="display:flex; gap:8px; margin-top:12px">
+          <button class="add" id="protoBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.json)</button>
+          <input id="protoBackupImport" type="file" accept="application/json,.json" style="display:none">
+          <button class="add" id="protoBackupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.json)</button>
+        </div>
+        <p class="hint" style="margin:6px 0 0">Sauvegarde du protocole dans un fichier, pour changer de téléphone ou en cas de perte. <b>La signature n'est pas incluse</b> — elle est à refaire après restauration.</p>
       </div>
     </section>
 
@@ -2747,9 +2752,10 @@ const P_FIELDS=['#pVerifInit','#pEssaisRep','#pObjet','#pAdresse','#pInstruments
 function installPrefix(){ const y=String(new Date().getFullYear()).slice(-2); return 'INST-'+y+'-'; }
 function applyProtoInstr(){ const s=$('#pInstruments'), a=$('#pInstrumentsAutre'); if(s&&a) a.hidden = s.value!=='Autre…'; }
 function addProtoRow(){
-  const r=el('div','row no-dup');
+  const r=el('div','row proto-row');
   r.innerHTML=`
     <button class="rm" title="Supprimer">×</button>
+    <button type="button" class="dup" title="Dupliquer ce groupe">${DUP_SVG}</button>
     <button type="button" class="fold" title="Réduire / déployer">▾</button>
     <div class="tag">Groupe</div>
     <span class="row-name-sum"></span>
@@ -2826,6 +2832,7 @@ function addProtoRow(){
     </div>`;
   r.querySelector('.rm').onclick=()=>{ r.remove(); renumberProto(); updateProtoReq(); protoSave(); };
   r.querySelector('.fold').onclick=()=>protoFold(r);
+  r.querySelector('.dup').onclick=()=>duplicateProtoRow(r);
   // le ruban « GROUPE #n » (+ son résumé) replie/déploie au clic
   r.querySelector('.tag').onclick=()=>protoFold(r);
   r.querySelector('.row-name-sum').onclick=()=>protoFold(r);
@@ -2901,6 +2908,32 @@ function iccOutH(val, on){
   const f=icc066(s); if(f===null) return esc(s);
   return esc(s)+'<br><span style="color:#666; white-space:nowrap">'+esc(String(f))+' (× 0,66)</span>';
 }
+/* État / remplissage d'un groupe — sert à la duplication et à la restauration */
+function protoRowState(r){
+  const o={};
+  r.querySelectorAll('[data-pf]').forEach(e=>{ o[e.dataset.pf]= e.type==='checkbox'?e.checked:e.value; });
+  if(r.classList.contains('folded')) o.__folded=1;
+  return o;
+}
+function protoFillRow(r, st){
+  if(!r||!st) return;
+  Object.entries(st).forEach(([f,v])=>{ const e=r.querySelector(`[data-pf="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=!!v; else e.value=v; } });
+  applyProtoCond(r);
+  // « Nombre » : ses options sont créées par applyProtoCond -> on ré-applique la valeur après coup
+  if(st.cfnb){ const e=r.querySelector('select[data-pf="cfnb"]'); if(e) e.value=st.cfnb; }
+  if(st.__folded) protoFold(r, true);
+}
+/* Duplique un groupe (tous ses champs), juste en dessous de l'original */
+function duplicateProtoRow(src){
+  const st=protoRowState(src);
+  addProtoRow();
+  const nr=$('#protoRows').lastElementChild;
+  src.after(nr);                       // le doublon se place juste après l'original
+  protoFillRow(nr, st);
+  renumberProto(); updateProtoReq(); protoSave();
+  nr.classList.add('dup-flash'); setTimeout(()=>nr.classList.remove('dup-flash'),1300);
+  nr.scrollIntoView({behavior:'smooth', block:'center'});
+}
 /* Réduit / déploie un groupe (n'affiche que le repère + désignation) */
 function protoFold(r, force){
   const folded = force!=null ? force : !r.classList.contains('folded');
@@ -2957,21 +2990,40 @@ let _pSaveT=null;
 function protoSave(){ clearTimeout(_pSaveT); _pSaveT=setTimeout(()=>{
   try{ const d=collectProto(); delete d.sigProto; delete d.monteur; localStorage.setItem(PROTO_DRAFT, JSON.stringify(d)); }catch(e){}
 },500); }
-function protoRestore(){
-  let d; try{ d=JSON.parse(localStorage.getItem(PROTO_DRAFT)); }catch(e){}
-  if(!d) return;
+/* Applique un protocole (brouillon local ou sauvegarde .json) au formulaire */
+function protoApply(d){
+  if(!d) return false;
   const set=(id,val)=>{ const e=$(id); if(e){ if(e.type==='checkbox') e.checked=!!val; else if(val!=null) e.value=val; } };
   set('#pVerifInit',d.verifInit); set('#pEssaisRep',d.essaisRep); set('#pObjet',d.objet); set('#pAdresse',d.adresse); set('#pInstruments',d.instruments);
   set('#pEntreprise',d.entreprise); set('#pNoInstall',d.noInstall);
   set('#pExecNom',d.execNom); set('#pExecDate',d.execDate); set('#pCtrlNom',d.ctrlNom); set('#pCtrlDate',d.ctrlDate);
   $('#protoRows').innerHTML='';
-  (d.rows||[]).forEach(state=>{ addProtoRow(); const r=document.querySelector('#protoRows .row:last-child');
-    Object.entries(state).forEach(([f,val])=>{ const e=r.querySelector(`[data-pf="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=!!val; else e.value=val; } });
-    applyProtoCond(r);
-    // « Nombre » : ses options sont créées par applyProtoCond -> on ré-applique la valeur après coup
-    if(state.cfnb){ const e=r.querySelector('select[data-pf="cfnb"]'); if(e) e.value=state.cfnb; }
-    if(state.__folded) protoFold(r, true); });
-  renumberProto(); applyProtoInstr();
+  (d.rows||[]).forEach(state=>{ addProtoRow(); protoFillRow($('#protoRows').lastElementChild, state); });
+  renumberProto(); applyProtoInstr(); updateProtoReq();
+  return true;
+}
+function protoRestore(){
+  let d; try{ d=JSON.parse(localStorage.getItem(PROTO_DRAFT)); }catch(e){}
+  if(!d) return;
+  protoApply(d);
+}
+/* ===== Sauvegarde / restauration manuelle du protocole (.json) ===== */
+function exportProtoBackup(){
+  const d=collectProto(); delete d.sigProto; delete d.monteur;    // la signature n'est pas enregistrée
+  const data={ app:'sevj-proto', v:1, proto:d };
+  const name=((d.noInstall||d.objet||'protocole').replace(/[^\wÀ-ſ.-]/g,'_'))+'.json';
+  downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name);
+}
+function importProtoBackup(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let data; try{ data=JSON.parse(reader.result); }catch(e){ alert('Fichier illisible.'); return; }
+    if(!data || data.app!=='sevj-proto' || !data.proto){ alert("Ce fichier n'est pas une sauvegarde de protocole SEVJ."); return; }
+    if(!confirm('Remplacer le protocole en cours par cette sauvegarde ?')) return;
+    protoApply(data.proto); updateProtoMonteur(); protoSave();
+    alert('Protocole restauré ✓  (la signature est à refaire.)');
+  };
+  reader.readAsText(file);
 }
 function generateProto(){
   const d=collectProto(); window._lastData=d; window._lastDoc='proto';
@@ -3315,7 +3367,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v47-arbre — protocole : système, câble/fil, ruban cliquable';
+const APP_VERSION='v48-arbre — protocole : dupliquer un groupe + sauvegarde .json';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -3378,6 +3430,10 @@ function init(){
   $('#backupExport').onclick=exportBackup;
   $('#backupImportBtn').onclick=()=>$('#backupImport').click();
   $('#backupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importBackup(f); e.target.value=''; });
+  // Sauvegarde / restauration .json du protocole
+  $('#protoBackupExport').onclick=exportProtoBackup;
+  $('#protoBackupImportBtn').onclick=()=>$('#protoBackupImport').click();
+  $('#protoBackupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importProtoBackup(f); e.target.value=''; });
   // Déconnexion auto après 15 min d'inactivité
   let _idle=null; const IDLE_MS=15*60*1000;
   const resetIdle=()=>{ clearTimeout(_idle); _idle=setTimeout(()=>{ if(currentUser){ doLogout(); const m=$('#loginMsg'); if(m){ m.className='msg'; m.textContent='Déconnecté automatiquement (inactivité).'; } } }, IDLE_MS); };
