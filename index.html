@@ -2806,8 +2806,8 @@ function addProtoRow(){
       <div data-pcond="cfautre" hidden><label class="fld">Préciser</label><input data-pf="cfautre" type="text" placeholder="ex : 4x95 mm²"></div>
     </div>
     <div class="grid" style="margin-top:8px">
-      <div><label class="fld">Iₙ magn. [A]</label><input data-pf="imagn" type="text" placeholder="ex : 16"></div>
-      <div><label class="fld">Iₙ therm. [A]</label><input data-pf="itherm" type="text"></div>
+      <div><label class="fld">Iₙ [A]</label><input data-pf="imagn" type="text" placeholder="ex : 16"></div>
+      <div></div>
     </div>
     <div class="chk"><input type="checkbox" data-pf="visuel"><label>Examen visuel OK</label></div>
     <div class="chk"><input type="checkbox" data-pf="essais"><label>Essais fonctionnels OK</label></div>
@@ -2872,8 +2872,8 @@ function protoCableLabel(x){
   const dim = (x.cfnb||'') + (mm2 ? mm2+' mm²' : '');
   return [x.cf, dim].filter(Boolean).join(' ').trim();
 }
-/* Désignation + (système · câble/fil) sur une 2ᵉ ligne */
-function protoDesigExtra(x){ return [protoSystLabel(x), protoCableLabel(x)].filter(Boolean).join(' · '); }
+/* Colonne « Système / Câble-fil » de l'export (juste après Désignation) */
+function protoSystCf(x, sep){ return [protoSystLabel(x), protoCableLabel(x)].filter(Boolean).join(sep||'\n'); }
 /* Protocole — partie câble / fil : le nombre de conducteurs dépend du type */
 const PROTO_CF_NB = { 'Câble':['3x','4x','5x'], 'Fil':['2x','3x','4x','5x'] };
 const PROTO_MM2   = [1, 1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70];
@@ -2962,7 +2962,7 @@ function collectProto(){
     rep:g(r,'rep'), type:g(r,'type'), typeautre:g(r,'typeautre'), fusmod:g(r,'fusmod'), fusmodautre:g(r,'fusmodautre'),
     desig:g(r,'desig'), syst:g(r,'syst'), systautre:g(r,'systautre'),
     cf:g(r,'cf'), cfnb:g(r,'cfnb'), cfmm2:g(r,'cfmm2'), cfautre:g(r,'cfautre'),
-    imagn:g(r,'imagn'), itherm:g(r,'itherm'),
+    imagn:g(r,'imagn'),          // Iₙ (champ unique — « imagn » conservé pour ne pas casser les brouillons)
     visuel:g(r,'visuel'), essais:g(r,'essais'), pe:g(r,'pe'), riso:g(r,'riso'), idiff:g(r,'idiff'),
     iccpe:g(r,'iccpe'), iccln:g(r,'iccln'), icc066:g(r,'icc066'), idn:g(r,'idn'), test:g(r,'test'), champ:g(r,'champ'),
     tension:g(r,'tension'), __folded:r.classList.contains('folded')?1:0
@@ -3056,10 +3056,10 @@ function buildProtoFiche(d){
   L.push(row2("N° d'installation", esc(d.noInstall||'—')));
   L.push('</table>');
   L.push('<h3>Installations &amp; mesures</h3><div style="overflow-x:auto"><table style="min-width:1080px; font-size:11px">');
-  L.push('<tr><th colspan="2" rowspan="2">Installations</th><th colspan="3" rowspan="2">Organe de protection</th><th colspan="2" rowspan="2">Examen</th><th colspan="7">Mesures</th><th rowspan="2">Champ tournant</th><th rowspan="2">Tension</th></tr>');
+  L.push('<tr><th colspan="3" rowspan="2">Installations</th><th colspan="2" rowspan="2">Organe de protection</th><th colspan="2" rowspan="2">Examen</th><th colspan="7">Mesures</th><th rowspan="2">Champ tournant</th><th rowspan="2">Tension</th></tr>');
   L.push('<tr><th>Conducteur PE</th><th colspan="2">Résistances d\'isolement</th><th colspan="2">Courant de court-circuit</th><th colspan="2">Protect. de courant résiduel DDR / RCD</th></tr>');
-  L.push('<tr><th>Repère</th><th>Désignation</th><th>Type / Caract.</th><th>Iₙ magn [A]</th><th>Iₙ therm [A]</th><th>Examen visuel</th><th>Essais fonct.</th><th>R_PE / R_LOW [Ω / ok]</th><th>R_iso [MΩ]</th><th>I_Diff / I_fuite [mA]</th><th>Icc L-PE [A]</th><th>Icc L-N [A]</th><th>I_ΔN [mA]</th><th>Test t [ms]</th><th>[ok]</th><th>U [V]</th></tr>');
-  if(d.rows.length) d.rows.forEach(x=> L.push(`<tr><td>${esc(x.rep)}</td><td>${esc(x.desig)}${protoDesigExtra(x)?'<br><span style="color:#666">'+esc(protoDesigExtra(x))+'</span>':''}</td><td>${esc(protoTypeLabel(x))}</td><td>${esc(x.imagn)}</td><td>${esc(x.itherm)}</td><td style="text-align:center">${pChk(x.visuel)}</td><td style="text-align:center">${pChk(x.essais)}</td><td>${esc(x.pe)}</td><td>${esc(x.riso)}</td><td>${esc(x.idiff)}</td><td>${iccOutH(x.iccpe,x.icc066)}</td><td>${iccOutH(x.iccln,x.icc066)}</td><td>${esc(x.idn)}</td><td>${esc(x.test)}</td><td style="text-align:center">${pChk(x.champ)}</td><td>${esc(x.tension)}</td></tr>`));
+  L.push('<tr><th>Repère</th><th>Désignation</th><th>Système / Câble-fil</th><th>Type / Caract.</th><th>Iₙ [A]</th><th>Examen visuel</th><th>Essais fonct.</th><th>R_PE / R_LOW [Ω / ok]</th><th>R_iso [MΩ]</th><th>I_Diff / I_fuite [mA]</th><th>Icc L-PE [A]</th><th>Icc L-N [A]</th><th>I_ΔN [mA]</th><th>Test t [ms]</th><th>[ok]</th><th>U [V]</th></tr>');
+  if(d.rows.length) d.rows.forEach(x=> L.push(`<tr><td>${esc(x.rep)}</td><td>${esc(x.desig)}</td><td>${esc(protoSystCf(x,' · '))}</td><td>${esc(protoTypeLabel(x))}</td><td>${esc(x.imagn)}</td><td style="text-align:center">${pChk(x.visuel)}</td><td style="text-align:center">${pChk(x.essais)}</td><td>${esc(x.pe)}</td><td>${esc(x.riso)}</td><td>${esc(x.idiff)}</td><td>${iccOutH(x.iccpe,x.icc066)}</td><td>${iccOutH(x.iccln,x.icc066)}</td><td>${esc(x.idn)}</td><td>${esc(x.test)}</td><td style="text-align:center">${pChk(x.champ)}</td><td>${esc(x.tension)}</td></tr>`));
   else L.push('<tr><td colspan="16" class="empty">Aucune installation.</td></tr>');
   L.push('</table></div>');
   if(d.rows.some(x=>x.icc066))
@@ -3090,11 +3090,11 @@ function buildProtoPDF(d){
   fld(M,'Adresse:', d.adresse, y);                  fld(col2,"N° d'installation:", d.noInstall, y);    y+=5;
   fld(M,'Instruments de mesure:', d.instruments, y);                                                   y+=5;
   // Tableau installations
-  //          Rep Désignation Type Imag Ith  Vis Ess R_PE Riso IDiff IccPE IccLN IdN Test ok  U
-  const widths=[12, 46,        19, 13, 13,  10, 10, 21,  15,  16,   25,   25,   14, 13,  10, 13];
+  //          Rep Désign. Syst/CF Type  In  Vis Ess R_PE Riso IDiff IccPE IccLN IdN Test ok  U
+  const widths=[12, 42,     30,    17,  13, 10, 10, 19,  14,  15,   24,   24,   13, 12,  10, 12];   // total 277 / 281
   const colStyles={}; widths.forEach((w,i)=> colStyles[i]={cellWidth:w, halign:(i>=5&&i!==7)?'center':'left'});
   colStyles[1].halign='left'; colStyles[7].halign='left';
-  const body=d.rows.map(x=>[x.rep,[x.desig, protoDesigExtra(x)].filter(Boolean).join('\n'),protoTypeLabel(x),x.imagn,x.itherm, x.visuel?'X':'', x.essais?'X':'', x.pe,x.riso,x.idiff,
+  const body=d.rows.map(x=>[x.rep, x.desig, protoSystCf(x), protoTypeLabel(x), x.imagn, x.visuel?'X':'', x.essais?'X':'', x.pe,x.riso,x.idiff,
     iccOut(x.iccpe,x.icc066), iccOut(x.iccln,x.icc066), x.idn,x.test, x.champ?'X':'', x.tension]);
   if(!body.length) body.push([{content:'Aucune installation.', colSpan:16, styles:{textColor:CLR.mut, fontStyle:'italic'}}]);
   doc.autoTable({ startY:y+1, theme:'grid', margin:{left:M,right:M},
@@ -3102,10 +3102,10 @@ function buildProtoPDF(d){
     headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', fontSize:6.3, halign:'center', lineColor:CLR.line, lineWidth:0.1},
     columnStyles:colStyles,
     head:[
-      [ {content:'Installations',colSpan:2,rowSpan:2}, {content:'Organe de protection',colSpan:3,rowSpan:2}, {content:'Examen',colSpan:2,rowSpan:2},
+      [ {content:'Installations',colSpan:3,rowSpan:2}, {content:'Organe de protection',colSpan:2,rowSpan:2}, {content:'Examen',colSpan:2,rowSpan:2},
         {content:'Mesures',colSpan:7}, {content:'Champ tournant',colSpan:1,rowSpan:2}, {content:'Tension',colSpan:1,rowSpan:2} ],
       [ {content:'Conducteur PE',colSpan:1}, {content:"Résistances d'isolement",colSpan:2}, {content:'Courant de court-circuit',colSpan:2}, {content:'Protect. de courant résiduel DDR / RCD',colSpan:2} ],
-      ['Repère','Désignation','Type / Caract.','In magn [A]','In therm [A]','Examen visuel','Essais fonct.','R_PE / R_LOW [Ohm / ok]','R_iso [MOhm]','I_Diff / I_fuite [mA]','Icc L-PE [A]','Icc L-N [A]','IdN [mA]','Test t [ms]','[ok]','U [V]']
+      ['Repère','Désignation','Système / Câble-fil','Type / Caract.','In [A]','Examen visuel','Essais fonct.','R_PE / R_LOW [Ohm / ok]','R_iso [MOhm]','I_Diff / I_fuite [mA]','Icc L-PE [A]','Icc L-N [A]','IdN [mA]','Test t [ms]','[ok]','U [V]']
     ], body, didParseCell:sanitize });
   y=doc.lastAutoTable.finalY+4;
   // Note : facteur 0,66 appliqué aux courants de court-circuit
@@ -3367,7 +3367,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v48-arbre — protocole : dupliquer un groupe + sauvegarde .json';
+const APP_VERSION='v49-arbre — protocole : Iₙ unique + colonne Système/Câble-fil';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
