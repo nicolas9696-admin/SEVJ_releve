@@ -127,6 +127,7 @@ textarea{min-height:70px; resize:vertical}
 .row .fold{position:absolute; top:8px; right:76px; border:none; background:#eef2f6; color:var(--navy2);
   width:28px; height:28px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; line-height:1}
 .row.no-dup .fold{right:42px}   /* pas de bouton dupliquer (protocole) → colle à la corbeille */
+.row.no-dup > .tag,.row.no-dup > .row-name-sum{cursor:pointer; user-select:none}   /* ruban cliquable */
 .row .row-name-sum{display:none; font-weight:700; color:var(--navy); font-size:14.5px; margin-left:4px}
 .row.folded{padding-bottom:12px; margin-bottom:10px}
 .row.folded > *{display:none!important}
@@ -847,7 +848,7 @@ const COLLABORATORS = [
 
 /* Option lists */
 const MM2      = ["1.5","2.5","4","6","10","16","25","autre…"];
-const CABLE_T  = ["TT-Flex (standard souple)","B2ca (extérieur & voie de fuite)","Cca (voie de fuite)","FE0 (standard intérieur)","Fil"];
+const CABLE_T  = ["TT-Flex (standard souple)","FG18OM16 (extérieur & voie de fuite)","Cca (voie de fuite)","FE0 (standard intérieur)","Fil"];
 const FIL_N    = ["1x","2x","3x","4x","5x","6x","7x","8x","9x","10x","plus…"];
 const CHEM_T   = ["Tube TIT","Tube ALU","Canal","Tube THFWG","Tube Bergmann","Chemin de câble"];
 const GAMME    = ["EDIZIO.liv","EDIZIO.due"];
@@ -2778,6 +2779,27 @@ function addProtoRow(){
     <label class="fld">Lieu / désignation [Quoi ? et où ?]</label>
     <textarea data-pf="desig" placeholder="Lieu et description des travaux…"></textarea>
     <div class="grid" style="margin-top:8px">
+      <div><label class="fld">Système</label><select data-pf="syst">
+        <option value=""></option><option>TN-S</option><option>TN-C</option><option>SchIII</option>
+        <option value="Autre…">Autre…</option>
+      </select></div>
+      <div data-pcond="systautre" hidden><label class="fld">Préciser le système</label><input data-pf="systautre" type="text" placeholder="ex : TT"></div>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div><label class="fld">Câble / fil</label><select data-pf="cf">
+        <option value=""></option><option>Câble</option><option>Fil</option>
+        <option value="Autre…">Autre…</option>
+      </select></div>
+      <div data-pcond="cfnb" hidden><label class="fld">Nombre</label><select data-pf="cfnb"><option value=""></option></select></div>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div data-pcond="cfmm2" hidden><label class="fld">Dimension [mm²]</label><select data-pf="cfmm2">
+        <option value=""></option>${PROTO_MM2.map(v=>`<option>${v}</option>`).join('')}
+        <option value="Autre…">Autre…</option>
+      </select></div>
+      <div data-pcond="cfautre" hidden><label class="fld">Préciser</label><input data-pf="cfautre" type="text" placeholder="ex : 4x95 mm²"></div>
+    </div>
+    <div class="grid" style="margin-top:8px">
       <div><label class="fld">Iₙ magn. [A]</label><input data-pf="imagn" type="text" placeholder="ex : 16"></div>
       <div><label class="fld">Iₙ therm. [A]</label><input data-pf="itherm" type="text"></div>
     </div>
@@ -2804,6 +2826,9 @@ function addProtoRow(){
     </div>`;
   r.querySelector('.rm').onclick=()=>{ r.remove(); renumberProto(); updateProtoReq(); protoSave(); };
   r.querySelector('.fold').onclick=()=>protoFold(r);
+  // le ruban « GROUPE #n » (+ son résumé) replie/déploie au clic
+  r.querySelector('.tag').onclick=()=>protoFold(r);
+  r.querySelector('.row-name-sum').onclick=()=>protoFold(r);
   r.querySelectorAll('[data-pf]').forEach(e=>{ e.addEventListener('input',()=>{applyProtoCond(r); updateProtoReq(); protoSave();}); e.addEventListener('change',()=>{applyProtoCond(r); updateProtoReq(); protoSave();}); });
   $('#protoRows').appendChild(r); applyProtoCond(r); renumberProto();
 }
@@ -2817,7 +2842,34 @@ function applyProtoCond(r){
   show('fus', t==='Fusible'||t==='HPC');
   show('fusautre', v('fusmod')==='Autre…');
   show('icc066h', chk('icc066'));
+  show('systautre', v('syst')==='Autre…');
+  // partie câble / fil : le nombre de conducteurs dépend du type choisi
+  const cf=v('cf'), isCF = cf==='Câble'||cf==='Fil';
+  const nbSel=r.querySelector('select[data-pf="cfnb"]');
+  if(nbSel && nbSel.dataset.cf!==cf){                    // reconstruit la liste quand le type change
+    const cur=nbSel.value, want=PROTO_CF_NB[cf]||[];
+    nbSel.innerHTML='<option value=""></option>'+want.map(x=>`<option>${x}</option>`).join('');
+    nbSel.dataset.cf=cf;
+    nbSel.value = want.indexOf(cur)>=0 ? cur : '';       // conserve la valeur si elle reste valable
+  }
+  show('cfnb',  isCF);
+  show('cfmm2', isCF);
+  show('cfautre', cf==='Autre…' || (isCF && v('cfmm2')==='Autre…'));
 }
+/* Libellés export de la partie système / câble-fil (saisie libre incluse) */
+function protoSystLabel(x){ return (x.syst==='Autre…' ? (x.systautre||'') : (x.syst||'')).trim(); }
+function protoCableLabel(x){
+  if(x.cf==='Autre…') return (x.cfautre||'').trim();
+  if(x.cf!=='Câble' && x.cf!=='Fil') return '';
+  const mm2 = x.cfmm2==='Autre…' ? (x.cfautre||'').trim() : (x.cfmm2||'');
+  const dim = (x.cfnb||'') + (mm2 ? mm2+' mm²' : '');
+  return [x.cf, dim].filter(Boolean).join(' ').trim();
+}
+/* Désignation + (système · câble/fil) sur une 2ᵉ ligne */
+function protoDesigExtra(x){ return [protoSystLabel(x), protoCableLabel(x)].filter(Boolean).join(' · '); }
+/* Protocole — partie câble / fil : le nombre de conducteurs dépend du type */
+const PROTO_CF_NB = { 'Câble':['3x','4x','5x'], 'Fil':['2x','3x','4x','5x'] };
+const PROTO_MM2   = [1, 1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70];
 /* Type d'autorisation d'installer limitée — cases laissées vides dans l'export,
    à cocher à la main une fois le document imprimé / transféré. */
 const ARTS_LIST=[
@@ -2875,7 +2927,9 @@ function collectProto(){
   const g=(r,f)=>{const e=r.querySelector(`[data-pf="${f}"]`); return e?(e.type==='checkbox'?e.checked:e.value.trim()):'';};
   const rows=[...document.querySelectorAll('#protoRows .row')].map(r=>({
     rep:g(r,'rep'), type:g(r,'type'), typeautre:g(r,'typeautre'), fusmod:g(r,'fusmod'), fusmodautre:g(r,'fusmodautre'),
-    desig:g(r,'desig'), imagn:g(r,'imagn'), itherm:g(r,'itherm'),
+    desig:g(r,'desig'), syst:g(r,'syst'), systautre:g(r,'systautre'),
+    cf:g(r,'cf'), cfnb:g(r,'cfnb'), cfmm2:g(r,'cfmm2'), cfautre:g(r,'cfautre'),
+    imagn:g(r,'imagn'), itherm:g(r,'itherm'),
     visuel:g(r,'visuel'), essais:g(r,'essais'), pe:g(r,'pe'), riso:g(r,'riso'), idiff:g(r,'idiff'),
     iccpe:g(r,'iccpe'), iccln:g(r,'iccln'), icc066:g(r,'icc066'), idn:g(r,'idn'), test:g(r,'test'), champ:g(r,'champ'),
     tension:g(r,'tension'), __folded:r.classList.contains('folded')?1:0
@@ -2914,6 +2968,8 @@ function protoRestore(){
   (d.rows||[]).forEach(state=>{ addProtoRow(); const r=document.querySelector('#protoRows .row:last-child');
     Object.entries(state).forEach(([f,val])=>{ const e=r.querySelector(`[data-pf="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=!!val; else e.value=val; } });
     applyProtoCond(r);
+    // « Nombre » : ses options sont créées par applyProtoCond -> on ré-applique la valeur après coup
+    if(state.cfnb){ const e=r.querySelector('select[data-pf="cfnb"]'); if(e) e.value=state.cfnb; }
     if(state.__folded) protoFold(r, true); });
   renumberProto(); applyProtoInstr();
 }
@@ -2951,7 +3007,7 @@ function buildProtoFiche(d){
   L.push('<tr><th colspan="2" rowspan="2">Installations</th><th colspan="3" rowspan="2">Organe de protection</th><th colspan="2" rowspan="2">Examen</th><th colspan="7">Mesures</th><th rowspan="2">Champ tournant</th><th rowspan="2">Tension</th></tr>');
   L.push('<tr><th>Conducteur PE</th><th colspan="2">Résistances d\'isolement</th><th colspan="2">Courant de court-circuit</th><th colspan="2">Protect. de courant résiduel DDR / RCD</th></tr>');
   L.push('<tr><th>Repère</th><th>Désignation</th><th>Type / Caract.</th><th>Iₙ magn [A]</th><th>Iₙ therm [A]</th><th>Examen visuel</th><th>Essais fonct.</th><th>R_PE / R_LOW [Ω / ok]</th><th>R_iso [MΩ]</th><th>I_Diff / I_fuite [mA]</th><th>Icc L-PE [A]</th><th>Icc L-N [A]</th><th>I_ΔN [mA]</th><th>Test t [ms]</th><th>[ok]</th><th>U [V]</th></tr>');
-  if(d.rows.length) d.rows.forEach(x=> L.push(`<tr><td>${esc(x.rep)}</td><td>${esc(x.desig)}</td><td>${esc(protoTypeLabel(x))}</td><td>${esc(x.imagn)}</td><td>${esc(x.itherm)}</td><td style="text-align:center">${pChk(x.visuel)}</td><td style="text-align:center">${pChk(x.essais)}</td><td>${esc(x.pe)}</td><td>${esc(x.riso)}</td><td>${esc(x.idiff)}</td><td>${iccOutH(x.iccpe,x.icc066)}</td><td>${iccOutH(x.iccln,x.icc066)}</td><td>${esc(x.idn)}</td><td>${esc(x.test)}</td><td style="text-align:center">${pChk(x.champ)}</td><td>${esc(x.tension)}</td></tr>`));
+  if(d.rows.length) d.rows.forEach(x=> L.push(`<tr><td>${esc(x.rep)}</td><td>${esc(x.desig)}${protoDesigExtra(x)?'<br><span style="color:#666">'+esc(protoDesigExtra(x))+'</span>':''}</td><td>${esc(protoTypeLabel(x))}</td><td>${esc(x.imagn)}</td><td>${esc(x.itherm)}</td><td style="text-align:center">${pChk(x.visuel)}</td><td style="text-align:center">${pChk(x.essais)}</td><td>${esc(x.pe)}</td><td>${esc(x.riso)}</td><td>${esc(x.idiff)}</td><td>${iccOutH(x.iccpe,x.icc066)}</td><td>${iccOutH(x.iccln,x.icc066)}</td><td>${esc(x.idn)}</td><td>${esc(x.test)}</td><td style="text-align:center">${pChk(x.champ)}</td><td>${esc(x.tension)}</td></tr>`));
   else L.push('<tr><td colspan="16" class="empty">Aucune installation.</td></tr>');
   L.push('</table></div>');
   if(d.rows.some(x=>x.icc066))
@@ -2986,7 +3042,7 @@ function buildProtoPDF(d){
   const widths=[12, 46,        19, 13, 13,  10, 10, 21,  15,  16,   25,   25,   14, 13,  10, 13];
   const colStyles={}; widths.forEach((w,i)=> colStyles[i]={cellWidth:w, halign:(i>=5&&i!==7)?'center':'left'});
   colStyles[1].halign='left'; colStyles[7].halign='left';
-  const body=d.rows.map(x=>[x.rep,x.desig,protoTypeLabel(x),x.imagn,x.itherm, x.visuel?'X':'', x.essais?'X':'', x.pe,x.riso,x.idiff,
+  const body=d.rows.map(x=>[x.rep,[x.desig, protoDesigExtra(x)].filter(Boolean).join('\n'),protoTypeLabel(x),x.imagn,x.itherm, x.visuel?'X':'', x.essais?'X':'', x.pe,x.riso,x.idiff,
     iccOut(x.iccpe,x.icc066), iccOut(x.iccln,x.icc066), x.idn,x.test, x.champ?'X':'', x.tension]);
   if(!body.length) body.push([{content:'Aucune installation.', colSpan:16, styles:{textColor:CLR.mut, fontStyle:'italic'}}]);
   doc.autoTable({ startY:y+1, theme:'grid', margin:{left:M,right:M},
@@ -3259,7 +3315,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v46-arbre — EDIZIO sans mention ENC/AP → ENC';
+const APP_VERSION='v47-arbre — protocole : système, câble/fil, ruban cliquable';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
