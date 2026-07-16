@@ -109,6 +109,8 @@ textarea{min-height:70px; resize:vertical}
 .col-span{grid-column:1 / -1}
 @media(max-width:480px){ .grid-3{grid-template-columns:1fr 1fr} }
 .chk{display:flex; align-items:center; gap:9px; font-size:14px; padding:8px 0}
+.chk-important{margin-top:6px; font-weight:700; color:var(--danger)}
+.chk-important input{accent-color:var(--danger)}
 .chk input{width:20px; height:20px; flex:0 0 auto}
 /* ---------- Repeatable rows ---------- */
 .row{border:1px solid var(--line); border-left:5px solid var(--navy2); border-radius:12px;
@@ -1263,7 +1265,8 @@ function addRemarque(){
   const r = el('div','row');
   r.innerHTML = `<button class="rm" title="Supprimer">×</button>
     <div class="tag">Remarque</div>
-    <textarea data-f="txt" placeholder="Remarque libre…"></textarea>`;
+    <textarea data-f="txt" placeholder="Remarque libre…"></textarea>
+    <label class="chk chk-important"><input type="checkbox" data-f="important"><span>⚠ IMPORTANT (en rouge dans l'export)</span></label>`;
   wire(r); $('#remarques').appendChild(r); syncChemLinks();
 }
 
@@ -1398,7 +1401,7 @@ function addRoom(name, colorIdx){
       </div>
       <div class="sub">
         <h4>Photos</h4>
-        <input class="room-photo-input" type="file" accept="image/*" capture="environment" multiple hidden>
+        <input class="room-photo-input" type="file" accept="image/*" multiple hidden>
         <button type="button" class="add room-photo-btn" style="font-size:13px">📷 Ajouter des photos</button>
         <div class="photo-grid" data-photogrid></div>
       </div>
@@ -2019,7 +2022,7 @@ function collect(){
       departs, photos:(room._photos||[]).slice()};
   }).filter(rm=> rm.chemins.length||rm.cables.length||rm.apps.length||rm.boites.length||rm.disj.length||rm.photos.length);
 
-  const rem=[...document.querySelectorAll('#remarques .row')].map(r=>g(r,'txt')).filter(Boolean);
+  const rem=[...document.querySelectorAll('#remarques .row')].map(r=>({txt:g(r,'txt'), important:!!g(r,'important')})).filter(o=>o.txt);
   return {
     ref:$('#ref').value, chantier:$('#chantier').value.trim(), objet:$('#objet').value.trim(),
     lieu:$('#lieu').value.trim(), date:$('#date').value,
@@ -2096,7 +2099,7 @@ function buildFiche(d, mode){
   /* ---- Remarques (auto en rouge + manuelles) ---- */
   L.push(`<h3>Remarques</h3>`);
   const rems=allRemarks(d);
-  if(rems.length){ L.push('<ul>'+rems.map(x=>`<li${x.red?' style="color:#b02a2a;font-weight:600"':''}>${esc(x.txt)}</li>`).join('')+'</ul>'); }
+  if(rems.length){ L.push('<ul>'+rems.map(x=>`<li${x.red?' style="color:#b02a2a;font-weight:700"':''}>${esc(x.txt)}${x.red?' ⚠':''}</li>`).join('')+'</ul>'); }
   else L.push('<p class="empty">Aucune remarque.</p>');
 
   /* ---- Photos (par pièce) ---- */
@@ -2238,7 +2241,8 @@ function allRemarks(d){
       out.push({txt:"⚠ Tube Bergmann existant"+(loc?" ("+loc+")":"")+" — tirage compliqué à prévoir.", red:true});
     }});
   });
-  (d.rem||[]).forEach(t=> out.push({txt:t, red:false}));
+  (d.rem||[]).forEach(o=>{ const t=typeof o==='string'?{txt:o,important:false}:o;
+    out.push({txt: t.important && !/^⚠/.test(t.txt) ? '⚠ '+t.txt : t.txt, red:!!t.important}); });
   return out;
 }
 function chemLabel(c,full){
@@ -2491,7 +2495,7 @@ function buildPDFDoc(d, mode){
     doc.autoTable({ startY:y, theme:'plain', margin:{left:M,right:M},
       styles:{fontSize:9, cellPadding:{top:0.6,bottom:0.6,left:0,right:0}, textColor:CLR.ink},
       columnStyles:{0:{cellWidth:CW}}, didParseCell:sanitize,
-      body:rems.map(r=>[{content:'•  '+r.txt, styles: r.red?{textColor:CLR.danger, fontStyle:'bold'}:{}}]),
+      body:rems.map(r=>[{content:'•  '+r.txt+(r.red?' ⚠':''), styles: r.red?{textColor:CLR.danger, fontStyle:'bold'}:{}}]),
     });
     y=doc.lastAutoTable.finalY+6;
   } else { doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...CLR.mut);
