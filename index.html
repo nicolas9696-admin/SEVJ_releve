@@ -826,6 +826,18 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       </div>
     </section>
 
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3 0 3-10 6-10s3 10 6 10 3-4 6-4"/></svg></span> Signature</h2>
+      <div class="body">
+        <p class="hint">Signature du monteur qui a effectué les mesures. Elle apparaît sur l'export (elle n'est pas enregistrée).</p>
+        <div class="sig-box">
+          <div class="sig-lbl">Signature du monteur <span id="rmMonteurName" class="pill">—</span></div>
+          <canvas class="sigpad" data-sig="rm" width="600" height="180"></canvas>
+          <button type="button" class="sig-clear" data-clear="rm">Effacer</button>
+        </div>
+      </div>
+    </section>
+
   </div><!-- /#tabRM -->
 
 </main>
@@ -3326,11 +3338,12 @@ function collectRM(){
     apresRep:v('#rmApresRep'), periodique:v('#rmPeriodique'), proprio:v('#rmProprio'),
     entreprise:v('#rmEntreprise'), date:v('#rmDate'), departement:v('#rmDepartement'),
     no:v('#rmNo'), par:v('#rmPar'), visa:v('#rmVisa'), remarques:v('#rmRemarques'),
-    rows, monteur: currentUser?currentUser.name:''
+    rows, monteur: currentUser?currentUser.name:'', sigRM: sigData('rm')
   };
 }
 const RM_FIELDS=['#rmApresRep','#rmPeriodique','#rmProprio','#rmEntreprise','#rmDate','#rmDepartement','#rmNo','#rmPar','#rmVisa','#rmRemarques'];
 function updateRMMonteur(){
+  const n=$('#rmMonteurName'); if(n) n.textContent = currentUser?currentUser.name:'— non connecté —';
   const d=$('#rmDate'); if(d && !d.value) d.value=todayISO();
   const p=$('#rmPar'); if(p && !p.value && currentUser) p.value=currentUser.name;
   const vi=$('#rmVisa'); if(vi && !vi.value && currentUser) vi.value=currentUser.ini;
@@ -3344,7 +3357,8 @@ function updateRMReq(){
 }
 let _rmSaveT=null;
 function rmSave(){ clearTimeout(_rmSaveT); _rmSaveT=setTimeout(()=>{
-  try{ const d=collectRM(); delete d.monteur; localStorage.setItem(RM_DRAFT, JSON.stringify(d)); }catch(e){ warnQuota(); }
+  try{ const d=collectRM(); delete d.monteur; delete d.sigRM;   // la signature n'est pas enregistrée
+    localStorage.setItem(RM_DRAFT, JSON.stringify(d)); }catch(e){ warnQuota(); }
 },500); }
 function rmApply(d){
   if(!d) return false;
@@ -3361,10 +3375,11 @@ function rmRestore(){ let d; try{ d=JSON.parse(localStorage.getItem(RM_DRAFT)); 
 function resetRM(){
   if(!confirm('Réinitialiser le rapport de mesures en cours ?')) return;
   RM_FIELDS.forEach(id=>{ const e=$(id); if(e){ if(e.type==='checkbox') e.checked=false; else e.value = id==='#rmEntreprise'?'SEVJ SA':''; } });
-  $('#rmRows').innerHTML=''; addRMRow(); updateRMMonteur(); updateRMReq(); rmSave();
+  $('#rmRows').innerHTML=''; document.querySelectorAll('.sigpad[data-sig="rm"]').forEach(c=>c._sig&&c._sig.clear());
+  addRMRow(); updateRMMonteur(); updateRMReq(); rmSave();
 }
 function exportRMBackup(){
-  const d=collectRM(); delete d.monteur;
+  const d=collectRM(); delete d.monteur; delete d.sigRM;   // la signature n'est pas incluse
   const name=((d.no||d.proprio||'rapport_mesures').replace(/[^\wÀ-ſ.-]/g,'_'))+'.json';
   downloadBlob(new Blob([JSON.stringify({app:'sevj-rm', v:1, rm:d})],{type:'application/json'}), name);
 }
@@ -3414,7 +3429,11 @@ function buildRMFiche(d){
   else L.push(`<tr><td colspan="${RM_COLS.length+2}" class="empty">Aucun appareil.</td></tr>`);
   L.push('</table></div>');
   if(d.remarques) L.push(`<h3>Remarques</h3><p class="obj">${esc(d.remarques)}</p>`);
-  L.push(`<p class="sig">Mesures effectuées par : <b>${esc(d.par||d.monteur||'—')}</b>${d.visa?' · Visa : <b>'+esc(d.visa)+'</b>':''}</p>`);
+  L.push('<h3>Signature</h3><div class="sig-grid sig-sm">');
+  L.push(`<div class="sc"><div style="font-size:12px;color:#666">Mesures effectuées par — ${esc(d.par||d.monteur||'—')}${d.visa?' · Visa : '+esc(d.visa):''}</div>`
+       + `${d.sigRM?`<img src="${d.sigRM}">`:'<div class="empty-sig"></div>'}`
+       + `<div style="font-size:11px;color:#666;margin-top:3px">Le ${esc(d.date?frDate(d.date):'')}</div></div>`);
+  L.push('</div>');
   return L.join('');
 }
 /* ---- PDF paysage (reproduction du formulaire, logo SEVJ) ---- */
@@ -3460,6 +3479,17 @@ function buildRMPDF(d){
     doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink);
     const rt=doc.splitTextToSize(pdfSafe(d.remarques), CW); doc.text(rt, M, y); y+=rt.length*3.9+3;
   }
+  // Signature du monteur (en bas)
+  const sigH=14, sigW=52, colW=(CW-10)/2;
+  if(y>H-32){ doc.addPage(); y=16; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
+  doc.text(pdfSafe('Mesures effectuées par - '+(d.par||d.monteur||'-')+(d.visa?'   ·   Visa : '+d.visa:'')), M, y);
+  y+=2;
+  if(d.sigRM){ try{ doc.addImage(d.sigRM,'PNG', M, y, sigW, sigH); }catch(e){} }
+  doc.setDrawColor(...CLR.ink); doc.setLineWidth(0.2);
+  doc.line(M, y+sigH+2, M+colW, y+sigH+2);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...CLR.mut);
+  doc.text(pdfSafe('Le '+(d.date?frDate(d.date):'')), M, y+sigH+7);
   const pc=doc.getNumberOfPages();
   for(let i=1;i<=pc;i++){ doc.setPage(i); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,150,150);
     doc.text(pdfSafe('SEVJ · Rapport de mesures'+(d.no?' N° '+d.no:'')), M, H-4);
@@ -3680,7 +3710,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v52-arbre — rapport : classe de protection à saisir';
+const APP_VERSION='v53-arbre — rapport : signature du monteur';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
