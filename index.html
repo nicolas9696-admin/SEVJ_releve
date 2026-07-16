@@ -2368,9 +2368,9 @@ function buildPDFDoc(d, mode){
       drawTable(body); y+=5;
     });
     if(!any){ doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...CLR.mut);
-      doc.text('Aucune piece saisie.',M,y); y+=6; }
+      doc.text(pdfSafe('Aucune pièce saisie.'),M,y); y+=6; }
   } else {
-    heading('Descriptif des travaux - global (toutes pieces additionnees)');
+    heading('Descriptif des travaux — global (toutes pièces additionnées)');
     drawTable(aggToBody(aggregate(mergeRooms(rooms)))); y+=5;
   }
 
@@ -2645,7 +2645,7 @@ function buildRegiePDF(d){
   try{ if(REGIE.logo) doc.addImage(REGIE.logo,'JPEG', M, 13, 34, 34*REGIE_RATIO.logo); }catch(e){}
   let y = 13 + 34*REGIE_RATIO.logo + 10;   // titre sous le logo, avec un espace
   doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(121,175,162);
-  doc.text('BON DE REGIE', M, y);
+  doc.text(pdfSafe('BON DE RÉGIE'), M, y);
   if(d.ref){ doc.setFontSize(10); doc.setTextColor(...CLR.navy); doc.text(pdfSafe('N° '+d.ref), W-M, y, {align:'right'}); }
   y+=6;
   doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...CLR.mut);
@@ -3082,13 +3082,13 @@ function buildProtoPDF(d){
   doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...CLR.navy);
   doc.text(pdfSafe("Liste des travaux effectués / Procès-verbal de la première vérification pour le porteur de l'autorisation"), M, 9);
   doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink);
-  doc.text(pdfSafe((d.verifInit?'[X]':'[ ]')+' Verification initiale      '+(d.essaisRep?'[X]':'[ ]')+' Essais apres reparation'), M, 14);
+  doc.text(pdfSafe((d.verifInit?'[X]':'[ ]')+' Vérification initiale      '+(d.essaisRep?'[X]':'[ ]')+' Essais après réparation'), M, 14);
   const col2=M+150;
   const fld=(x,label,val,yy)=>{ doc.setFont('helvetica','bold'); doc.text(pdfSafe(label),x,yy); const lw=doc.getTextWidth(pdfSafe(label))+2; doc.setFont('helvetica','normal'); doc.text(pdfSafe(val||''), x+lw, yy); };
   let y=20;
-  fld(M,'Objet / Periode:', d.objet, y);            fld(col2,'Entreprise:', d.entreprise, y);          y+=5;
-  fld(M,'Adresse:', d.adresse, y);                  fld(col2,"N° d'installation:", d.noInstall, y);    y+=5;
-  fld(M,'Instruments de mesure:', d.instruments, y);                                                   y+=5;
+  fld(M,'Objet / Période :', d.objet, y);           fld(col2,'Entreprise :', d.entreprise, y);         y+=5;
+  fld(M,'Adresse :', d.adresse, y);                 fld(col2,"N° d'installation :", d.noInstall, y);   y+=5;
+  fld(M,'Instruments de mesure :', d.instruments, y);                                                  y+=5;
   // Tableau installations
   //          Rep Désign. Syst/CF Type  In  Vis Ess R_PE Riso IDiff IccPE IccLN IdN Test ok  U
   const widths=[12, 42,     30,    17,  13, 10, 10, 19,  14,  15,   24,   24,   13, 12,  10, 12];   // total 277 / 281
@@ -3115,13 +3115,13 @@ function buildProtoPDF(d){
     doc.text(pdfSafe('Facteur 0,66 :'), M, y);
     const lw=doc.getTextWidth(pdfSafe('Facteur 0,66 :'))+2;
     doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink);
-    doc.text(pdfSafe("pour les groupes concernes, la 2e valeur indiquee sous Icc L-PE / Icc L-N correspond a la valeur mesuree multipliee par 0,66."), M+lw, y);
+    doc.text(pdfSafe("pour les groupes concernés, la 2e valeur indiquée sous Icc L-PE / Icc L-N correspond à la valeur mesurée multipliée par 0,66."), M+lw, y);
     y+=6;
   }
   // Type d'autorisation : cases vides, à cocher à la main après impression / transfert
   if(y>H-34){ doc.addPage(); y=16; }
   doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
-  doc.text(pdfSafe("Type d'autorisation d'installer limitee :"), M, y); y+=5;
+  doc.text(pdfSafe("Type d'autorisation d'installer limitée :"), M, y); y+=5;
   doc.setFontSize(8);
   ARTS_LIST.forEach((a,i)=>{
     const x = M + (i%2)*((CW)/2);          // 2 colonnes
@@ -3138,8 +3138,8 @@ function buildProtoPDF(d){
   // Signatures : exécuteur (avec image) + organe de contrôle
   const colW=(CW-10)/2, sigH=14, sigImgW=52;
   doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
-  doc.text(pdfSafe('Executeur des travaux (OIBT Art. 24 - Premiere verification) - '+(d.execNom||d.monteur||'-')), M, y);
-  doc.text(pdfSafe("Personne titulaire d'une autorisation d'installer limitee - "+(d.ctrlNom||'-')), M+colW+10, y);
+  doc.text(pdfSafe('Exécuteur des travaux (OIBT Art. 24 — Première vérification) - '+(d.execNom||d.monteur||'-')), M, y);
+  doc.text(pdfSafe("Personne titulaire d'une autorisation d'installer limitée - "+(d.ctrlNom||'-')), M+colW+10, y);
   y+=2;
   if(d.sigProto){ try{ doc.addImage(d.sigProto,'PNG', M, y, sigImgW, sigH); }catch(e){} }
   doc.setDrawColor(...CLR.ink); doc.setLineWidth(0.2);
@@ -3367,7 +3367,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v49-arbre — protocole : Iₙ unique + colonne Système/Câble-fil';
+const APP_VERSION='v50-arbre — accents rétablis dans les PDF';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
