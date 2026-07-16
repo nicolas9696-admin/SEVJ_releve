@@ -309,6 +309,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .tile-releve .ic{background:linear-gradient(135deg,#2E5C8A,#1F3B5B)}
 .tile-regie  .ic{background:linear-gradient(135deg,#1c9c6b,#127a52)}
 .tile-proto  .ic{background:linear-gradient(135deg,#7a5cc0,#553a99)}
+.tile-rm     .ic{background:linear-gradient(135deg,#c2603a,#8f3d1f)}
 .tile .tx{flex:1; min-width:0}
 .tile .tx .t{display:block; font-size:18px; font-weight:800; color:var(--navy)}
 .tile .tx .d{display:block; font-size:12.5px; color:var(--mut); margin-top:3px; line-height:1.35}
@@ -486,6 +487,14 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
           <path d="M8 21.5v1.2M16 21.5v1.2"/>
         </svg></span>
         <span class="tx"><span class="t">Protocole d'essai et de mesure</span><span class="d">Procès-verbal de la première vérification (OIBT)</span></span>
+        <span class="arrow">→</span>
+      </button>
+      <button type="button" class="tile tile-rm" data-goto="rm">
+        <span class="ic"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 2.5h9l4 4v15H6z"/><path d="M15 2.5v4h4"/>
+          <path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/>
+        </svg></span>
+        <span class="tx"><span class="t">Rapport de mesures</span><span class="d">Contrôle d'appareils — SNR 462638 (VDE 0701-0702)</span></span>
         <span class="arrow">→</span>
       </button>
     </div>
@@ -767,6 +776,58 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 
   </div><!-- /#tabProto -->
 
+  <!-- ================= ONGLET RAPPORT DE MESURES (SNR 462638) ================= -->
+  <div id="tabRM" hidden>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 12h6M9 15.5h6"/></svg></span> Rapport de mesures — en-tête</h2>
+      <div class="body">
+        <p class="hint">Contrôle d'appareils selon <b>SNR 462638</b> (VDE 0701-0702).</p>
+        <div class="chk"><input id="rmApresRep" type="checkbox"><label for="rmApresRep">Contrôle après réparation</label></div>
+        <div class="chk"><input id="rmPeriodique" type="checkbox"><label for="rmPeriodique">Contrôle périodique</label></div>
+        <div style="height:6px"></div>
+        <label class="fld" for="rmProprio">Propriétaire</label><input id="rmProprio" type="text" autocomplete="off">
+        <div style="height:10px"></div>
+        <div class="grid">
+          <div><label class="fld" for="rmEntreprise">Entreprise</label><input id="rmEntreprise" type="text" value="SEVJ SA"></div>
+          <div><label class="fld" for="rmDate">Date</label><input id="rmDate" type="date"></div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="grid">
+          <div><label class="fld" for="rmDepartement">Département</label><input id="rmDepartement" type="text" autocomplete="off"></div>
+          <div><label class="fld" for="rmNo">Rapport de mesures N°</label><input id="rmNo" type="text" autocomplete="off"></div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="grid">
+          <div><label class="fld" for="rmPar">Mesures effectuées par</label><input id="rmPar" type="text" autocomplete="off"></div>
+          <div><label class="fld" for="rmVisa">Visa</label><input id="rmVisa" type="text" autocomplete="off"></div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px">
+          <button class="add" id="rmBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.json)</button>
+          <input id="rmBackupImport" type="file" accept="application/json,.json" style="display:none">
+          <button class="add" id="rmBackupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.json)</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card req" data-reqrm="rows">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16"/></svg></span> Appareils</h2>
+      <div class="body">
+        <p class="hint">Un appareil par ligne. Les champs avec une <b>unité</b> se remplissent au chiffre ; les autres sont des <b>cases à cocher</b>.</p>
+        <div id="rmRows"></div>
+        <button class="add" id="addRMRow">＋ Ajouter un appareil</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 16.5h6"/></svg></span> Remarques</h2>
+      <div class="body">
+        <textarea id="rmRemarques" placeholder="Remarques…"></textarea>
+      </div>
+    </section>
+
+  </div><!-- /#tabRM -->
+
 </main>
 
 <div class="bar" id="barReleve">
@@ -780,6 +841,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 <div class="bar" id="barProto" hidden>
   <button class="btn-2" id="protoResetBtn">Réinitialiser</button>
   <button class="btn-main" id="protoGenBtn" disabled>Générer le protocole</button>
+</div>
+<div class="bar" id="barRM" hidden>
+  <button class="btn-2" id="rmResetBtn">Réinitialiser</button>
+  <button class="btn-main" id="rmGenBtn" disabled>Générer le rapport</button>
 </div>
 
 <!-- Fenêtre de choix d'article -->
@@ -1782,7 +1847,7 @@ function applyLogin(c){
   $('#loginBtn').style.display='none'; $('#logoutBtn').style.display='';
   const s=$('#collab'); const idx=COLLABORATORS.indexOf(c); if(s && idx>=0) s.value=String(idx);
   const u=$('#collabUser'); if(u) u.value=c.name;
-  buildRef(); updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq();
+  buildRef(); updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq();
 }
 async function doLogin(){
   const idx=$('#collab').value, pw=$('#pass').value, msg=$('#loginMsg');
@@ -1805,7 +1870,7 @@ function doLogout(){
   const st=$('#stayLogged'); if(st) st.checked=false;
   $('#whoName').textContent='— non connecté —';
   $('#loginBtn').style.display=''; $('#logoutBtn').style.display='none';
-  $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq();
+  $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq();
 }
 
 /* ================= Champs obligatoires (rouge / vert) ================= */
@@ -2298,6 +2363,7 @@ function downloadPDF(){
   saveDraft();                       // sécurité : rien ne doit être perdu si le navigateur quitte la page
   if(window._lastDoc==='regie'){ const d=window._lastData||collectRegie(); downloadBlob(buildRegiePDF(d).output('blob'), regieFileName(d)); return; }
   if(window._lastDoc==='proto'){ const d=window._lastData||collectProto(); downloadBlob(buildProtoPDF(d).output('blob'), protoFileName(d)); return; }
+  if(window._lastDoc==='rm'){ const d=window._lastData||collectRM(); downloadBlob(buildRMPDF(d).output('blob'), rmFileName(d)); return; }
   const d = window._lastData || collect();
   const doc = buildPDFDoc(d, EXPORT_MODE);
   const suffix = EXPORT_MODE==='global'?'_global':'_detail';
@@ -2475,6 +2541,10 @@ async function sharePDF(){
     d = window._lastData || collectProto();
     name = protoFileName(d);
     blob = buildProtoPDF(d).output('blob');
+  } else if(window._lastDoc==='rm'){
+    d = window._lastData || collectRM();
+    name = rmFileName(d);
+    blob = buildRMPDF(d).output('blob');
   } else {
     d = window._lastData || collect();
     const suffix = EXPORT_MODE==='global'?'_global':'_detail';
@@ -2717,29 +2787,28 @@ function resetRegie(){
 
 /* ---- Accueil / Fonctions ---- */
 let ACTIVE_TAB='releve';
-const FUNC_TITLES={releve:'📋 Relevé chantier', regie:'🧾 Bon de régie', proto:"📟 Protocole d'essai et de mesure"};
+const TABS=['releve','regie','proto','rm'];
+const FUNC_TITLES={releve:'📋 Relevé chantier', regie:'🧾 Bon de régie',
+                   proto:"📟 Protocole d'essai et de mesure", rm:'📄 Rapport de mesures'};
+const TAB_EL={releve:'#tabReleve', regie:'#tabRegie', proto:'#tabProto', rm:'#tabRM'};
+const BAR_EL={releve:'#barReleve', regie:'#barRegie', proto:'#barProto', rm:'#barRM'};
 function showHome(){
   $('#homeScreen').hidden = false;
   $('#funcNav').hidden = true;
   $('#collabCard').hidden = true;
-  $('#tabReleve').hidden = true; $('#tabRegie').hidden = true; $('#tabProto').hidden = true;
-  $('#barReleve').hidden = true;  $('#barRegie').hidden = true;  $('#barProto').hidden = true;
+  TABS.forEach(t=>{ $(TAB_EL[t]).hidden = true; $(BAR_EL[t]).hidden = true; });
   window.scrollTo(0,0);
 }
 function setTab(t){
-  ACTIVE_TAB=(t==='regie'?'regie':(t==='proto'?'proto':'releve'));
+  ACTIVE_TAB = TABS.indexOf(t)>=0 ? t : 'releve';
   $('#homeScreen').hidden = true;
   $('#funcNav').hidden = false;
   $('#collabCard').hidden = false;
   const ft=$('#funcTitle'); if(ft) ft.textContent=FUNC_TITLES[ACTIVE_TAB]||'';
-  $('#tabReleve').hidden = ACTIVE_TAB!=='releve';
-  $('#tabRegie').hidden  = ACTIVE_TAB!=='regie';
-  $('#tabProto').hidden  = ACTIVE_TAB!=='proto';
-  $('#barReleve').hidden = ACTIVE_TAB!=='releve';
-  $('#barRegie').hidden  = ACTIVE_TAB!=='regie';
-  $('#barProto').hidden  = ACTIVE_TAB!=='proto';
+  TABS.forEach(x=>{ $(TAB_EL[x]).hidden = x!==ACTIVE_TAB; $(BAR_EL[x]).hidden = x!==ACTIVE_TAB; });
   if(ACTIVE_TAB==='regie'){ $('#regDate').textContent=frDate(todayISO()); updateRegMonteur(); updateRegieReq(); }
   if(ACTIVE_TAB==='proto'){ updateProtoMonteur(); updateProtoReq(); }
+  if(ACTIVE_TAB==='rm'){ updateRMMonteur(); updateRMReq(); }
   window.scrollTo(0,0);
 }
 
@@ -3154,6 +3223,250 @@ function buildProtoPDF(d){
   return doc;
 }
 
+/* ==================================================================
+   RAPPORT DE MESURES (4ᵉ onglet) — contrôle d'appareils SNR 462638
+   Règle du formulaire : colonne AVEC unité -> valeur à saisir ;
+   colonne SANS unité  -> case à cocher. La colonne « I contact » n'est pas reprise.
+   ================================================================== */
+const RM_DRAFT='sevj_rm_v1';
+/* Colonnes du tableau : k=clé, t=titre, g=groupe, u=unité.
+   Avec unité (ou val:true) -> valeur à saisir ; sinon -> case à cocher. */
+const RM_COLS=[
+  {k:'classe',  t:'Classe de protection',      g:'',                       u:'', val:true},
+  {k:'tension', t:'Tension nominale',          g:'',                       u:'V'},
+  {k:'visuel',  t:'Examen visuel',             g:'',                       u:''},
+  {k:'cordon',  t:'Longueur du cordon',        g:'',                       u:'m'},
+  {k:'pe',      t:'Continuité du PE',          g:'Mesures',                u:'Ohm'},
+  {k:'riso',    t:'R isolement L1-L2-L3-N / PE', g:'Mesures',              u:'MOhm'},
+  {k:'ifpe',    t:'I fuite — PE (direct)',     g:'Mesures',                u:'mA'},
+  {k:'ifln',    t:'I fuite — L-N (différentiel)', g:'Mesures',             u:'mA'},
+  {k:'polarite',t:'Polarité - Cycle des phases', g:'',                     u:''},
+  {k:'idn',     t:'IdN',                       g:'Prot. différentielle DDR(FI)', u:'mA'},
+  {k:'testddr', t:'Tests DDR',                 g:'Prot. différentielle DDR(FI)', u:''},
+  {k:'plaque',  t:'Plaque signalétique',       g:'Fonctionnement',         u:''},
+  {k:'indic',   t:'Indications',               g:'Fonctionnement',         u:''},
+  {k:'essais',  t:'Essais',                    g:'Fonctionnement',         u:''},
+];
+const RM_UNIT_HTML={'Ohm':'Ω','MOhm':'MΩ','V':'V','m':'m','mA':'mA'};
+function addRMRow(){
+  const r=el('div','row proto-row');
+  const champ=c=> (c.u||c.val)
+    ? `<div><label class="fld">${esc(c.t)}${c.u?' ['+(RM_UNIT_HTML[c.u]||c.u)+']':''}</label><input data-rm="${c.k}" type="text"${c.u?' inputmode="decimal"':''}></div>`
+    : `<div class="chk"><input type="checkbox" data-rm="${c.k}"><label>${esc(c.t)}</label></div>`;
+  const bloc=(titre,cols)=> (titre?`<div class="liais-lbl" style="margin-top:10px">${esc(titre)}</div>`:'')
+    + '<div class="grid" style="margin-top:4px">'+cols.map(champ).join('')+'</div>';
+  const g=n=>RM_COLS.filter(c=>c.g===n);
+  r.innerHTML=`
+    <button class="rm" title="Supprimer">×</button>
+    <button type="button" class="dup" title="Dupliquer cet appareil">${DUP_SVG}</button>
+    <button type="button" class="fold" title="Réduire / déployer">▾</button>
+    <div class="tag">Appareil</div>
+    <span class="row-name-sum"></span>
+    <div class="grid" style="margin-bottom:8px">
+      <div><label class="fld">Inventaire N°</label><input data-rm="inv" type="text" placeholder="ex : 12"></div>
+      <div><label class="fld">Appareil</label><input data-rm="appareil" type="text" placeholder="ex : Perceuse Hilti"></div>
+    </div>
+    ${bloc('', g(''))}
+    ${bloc('Mesures', g('Mesures'))}
+    ${bloc('Prot. différentielle DDR(FI)', g('Prot. différentielle DDR(FI)'))}
+    ${bloc('Fonctionnement', g('Fonctionnement'))}`;
+  r.querySelector('.rm').onclick=()=>{ r.remove(); renumberRM(); updateRMReq(); rmSave(); };
+  r.querySelector('.fold').onclick=()=>rmFold(r);
+  r.querySelector('.dup').onclick=()=>duplicateRMRow(r);
+  r.querySelector('.tag').onclick=()=>rmFold(r);
+  r.querySelector('.row-name-sum').onclick=()=>rmFold(r);
+  r.querySelectorAll('[data-rm]').forEach(e=>{ e.addEventListener('input',()=>{updateRMReq(); rmSave();}); e.addEventListener('change',()=>{updateRMReq(); rmSave();}); });
+  $('#rmRows').appendChild(r); renumberRM();
+}
+function rmFold(r, force){
+  const folded = force!=null ? force : !r.classList.contains('folded');
+  r.classList.toggle('folded', folded);
+  const fb=r.querySelector('.fold'); if(fb) fb.textContent = folded ? '▸' : '▾';
+  if(folded){
+    const inv=((r.querySelector('[data-rm="inv"]')||{}).value||'').trim();
+    const ap=((r.querySelector('[data-rm="appareil"]')||{}).value||'').trim();
+    const s=r.querySelector('.row-name-sum');
+    if(s) s.textContent=[inv&&('N° '+inv), ap].filter(Boolean).join(' · ')||'(vide)';
+  }
+  rmSave();
+}
+function renumberRM(){
+  [...document.querySelectorAll('#rmRows .row')].forEach((r,i)=>{
+    const color=ROOM_COLORS[i%ROOM_COLORS.length];
+    r.style.borderLeftColor=color;
+    const t=r.querySelector('.tag'); if(t){ t.style.background=color; t.textContent='Appareil #'+(i+1); }
+    const s=r.querySelector('.row-name-sum'); if(s) s.style.color=color;
+  });
+}
+function rmRowState(r){
+  const o={};
+  r.querySelectorAll('[data-rm]').forEach(e=>{ o[e.dataset.rm]= e.type==='checkbox'?e.checked:e.value; });
+  if(r.classList.contains('folded')) o.__folded=1;
+  return o;
+}
+function rmFillRow(r, st){
+  if(!r||!st) return;
+  Object.entries(st).forEach(([f,v])=>{ const e=r.querySelector(`[data-rm="${f}"]`); if(e){ if(e.type==='checkbox') e.checked=!!v; else e.value=v; } });
+  if(st.__folded) rmFold(r, true);
+}
+function duplicateRMRow(src){
+  const st=rmRowState(src);
+  addRMRow();
+  const nr=$('#rmRows').lastElementChild;
+  src.after(nr);
+  rmFillRow(nr, st);
+  renumberRM(); updateRMReq(); rmSave();
+  nr.classList.add('dup-flash'); setTimeout(()=>nr.classList.remove('dup-flash'),1300);
+  nr.scrollIntoView({behavior:'smooth', block:'center'});
+}
+function collectRM(){
+  const v=id=>{const e=$(id); return e?(e.type==='checkbox'?e.checked:e.value.trim()):'';};
+  const rows=[...document.querySelectorAll('#rmRows .row')].map(rmRowState).filter(x=> x.inv||x.appareil);
+  return {
+    apresRep:v('#rmApresRep'), periodique:v('#rmPeriodique'), proprio:v('#rmProprio'),
+    entreprise:v('#rmEntreprise'), date:v('#rmDate'), departement:v('#rmDepartement'),
+    no:v('#rmNo'), par:v('#rmPar'), visa:v('#rmVisa'), remarques:v('#rmRemarques'),
+    rows, monteur: currentUser?currentUser.name:''
+  };
+}
+const RM_FIELDS=['#rmApresRep','#rmPeriodique','#rmProprio','#rmEntreprise','#rmDate','#rmDepartement','#rmNo','#rmPar','#rmVisa','#rmRemarques'];
+function updateRMMonteur(){
+  const d=$('#rmDate'); if(d && !d.value) d.value=todayISO();
+  const p=$('#rmPar'); if(p && !p.value && currentUser) p.value=currentUser.name;
+  const vi=$('#rmVisa'); if(vi && !vi.value && currentUser) vi.value=currentUser.ini;
+}
+function updateRMReq(){
+  const ok=[...document.querySelectorAll('#rmRows .row')].some(r=>{
+    const i=r.querySelector('[data-rm="inv"]'), a=r.querySelector('[data-rm="appareil"]');
+    return (i&&i.value.trim())||(a&&a.value.trim()); });
+  const c=document.querySelector('.card[data-reqrm="rows"]'); if(c) c.classList.toggle('ok',!!ok);
+  const b=$('#rmGenBtn'); if(b) b.disabled = !(currentUser && ok);
+}
+let _rmSaveT=null;
+function rmSave(){ clearTimeout(_rmSaveT); _rmSaveT=setTimeout(()=>{
+  try{ const d=collectRM(); delete d.monteur; localStorage.setItem(RM_DRAFT, JSON.stringify(d)); }catch(e){ warnQuota(); }
+},500); }
+function rmApply(d){
+  if(!d) return false;
+  const set=(id,val)=>{ const e=$(id); if(e){ if(e.type==='checkbox') e.checked=!!val; else if(val!=null) e.value=val; } };
+  set('#rmApresRep',d.apresRep); set('#rmPeriodique',d.periodique); set('#rmProprio',d.proprio);
+  set('#rmEntreprise',d.entreprise); set('#rmDate',d.date); set('#rmDepartement',d.departement);
+  set('#rmNo',d.no); set('#rmPar',d.par); set('#rmVisa',d.visa); set('#rmRemarques',d.remarques);
+  $('#rmRows').innerHTML='';
+  (d.rows||[]).forEach(st=>{ addRMRow(); rmFillRow($('#rmRows').lastElementChild, st); });
+  renumberRM(); updateRMReq();
+  return true;
+}
+function rmRestore(){ let d; try{ d=JSON.parse(localStorage.getItem(RM_DRAFT)); }catch(e){} if(d) rmApply(d); }
+function resetRM(){
+  if(!confirm('Réinitialiser le rapport de mesures en cours ?')) return;
+  RM_FIELDS.forEach(id=>{ const e=$(id); if(e){ if(e.type==='checkbox') e.checked=false; else e.value = id==='#rmEntreprise'?'SEVJ SA':''; } });
+  $('#rmRows').innerHTML=''; addRMRow(); updateRMMonteur(); updateRMReq(); rmSave();
+}
+function exportRMBackup(){
+  const d=collectRM(); delete d.monteur;
+  const name=((d.no||d.proprio||'rapport_mesures').replace(/[^\wÀ-ſ.-]/g,'_'))+'.json';
+  downloadBlob(new Blob([JSON.stringify({app:'sevj-rm', v:1, rm:d})],{type:'application/json'}), name);
+}
+function importRMBackup(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let data; try{ data=JSON.parse(reader.result); }catch(e){ alert('Fichier illisible.'); return; }
+    if(!data || data.app!=='sevj-rm' || !data.rm){ alert("Ce fichier n'est pas une sauvegarde de rapport de mesures SEVJ."); return; }
+    if(!confirm('Remplacer le rapport en cours par cette sauvegarde ?')) return;
+    rmApply(data.rm); updateRMMonteur(); rmSave();
+    alert('Rapport restauré ✓');
+  };
+  reader.readAsText(file);
+}
+function generateRM(){
+  const d=collectRM(); window._lastData=d; window._lastDoc='rm';
+  $('#fiche').innerHTML=buildRMFiche(d);
+  $('#modeSwitch').hidden=true;
+  document.querySelector('#outputOverlay').classList.add('on');
+}
+function rmFileName(d){ const base=['SEVJ','rapport_mesures',(d.no||d.proprio||'')].filter(Boolean).join('_'); return base.replace(/[^\wÀ-ſ.-]/g,'_')+'.pdf'; }
+const rmChk=b=>b?'✓':'';
+/* ---- Aperçu HTML du rapport de mesures ---- */
+function buildRMFiche(d){
+  const L=[];
+  L.push(`<div class="doc-hd" style="align-items:flex-start">
+    <div style="text-align:left"><div class="ttl" style="color:var(--navy2); font-size:12px; font-weight:700">RAPPORT DE MESURES · SNR 462638</div>
+    <div class="dt" style="color:var(--mut); font-size:12px">${esc(d.entreprise||'')}${d.no?' · N° '+esc(d.no):''}</div></div>
+    <img src="regie-logo.png" alt="SEVJ" style="height:36px; margin-left:auto"></div>`);
+  L.push(`<p class="obj">${d.apresRep?'☑':'☐'} Contrôle après réparation &nbsp;&nbsp;&nbsp; ${d.periodique?'☑':'☐'} Contrôle périodique</p>`);
+  L.push('<table class="cli">');
+  L.push(row2('Propriétaire', esc(d.proprio||'—')));
+  L.push(row2('Entreprise', esc(d.entreprise||'—')));
+  L.push(row2('Département', esc(d.departement||'—')));
+  L.push(row2('Date', esc(d.date?frDate(d.date):'—')));
+  L.push(row2('Mesures effectuées par', esc(d.par||d.monteur||'—')));
+  L.push(row2('Visa', esc(d.visa||'—')));
+  L.push('</table>');
+  L.push('<h3>Appareils</h3><div style="overflow-x:auto"><table style="min-width:1080px; font-size:11px">');
+  const grps=[]; RM_COLS.forEach(c=>{ const last=grps[grps.length-1]; if(last && last.g===c.g) last.n++; else grps.push({g:c.g, n:1}); });
+  L.push('<tr><th colspan="2" rowspan="2">Inventaire / Appareil</th>'+
+    grps.map(x=> x.g ? `<th colspan="${x.n}">${esc(x.g)}</th>` : `<th colspan="${x.n}" rowspan="2"></th>`).join('')+'</tr>');
+  L.push('<tr>'+RM_COLS.filter(c=>c.g).map(c=>`<th>${esc(c.t)}${c.u?' ['+(RM_UNIT_HTML[c.u]||c.u)+']':''}</th>`).join('')+'</tr>');
+  L.push('<tr><th>N°</th><th>Appareil</th>'+RM_COLS.map(c=>`<th>${c.g?(c.u?'['+(RM_UNIT_HTML[c.u]||c.u)+']':'[ok]'):esc(c.t)+(c.u?' ['+(RM_UNIT_HTML[c.u]||c.u)+']':'')}</th>`).join('')+'</tr>');
+  if(d.rows.length) d.rows.forEach(x=> L.push('<tr><td>'+esc(x.inv||'')+'</td><td>'+esc(x.appareil||'')+'</td>'+
+    RM_COLS.map(c=> (c.u||c.val) ? `<td>${esc(x[c.k]||'')}</td>` : `<td style="text-align:center">${rmChk(x[c.k])}</td>`).join('')+'</tr>'));
+  else L.push(`<tr><td colspan="${RM_COLS.length+2}" class="empty">Aucun appareil.</td></tr>`);
+  L.push('</table></div>');
+  if(d.remarques) L.push(`<h3>Remarques</h3><p class="obj">${esc(d.remarques)}</p>`);
+  L.push(`<p class="sig">Mesures effectuées par : <b>${esc(d.par||d.monteur||'—')}</b>${d.visa?' · Visa : <b>'+esc(d.visa)+'</b>':''}</p>`);
+  return L.join('');
+}
+/* ---- PDF paysage (reproduction du formulaire, logo SEVJ) ---- */
+function buildRMPDF(d){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4', orientation:'landscape'});
+  const M=8, W=297, H=210, CW=W-2*M;
+  const sanitize = data => { if(data.cell) data.cell.text = data.cell.text.map(pdfSafe); };
+  try{ if(REGIE.logo) doc.addImage(REGIE.logo,'JPEG', W-M-24, 5, 24, 24*REGIE_RATIO.logo); }catch(e){}
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...CLR.navy);
+  doc.text(pdfSafe('Rapport de mesures SNR 462638'), M, 9);
+  doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink);
+  doc.text(pdfSafe((d.apresRep?'[X]':'[ ]')+' Contrôle après réparation      '+(d.periodique?'[X]':'[ ]')+' Contrôle périodique'), M, 14);
+  const col2=M+150;
+  const fld=(x,label,val,yy)=>{ doc.setFont('helvetica','bold'); doc.text(pdfSafe(label),x,yy); const lw=doc.getTextWidth(pdfSafe(label))+2; doc.setFont('helvetica','normal'); doc.text(pdfSafe(val||''), x+lw, yy); };
+  let y=20;
+  fld(M,'Propriétaire :', d.proprio, y);        fld(col2,'Date :', d.date?frDate(d.date):'', y);       y+=5;
+  fld(M,'Entreprise :', d.entreprise, y);       fld(col2,'Mesures effectuées par :', d.par||d.monteur, y); y+=5;
+  fld(M,'Département :', d.departement, y);     fld(col2,'Visa :', d.visa, y);                         y+=5;
+  // Tableau : Inventaire + Appareil + colonnes du formulaire
+  const wInv=13, wApp=40;
+  const rest=CW-wInv-wApp;
+  const wCol=Math.floor((rest/RM_COLS.length)*100)/100;
+  const colStyles={0:{cellWidth:wInv, halign:'left'}, 1:{cellWidth:wApp, halign:'left'}};
+  RM_COLS.forEach((c,i)=> colStyles[i+2]={cellWidth:wCol, halign:'center'});
+  const body=d.rows.map(x=>[x.inv||'', x.appareil||''].concat(RM_COLS.map(c=> (c.u||c.val) ? (x[c.k]||'') : (x[c.k]?'X':''))));
+  if(!body.length) body.push([{content:'Aucun appareil.', colSpan:RM_COLS.length+2, styles:{textColor:CLR.mut, fontStyle:'italic'}}]);
+  // en-tête groupé : les colonnes sans groupe occupent 2 rangs
+  const grps=[]; RM_COLS.forEach(c=>{ const last=grps[grps.length-1]; if(last && last.g===c.g) last.n++; else grps.push({g:c.g, n:1}); });
+  const head1=[{content:'Inventaire / Appareil', colSpan:2, rowSpan:2}]
+    .concat(grps.map(x=> x.g ? {content:x.g, colSpan:x.n} : {content:'', colSpan:x.n, rowSpan:2}));
+  const head2=RM_COLS.filter(c=>c.g).map(c=> ({content:c.t+(c.u?' ['+c.u+']':'')}));
+  const head3=['N°','Appareil'].concat(RM_COLS.map(c=> c.g ? (c.u?'['+c.u+']':'[ok]') : c.t+(c.u?' ['+c.u+']':'')));
+  doc.autoTable({ startY:y+1, theme:'grid', margin:{left:M,right:M},
+    styles:{fontSize:6.4, cellPadding:1, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top', overflow:'linebreak'},
+    headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', fontSize:6.1, halign:'center', lineColor:CLR.line, lineWidth:0.1},
+    columnStyles:colStyles, head:[head1, head2, head3], body, didParseCell:sanitize });
+  y=doc.lastAutoTable.finalY+5;
+  if(d.remarques){
+    if(y>H-26){ doc.addPage(); y=16; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
+    doc.text(pdfSafe('Remarques :'), M, y); y+=4;
+    doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink);
+    const rt=doc.splitTextToSize(pdfSafe(d.remarques), CW); doc.text(rt, M, y); y+=rt.length*3.9+3;
+  }
+  const pc=doc.getNumberOfPages();
+  for(let i=1;i<=pc;i++){ doc.setPage(i); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,150,150);
+    doc.text(pdfSafe('SEVJ · Rapport de mesures'+(d.no?' N° '+d.no:'')), M, H-4);
+    doc.text(i+' / '+pc, W-M, H-4, {align:'right'}); }
+  return doc;
+}
+
 /* ================= Persistance (brouillon auto) ================= */
 const DRAFT='sevj_draft_arbre_v1', DRAFT_PHOTOS='sevj_draft_photos_arbre_v1', DRAFT_PIMG='sevj_draft_protimgs_arbre_v1';
 const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#dureeH'];
@@ -3367,7 +3680,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v50-arbre — accents rétablis dans les PDF';
+const APP_VERSION='v52-arbre — rapport : classe de protection à saisir';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -3430,6 +3743,17 @@ function init(){
   $('#backupExport').onclick=exportBackup;
   $('#backupImportBtn').onclick=()=>$('#backupImport').click();
   $('#backupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importBackup(f); e.target.value=''; });
+  /* ===== Rapport de mesures ===== */
+  $('#addRMRow').onclick=()=>{ addRMRow(); rmSave(); };
+  $('#rmGenBtn').onclick=generateRM;
+  $('#rmResetBtn').onclick=resetRM;
+  RM_FIELDS.forEach(s=>{ const e=$(s); if(e){ e.addEventListener('input',()=>{updateRMReq(); rmSave();}); e.addEventListener('change',()=>{updateRMReq(); rmSave();}); } });
+  $('#rmBackupExport').onclick=exportRMBackup;
+  $('#rmBackupImportBtn').onclick=()=>$('#rmBackupImport').click();
+  $('#rmBackupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importRMBackup(f); e.target.value=''; });
+  rmRestore(); if(!document.querySelector('#rmRows .row')) addRMRow();
+  updateRMMonteur(); updateRMReq();
+
   // Sauvegarde / restauration .json du protocole
   $('#protoBackupExport').onclick=exportProtoBackup;
   $('#protoBackupImportBtn').onclick=()=>$('#protoBackupImport').click();
