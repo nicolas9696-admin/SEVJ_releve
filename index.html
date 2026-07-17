@@ -312,6 +312,32 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .tile-regie  .ic{background:linear-gradient(135deg,#1c9c6b,#127a52)}
 .tile-proto  .ic{background:linear-gradient(135deg,#7a5cc0,#553a99)}
 .tile-rm     .ic{background:linear-gradient(135deg,#c2603a,#8f3d1f)}
+.tile-oibt   .ic{background:linear-gradient(135deg,#1c8f7a,#0e5c4e)}
+/* ---------- Rapport OIBT : points importés ---------- */
+.oibt-pt{border:1px solid var(--line); border-left:5px solid var(--navy2); border-radius:12px;
+  padding:12px; margin:0 0 14px; background:#fbfdff; box-shadow:0 1px 4px rgba(31,59,91,.06)}
+.oibt-pt.done{border-left-color:var(--ok); background:#f4fbf6}
+.oibt-hd{display:flex; align-items:center; gap:9px; cursor:pointer; user-select:none}
+.oibt-num{flex:0 0 auto; width:30px; height:30px; border-radius:9px; background:var(--navy); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px}
+.oibt-pt.done .oibt-num{background:var(--ok)}
+.oibt-hc{flex:1; min-width:0}
+.oibt-lieu{font-size:11px; font-weight:800; color:var(--navy2); text-transform:uppercase; letter-spacing:.3px}
+.oibt-res{font-size:12px; color:var(--mut); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.oibt-fold{color:var(--mut); font-size:12px; flex:0 0 auto; padding:0 4px}
+.oibt-pt.folded .oibt-body{display:none}
+.oibt-txt{font-size:13px; line-height:1.45; margin:10px 0 8px; white-space:pre-wrap}
+.oibt-pt .sig-box{margin-top:8px}
+.oibt-pt .sigpad{height:110px}
+.oibt-stat{display:flex; gap:8px; align-items:center; font-size:12px; color:var(--mut); margin-top:6px}
+.oibt-empty{border:2px dashed var(--line); border-radius:12px; padding:22px 14px; text-align:center; color:var(--mut)}
+.oibt-photos{display:flex; flex-wrap:wrap; gap:8px; margin:8px 0}
+.oibt-photos img{width:100%; max-width:240px; height:auto; border:1px solid var(--line); border-radius:8px; display:block}
+.oibt-vals{background:#eef3f9; border-radius:10px; padding:8px 10px; margin:8px 0}
+:root[data-theme="dark"] .oibt-vals{background:#1c2732}
+.oibt-val{display:flex; align-items:center; gap:8px; margin-top:5px}
+.oibt-val span{flex:0 0 auto; font-weight:800; color:var(--navy2); font-size:12px}
+.oibt-val input{flex:1}
 .tile .tx{flex:1; min-width:0}
 .tile .tx .t{display:block; font-size:18px; font-weight:800; color:var(--navy)}
 .tile .tx .d{display:block; font-size:12.5px; color:var(--mut); margin-top:3px; line-height:1.35}
@@ -497,6 +523,14 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
           <path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/>
         </svg></span>
         <span class="tx"><span class="t">Rapport de mesures</span><span class="d">Contrôle d'appareils — SNR 462638 (VDE 0701-0702)</span></span>
+        <span class="arrow">→</span>
+      </button>
+      <button type="button" class="tile tile-oibt" data-goto="oibt">
+        <span class="ic"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 2.5h9l4 4v15H6z"/><path d="M15 2.5v4h4"/>
+          <path d="M9 12.5l2 2 4-4.5"/><path d="M9 18h6"/>
+        </svg></span>
+        <span class="tx"><span class="t">Rapport OIBT</span><span class="d">Importer un rapport de contrôle et signer les points corrigés</span></span>
         <span class="arrow">→</span>
       </button>
     </div>
@@ -842,6 +876,45 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 
   </div><!-- /#tabRM -->
 
+  <!-- ================= ONGLET RAPPORT OIBT ================= -->
+  <div id="tabOIBT" hidden>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13l2 2 4-4"/></svg></span> Rapport de contrôle</h2>
+      <div class="body">
+        <p class="hint">Importe le <b>PDF du rapport OIBT</b> reçu du contrôleur : les points de défaut sont extraits
+        automatiquement. Tu peux ensuite noter tes remarques et <b>signer chaque point corrigé</b>. À l'export,
+        l'« OK », ta signature et tes remarques sont inscrits <b>sur le PDF d'origine</b>.</p>
+        <input id="oibtPdf" type="file" accept="application/pdf,.pdf" style="display:none">
+        <button class="add" id="oibtImportBtn" style="border-style:solid; margin:0">📥 Importer le rapport (PDF)</button>
+        <div class="msg" id="oibtMsg"></div>
+        <div id="oibtInfo" hidden style="margin-top:10px">
+          <table class="cli" style="width:100%; font-size:13px">
+            <tr><td style="width:40%">Fichier</td><td><b id="oibtFile">—</b></td></tr>
+            <tr><td>Points de défaut</td><td><b id="oibtCount">—</b></td></tr>
+          </table>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px">
+          <button class="add" id="oibtBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.json)</button>
+          <input id="oibtBackupImport" type="file" accept="application/json,.json" style="display:none">
+          <button class="add" id="oibtBackupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.json)</button>
+        </div>
+        <p class="hint" style="margin:6px 0 0">La sauvegarde <b>contient le PDF d'origine et les signatures</b> : tu peux
+        reprendre un autre jour et exporter directement, sans rien réimporter.</p>
+      </div>
+    </section>
+
+    <section class="card req" data-reqo="pts">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span> Points à corriger</h2>
+      <div class="body">
+        <div class="oibt-stat" id="oibtProgress" hidden></div>
+        <div id="oibtPts"></div>
+        <div class="oibt-empty" id="oibtNone">Aucun rapport importé pour l'instant.</div>
+      </div>
+    </section>
+
+  </div><!-- /#tabOIBT -->
+
 </main>
 
 <div class="bar" id="barReleve">
@@ -859,6 +932,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 <div class="bar" id="barRM" hidden>
   <button class="btn-2" id="rmResetBtn">Réinitialiser</button>
   <button class="btn-main" id="rmGenBtn" disabled>Générer le rapport</button>
+</div>
+<div class="bar" id="barOIBT" hidden>
+  <button class="btn-2" id="oibtResetBtn">Réinitialiser</button>
+  <button class="btn-main" id="oibtGenBtn" disabled>Exporter le PDF signé</button>
 </div>
 
 <!-- Fenêtre de choix d'article -->
@@ -904,6 +981,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 
 <script src="vendor/jspdf.umd.min.js"></script>
 <script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/pdf-lib.min.js"></script>
+<script>
+  /* pdf.js : le worker doit être servi localement (sinon rien ne marche hors-ligne) */
+  if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+</script>
 <script src="materiel.js"></script>
 <script>
 /* =========================================================================
@@ -1868,7 +1951,7 @@ function applyLogin(c){
   $('#loginBtn').style.display='none'; $('#logoutBtn').style.display='';
   const s=$('#collab'); const idx=COLLABORATORS.indexOf(c); if(s && idx>=0) s.value=String(idx);
   const u=$('#collabUser'); if(u) u.value=c.name;
-  buildRef(); updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq();
+  buildRef(); updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq(); updateOibtReq();
 }
 async function doLogin(){
   const idx=$('#collab').value, pw=$('#pass').value, msg=$('#loginMsg');
@@ -1891,7 +1974,7 @@ function doLogout(){
   const st=$('#stayLogged'); if(st) st.checked=false;
   $('#whoName').textContent='— non connecté —';
   $('#loginBtn').style.display=''; $('#logoutBtn').style.display='none';
-  $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq();
+  $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq(); updateOibtReq();
 }
 
 /* ================= Champs obligatoires (rouge / vert) ================= */
@@ -2809,11 +2892,12 @@ function resetRegie(){
 
 /* ---- Accueil / Fonctions ---- */
 let ACTIVE_TAB='releve';
-const TABS=['releve','regie','proto','rm'];
+const TABS=['releve','regie','proto','rm','oibt'];
 const FUNC_TITLES={releve:'📋 Relevé chantier', regie:'🧾 Bon de régie',
-                   proto:"📟 Protocole d'essai et de mesure", rm:'📄 Rapport de mesures'};
-const TAB_EL={releve:'#tabReleve', regie:'#tabRegie', proto:'#tabProto', rm:'#tabRM'};
-const BAR_EL={releve:'#barReleve', regie:'#barRegie', proto:'#barProto', rm:'#barRM'};
+                   proto:"📟 Protocole d'essai et de mesure", rm:'📄 Rapport de mesures',
+                   oibt:'✅ Rapport OIBT'};
+const TAB_EL={releve:'#tabReleve', regie:'#tabRegie', proto:'#tabProto', rm:'#tabRM', oibt:'#tabOIBT'};
+const BAR_EL={releve:'#barReleve', regie:'#barRegie', proto:'#barProto', rm:'#barRM', oibt:'#barOIBT'};
 function showHome(){
   $('#homeScreen').hidden = false;
   $('#funcNav').hidden = true;
@@ -2831,6 +2915,7 @@ function setTab(t){
   if(ACTIVE_TAB==='regie'){ $('#regDate').textContent=frDate(todayISO()); updateRegMonteur(); updateRegieReq(); }
   if(ACTIVE_TAB==='proto'){ updateProtoMonteur(); updateProtoReq(); }
   if(ACTIVE_TAB==='rm'){ updateRMMonteur(); updateRMReq(); }
+  if(ACTIVE_TAB==='oibt'){ updateOibtReq(); }
   window.scrollTo(0,0);
 }
 
@@ -3507,6 +3592,415 @@ function buildRMPDF(d){
   return doc;
 }
 
+/* ==================================================================
+   RAPPORT OIBT (5ᵉ onglet) — importer le PDF du contrôleur, signer les
+   points corrigés, puis réécrire « OK ! » + signature + remarque SUR le PDF.
+
+   Gabarit constant (logiciel ElektroForm, validé sur 3 contrôleurs différents) :
+     · marqueur de point   : texte « N. » seul, x≈50, corps 9
+     · texte du point      : x≈73, corps 9
+     · en-tête de lieu     : corps ≥ 10.5 (x 50 ou 73 selon le contrôleur)
+     · bandeau d'en-tête de page : y < 90  -> ignoré
+   ================================================================== */
+const OIBT_DRAFT='sevj_oibt_v1';
+const OIBT_NUM=/^(\d{1,3})\.$/;
+const OIBT_STOP=/Les .ventuels d.fauts|Mention de l'installateur|Imprim. avec le logiciel|Signature du porteur|Remarque importante/i;
+let OIBT={ file:'', pdf:null, pages:[], pts:[], obstacles:[] };   // pdf = base64 du PDF d'origine
+
+/* pdf-lib n'accepte que le WinAnsi avec les polices standard : on remplace le reste */
+function winAnsi(s){
+  return String(s==null?'':s)
+    .replace(/[’‘]/g,"'").replace(/[“”]/g,'"').replace(/[—–]/g,'-')
+    .replace(/≤/g,'<=').replace(/≥/g,'>=').replace(/[Ωω]/g,'Ohm').replace(/[Δ∆]/g,'d')
+    .replace(/œ/g,'oe').replace(/Œ/g,'OE').replace(/²/g,'2').replace(/³/g,'3')
+    .replace(/[^\x00-\xFF]/g,'');            // tout ce qui reste hors latin-1
+}
+/* ---- Extraction des points depuis le PDF (pdf.js) ---- */
+/* Rectangles des images d'une page : on suit la matrice courante (CTM) et, à chaque
+   image peinte, on transforme le carré unité. Sert à 2 choses : ne PAS écrire par-dessus
+   une photo, et découper les photos pour les montrer dans l'app. */
+async function oibtImageRects(page, vp){
+  const OPS=pdfjsLib.OPS, ops=await page.getOperatorList();
+  const mul=(m,n)=>[ n[0]*m[0]+n[1]*m[2], n[0]*m[1]+n[1]*m[3],
+                     n[2]*m[0]+n[3]*m[2], n[2]*m[1]+n[3]*m[3],
+                     n[4]*m[0]+n[5]*m[2]+m[4], n[4]*m[1]+n[5]*m[3]+m[5] ];
+  let ctm=[1,0,0,1,0,0]; const pile=[], rects=[];
+  for(let i=0;i<ops.fnArray.length;i++){
+    const fn=ops.fnArray[i], a=ops.argsArray[i];
+    if(fn===OPS.save) pile.push(ctm.slice());
+    else if(fn===OPS.restore) ctm=pile.pop()||ctm;
+    else if(fn===OPS.transform) ctm=mul(ctm,a);
+    else if(fn===OPS.paintImageXObject || fn===OPS.paintJpegXObject){
+      const x0=ctm[4], y0=ctm[5], x1=ctm[0]+ctm[2]+ctm[4], y1=ctm[1]+ctm[3]+ctm[5];
+      const xa=Math.min(x0,x1), xb=Math.max(x0,x1), ya=Math.min(y0,y1), yb=Math.max(y0,y1);
+      rects.push({x:xa, y:vp.height-yb, w:xb-xa, h:yb-ya, id:a[0]});   // y compté depuis le haut
+    }
+  }
+  // on écarte le logo d'en-tête (répété en haut de chaque page) et les vignettes/cachets
+  return rects.filter(r=> r.y>70 && r.w>60 && r.h>60);
+}
+async function oibtParse(buf, avecPhotos){
+  const doc = await pdfjsLib.getDocument({data:buf}).promise;
+  const pages=[], lignes=[], images=[];
+  for(let p=1; p<=doc.numPages; p++){
+    const page = await doc.getPage(p);
+    const vp = page.getViewport({scale:1});
+    pages.push({w:vp.width, h:vp.height});
+    (await oibtImageRects(page, vp)).forEach(r=> images.push(Object.assign({page:p}, r)));
+    const tc = await page.getTextContent();
+    /* pdf.js rend des fragments. On les regroupe par ligne de base MAIS on garde les
+       fragments : le marqueur « 1. » et son texte partagent la même ligne de base — les
+       fusionner donnerait « 1.Refaire… » et le marqueur ne serait plus reconnaissable. */
+    const par={};
+    tc.items.forEach(it=>{
+      const t=it.transform, txt=it.str;
+      if(!txt || !txt.trim()) return;
+      const key=Math.round(t[5]);
+      (par[key]=par[key]||[]).push({x:t[4], size:Math.abs(t[3])||Math.hypot(t[2],t[3]), txt});
+    });
+    Object.keys(par).forEach(k=>{
+      const frags=par[k].sort((a,b)=>a.x-b.x);
+      lignes.push({page:p, y:vp.height-(+k), frags});
+    });
+  }
+  lignes.sort((a,b)=> a.page-b.page || a.y-b.y || a.frags[0].x-b.frags[0].x);
+
+  const pts=[]; let cur=null, lieu='', stop=false;
+  const joint=fr=>fr.map(f=>f.txt).join('').replace(/\s+/g,' ').trim();
+  lignes.forEach(l=>{
+    if(l.y<90) return;                                    // bandeau d'en-tête de page
+    const whole=joint(l.frags);
+    if(!whole) return;
+    if(OIBT_STOP.test(whole)) stop=true;
+    if(stop) return;
+    const f0=l.frags[0], maxSize=Math.max.apply(null, l.frags.map(f=>f.size));
+    if(maxSize>=10.5){ lieu=whole.replace(/:$/,'').trim(); cur=null; return; }   // en-tête de lieu
+    const m=OIBT_NUM.exec(f0.txt.trim());
+    if(m && f0.x>=45 && f0.x<=58 && f0.size<10){          // marqueur de point
+      cur={n:+m[1], page:l.page, x:Math.round(f0.x), y:Math.round(l.y), bottom:l.y+f0.size,
+           lieu, texte:[], rem:'', ok:false, sig:null};
+      pts.push(cur);
+      const reste=joint(l.frags.slice(1).filter(f=>f.x>=60));   // le texte est sur la même ligne
+      if(reste) cur.texte.push(reste);
+      return;
+    }
+    if(cur && f0.x>=60 && f0.x<=100){ cur.texte.push(whole); cur.bottom=Math.max(cur.bottom, l.y+f0.size); }
+  });
+  pts.forEach(p=>{
+    p.texte=p.texte.join(' ').replace(/\s+/g,' ').trim();
+    p.vals=oibtBlanks(p.texte).map(()=>'');      // un champ par « ____ » du texte
+    p.photos=[];
+  });
+  // chaque photo appartient au dernier point qui la précède dans l'ordre de lecture
+  images.sort((a,b)=> a.page-b.page || a.y-b.y);
+  images.forEach(im=>{
+    let owner=null;
+    pts.forEach(p=>{ if(p.page<im.page || (p.page===im.page && p.y<=im.y+2)) owner=p; });
+    im.owner=owner;
+  });
+  if(avecPhotos) await oibtCropPhotos(doc, images);
+  return {pages, pts, images};
+}
+/* Récupère les photos telles qu'elles sont intégrées au PDF, SANS rendre la page :
+   page.render() peut ne jamais rendre la main et serait bien trop lourd sur un téléphone. */
+async function oibtCropPhotos(doc, images){
+  const parPage={};
+  images.forEach(im=>{ if(im.owner && im.id) (parPage[im.page]=parPage[im.page]||[]).push(im); });
+  for(const p of Object.keys(parPage)){
+    const page=await doc.getPage(+p);
+    for(const im of parPage[p]){
+      try{
+        const o = await new Promise((res,rej)=>{
+          if(!page.objs.has(im.id)) return rej(new Error('absent'));
+          page.objs.get(im.id, res);
+          setTimeout(()=>rej(new Error('timeout')), 4000);
+        });
+        const src = o.bitmap || o;
+        const W = o.width||src.width, H = o.height||src.height;
+        if(!W || !H) continue;
+        const max=900, sc=Math.min(1, max/Math.max(W,H));
+        const c=document.createElement('canvas');
+        c.width=Math.round(W*sc); c.height=Math.round(H*sc);
+        const ctx=c.getContext('2d');
+        if(o.bitmap){ ctx.drawImage(o.bitmap, 0, 0, c.width, c.height); }
+        else if(o.data){                                  // image brute RGBA / RGB
+          const id=ctx.createImageData(W,H); const d=o.data;
+          if(d.length===W*H*4) id.data.set(d);
+          else if(d.length===W*H*3){ for(let i=0,j=0;i<W*H;i++){ id.data[j++]=d[i*3]; id.data[j++]=d[i*3+1]; id.data[j++]=d[i*3+2]; id.data[j++]=255; } }
+          else continue;
+          const tmp=document.createElement('canvas'); tmp.width=W; tmp.height=H;
+          tmp.getContext('2d').putImageData(id,0,0);
+          ctx.drawImage(tmp, 0, 0, c.width, c.height);
+        } else continue;
+        im.owner.photos.push(c.toDataURL('image/jpeg', 0.72));
+      }catch(e){ /* photo illisible : on continue sans elle */ }
+    }
+  }
+}
+/* Repère les « ____ » à compléter dans le texte d'un point */
+function oibtBlanks(texte){ return String(texte||'').match(/_{3,}/g) || []; }
+/* Texte du point avec les blancs remplis par les valeurs saisies */
+function oibtFilled(p){
+  let i=0;
+  return String(p.texte||'').replace(/_{3,}/g, ()=>{ const v=(p.vals&&p.vals[i++])||''; return v? ' '+v+' ' : ' ____ '; });
+}
+/* Segments de phrase contenant un blanc (c'est ce qu'on écrit dans l'export) */
+function oibtFilledSegments(p){
+  if(!oibtBlanks(p.texte).length) return [];
+  const rempli=oibtFilled(p);
+  return rempli.split(/(?:\.\s+)/).filter(s=>/\d|____/.test(s) && /(valeur|apr.s|mesur|_)/i.test(s))
+               .map(s=>s.trim()).filter(Boolean);
+}
+/* Bas réel du contenu d'un point sur SA page : son texte ET ses photos.
+   Une photo suit immédiatement le texte : le bloc « OK » doit se placer APRÈS elle. */
+function oibtBottom(i){
+  const p=OIBT.pts[i];
+  let b=p.bottom;
+  (OIBT.obstacles||[]).forEach(o=>{
+    if(o.page===p.page && o.owner===p.n) b=Math.max(b, o.y+o.h);
+  });
+  return b;
+}
+/* Place libre après le contenu d'un point, avant le prochain obstacle :
+   point suivant, ou photo d'un AUTRE point, ou bas de page. */
+function oibtGap(i){
+  const p=OIBT.pts[i], pg=OIBT.pages[p.page-1];
+  const bas=oibtBottom(i);
+  let next=(pg?pg.h:842)-70;
+  OIBT.pts.forEach(q=>{ if(q.page===p.page && q.y>bas) next=Math.min(next, q.y-4); });
+  (OIBT.obstacles||[]).forEach(o=>{
+    if(o.page===p.page && o.owner!==p.n && o.y>bas) next=Math.min(next, o.y-4);
+  });
+  return next - bas;
+}
+async function oibtImport(file){
+  const msg=$('#oibtMsg');
+  msg.className='msg'; msg.textContent='Lecture du PDF…';
+  try{
+    const buf=await file.arrayBuffer();
+    const {pages, pts, images}=await oibtParse(buf.slice(0), true);
+    if(!pts.length){
+      msg.className='msg err';
+      msg.textContent="Aucun point de défaut trouvé dans ce PDF. (Les points doivent être numérotés « 1. », « 2. »…)";
+      return;
+    }
+    OIBT={ file:file.name, pdf:b64FromBuf(buf), pages, pts,
+           obstacles:images.map(i=>({page:i.page, y:i.y, h:i.h, owner:i.owner?i.owner.n:0})) };
+    const nph=pts.reduce((a,p)=>a+p.photos.length,0);
+    msg.className='msg ok';
+    msg.textContent=pts.length+' point(s) extrait(s) ✓'+(nph?'  ·  '+nph+' photo(s) récupérée(s)':'');
+    oibtRender(); oibtSave();
+  }catch(e){
+    msg.className='msg err'; msg.textContent='PDF illisible : '+e.message;
+  }
+}
+function b64FromBuf(buf){
+  const b=new Uint8Array(buf); let s='';
+  for(let i=0;i<b.length;i+=0x8000) s+=String.fromCharCode.apply(null, b.subarray(i,i+0x8000));
+  return btoa(s);
+}
+function bufFromB64(b64){
+  const s=atob(b64), a=new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++) a[i]=s.charCodeAt(i);
+  return a;
+}
+/* ---- Interface : une carte par point ---- */
+function oibtRender(){
+  const cont=$('#oibtPts'); cont.innerHTML='';
+  $('#oibtNone').hidden = OIBT.pts.length>0;
+  $('#oibtInfo').hidden = !OIBT.pts.length;
+  if(OIBT.pts.length){ $('#oibtFile').textContent=OIBT.file||'—'; $('#oibtCount').textContent=OIBT.pts.length; }
+  OIBT.pts.forEach((p,i)=>{
+    const d=el('div','oibt-pt'+(p.ok?' done':''));
+    d.innerHTML=`
+      <div class="oibt-hd">
+        <span class="oibt-num">${p.n}</span>
+        <div class="oibt-hc">
+          <div class="oibt-lieu">${esc(p.lieu||'—')}</div>
+          <div class="oibt-res">${esc(p.texte.slice(0,70))}${p.texte.length>70?'…':''}</div>
+        </div>
+        <span class="oibt-fold">▾</span>
+      </div>
+      <div class="oibt-body">
+        <div class="oibt-txt">${esc(p.texte)}</div>
+        ${p.photos && p.photos.length ? '<div class="oibt-photos">'+p.photos.map(s=>`<img src="${s}" loading="lazy">`).join('')+'</div>' : ''}
+        ${oibtBlanks(p.texte).length ? `<div class="oibt-vals">
+          <div class="fld" style="margin-bottom:4px">Valeurs à compléter (les « ____ » du texte)</div>
+          ${oibtBlanks(p.texte).map((_,k)=>`<div class="oibt-val"><span>${k+1}.</span><input data-oval="${k}" type="text" value="${esc((p.vals&&p.vals[k])||'')}" placeholder="valeur mesurée"></div>`).join('')}
+        </div>` : ''}
+        <div class="chk"><input type="checkbox" data-o="ok"${p.ok?' checked':''}><label><b>Corrigé</b></label></div>
+        <label class="fld">Remarque / mesure</label>
+        <textarea data-o="rem" placeholder="ex : câble remplacé, 500 MΩ mesuré">${esc(p.rem||'')}</textarea>
+        <div class="sig-box">
+          <div class="sig-lbl">Signature du point ${p.n}</div>
+          <canvas class="sigpad" data-osig="${i}" width="600" height="140"></canvas>
+          <button type="button" class="sig-clear" data-oclear="${i}">Effacer</button>
+        </div>
+      </div>`;
+    // repli au clic sur l'en-tête
+    d.querySelector('.oibt-hd').onclick=()=>{ const f=d.classList.toggle('folded');
+      d.querySelector('.oibt-fold').textContent=f?'▸':'▾'; };
+    d.querySelector('[data-o="ok"]').onchange=e=>{ p.ok=e.target.checked; d.classList.toggle('done',p.ok); oibtProgress(); oibtSave(); updateOibtReq(); };
+    d.querySelector('[data-o="rem"]').addEventListener('input',e=>{ p.rem=e.target.value; oibtSave(); });
+    d.querySelectorAll('[data-oval]').forEach(inp=> inp.addEventListener('input',e=>{
+      p.vals=p.vals||[]; p.vals[+e.target.dataset.oval]=e.target.value; oibtSave(); }));
+    const pad=d.querySelector('.sigpad'); setupSigPad(pad);
+    if(p.sig) oibtDrawSig(pad, p.sig);
+    pad.addEventListener('pointerup',()=>{ p.sig=pad._sig?pad._sig.data():null; oibtSave(); });
+    d.querySelector('.sig-clear').onclick=()=>{ if(pad._sig) pad._sig.clear(); p.sig=null; oibtSave(); };
+    cont.appendChild(d);
+  });
+  oibtProgress(); updateOibtReq();
+}
+function oibtDrawSig(canvas, dataUrl){
+  const img=new Image(); img.onload=()=>{ try{ canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height); }catch(e){} };
+  img.src=dataUrl;
+}
+function oibtProgress(){
+  const el2=$('#oibtProgress'); if(!el2) return;
+  if(!OIBT.pts.length){ el2.hidden=true; return; }
+  const n=OIBT.pts.filter(p=>p.ok).length;
+  el2.hidden=false;
+  el2.innerHTML=`<b style="color:${n===OIBT.pts.length?'var(--ok)':'var(--navy)'}">${n} / ${OIBT.pts.length}</b> point(s) marqué(s) corrigé(s)`;
+}
+function updateOibtReq(){
+  const c=document.querySelector('.card[data-reqo="pts"]');
+  const some=OIBT.pts.some(p=>p.ok);
+  if(c) c.classList.toggle('ok', OIBT.pts.length>0 && OIBT.pts.every(p=>p.ok));
+  const b=$('#oibtGenBtn'); if(b) b.disabled = !(currentUser && OIBT.pts.length && some);
+}
+/* ---- Sauvegarde (brouillon léger : le PDF ne tient pas dans localStorage) ---- */
+function oibtSave(){
+  // brouillon léger : ni PDF, ni photos, ni signatures (le quota du navigateur exploserait)
+  try{ localStorage.setItem(OIBT_DRAFT, JSON.stringify({
+    file:OIBT.file, pages:OIBT.pages, obstacles:OIBT.obstacles||[],
+    pts:OIBT.pts.map(p=>({n:p.n,page:p.page,x:p.x,y:p.y,bottom:p.bottom,lieu:p.lieu,texte:p.texte,
+                          rem:p.rem,ok:p.ok,vals:p.vals||[]}))
+  })); }catch(e){ warnQuota(); }
+}
+function oibtRestore(){
+  let d; try{ d=JSON.parse(localStorage.getItem(OIBT_DRAFT)); }catch(e){}
+  if(!d || !d.pts || !d.pts.length) return;
+  OIBT={ file:d.file||'', pdf:null, pages:d.pages||[], obstacles:d.obstacles||[],
+         pts:d.pts.map(p=>Object.assign({sig:null, photos:[]}, p)) };
+  oibtRender();
+  const m=$('#oibtMsg'); if(m){ m.className='msg'; m.textContent='Points restaurés — réimporte le PDF (ou une sauvegarde .json) pour pouvoir exporter.'; }
+}
+/* ---- Sauvegarde .json autonome : PDF + signatures inclus ---- */
+function exportOibtBackup(){
+  if(!OIBT.pts.length){ alert("Importe d'abord un rapport."); return; }
+  const data={ app:'sevj-oibt', v:1, file:OIBT.file, pdf:OIBT.pdf, pages:OIBT.pages,
+               obstacles:OIBT.obstacles||[], pts:OIBT.pts };
+  const name=(OIBT.file||'rapport_oibt').replace(/\.pdf$/i,'').replace(/[^\wÀ-ſ.-]/g,'_')+'.json';
+  downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name);
+}
+function importOibtBackup(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let data; try{ data=JSON.parse(reader.result); }catch(e){ alert('Fichier illisible.'); return; }
+    if(!data || data.app!=='sevj-oibt' || !data.pts){ alert("Ce fichier n'est pas une sauvegarde de rapport OIBT SEVJ."); return; }
+    if(!confirm('Remplacer le rapport en cours par cette sauvegarde ?')) return;
+    OIBT={ file:data.file||'', pdf:data.pdf||null, pages:data.pages||[],
+           obstacles:data.obstacles||[], pts:data.pts.map(p=>Object.assign({photos:[], vals:[]}, p)) };
+    oibtRender(); oibtSave();
+    const m=$('#oibtMsg'); m.className='msg ok';
+    m.textContent='Sauvegarde restaurée ✓'+(OIBT.pdf?' (PDF inclus — export possible)':' (sans PDF : réimporte-le pour exporter)');
+  };
+  reader.readAsText(file);
+}
+function resetOibt(){
+  if(!confirm('Réinitialiser le rapport OIBT en cours ?')) return;
+  OIBT={ file:'', pdf:null, pages:[], pts:[], obstacles:[] };
+  try{ localStorage.removeItem(OIBT_DRAFT); }catch(e){}
+  oibtRender(); $('#oibtMsg').textContent=''; $('#oibtInfo').hidden=true;
+}
+/* ---- Export : écrit OK ! + signature + remarque SUR le PDF d'origine ---- */
+async function oibtExportPDF(){
+  if(!OIBT.pdf){ alert("Le PDF d'origine n'est pas chargé.\nRéimporte-le (ou restaure une sauvegarde .json qui le contient)."); return; }
+  const btn=$('#oibtGenBtn'); const old=btn.textContent; btn.disabled=true; btn.textContent='Écriture du PDF…';
+  try{
+    const {PDFDocument, StandardFonts, rgb}=PDFLib;
+    const pdf=await PDFDocument.load(bufFromB64(OIBT.pdf));
+    const font=await pdf.embedFont(StandardFonts.Helvetica);
+    const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+    const pages=pdf.getPages();
+    const who=currentUser?currentUser.name:'', ini=currentUser?currentUser.ini:'';
+    const today=frDate(todayISO());
+    const faits=OIBT.pts.filter(p=>p.ok);
+    const reports=[];                      // points sans place -> page récap
+
+    for(let i=0;i<OIBT.pts.length;i++){
+      const p=OIBT.pts[i]; if(!p.ok) continue;
+      const pg=pages[p.page-1]; if(!pg) continue;
+      const H=pg.getHeight();
+      const gap=oibtGap(i);
+      const sig=p.sig ? await pdf.embedPng(p.sig).catch(()=>null) : null;
+
+      // valeurs saisies dans les « ____ » : on écrit la phrase complétée
+      const segs=oibtFilledSegments(p);
+      const corps=[].concat(segs.map(s=>'> '+s), p.rem?['Remarque : '+p.rem]:[]);
+
+      if(gap>=34){
+        // --- bloc complet sous le texte du point
+        const x=68, w=470;
+        const remLines=corps.length ? [].concat.apply([], corps.map(t=>wrapText(winAnsi(t), font, 7.5, w-12))) : [];
+        const h=Math.min(gap-4, 18+remLines.length*9);
+        const top=H-(oibtBottom(i)+3);       // sous le contenu (texte + photo) ; origine en bas
+        pg.drawRectangle({x, y:top-h, width:w, height:h,
+          color:rgb(0.93,0.98,0.94), borderColor:rgb(0.11,0.49,0.25), borderWidth:0.8});
+        pg.drawText(winAnsi('OK ! CORRIGE  ·  '+who+'  ·  '+today), {x:x+6, y:top-11, size:8, font:bold, color:rgb(0.11,0.49,0.25)});
+        if(sig){ const sc=Math.min(46/sig.width, 12/sig.height);
+          pg.drawImage(sig, {x:x+w-52, y:top-h+3, width:sig.width*sc, height:sig.height*sc}); }
+        remLines.forEach((ln,k)=>{ if(18+k*9<h) pg.drawText(ln, {x:x+6, y:top-20-k*9, size:7.5, font, color:rgb(0.2,0.2,0.2)}); });
+        if(remLines.length && 18+remLines.length*9>h) reports.push(p);
+      }else{
+        // --- pas la place : tampon compact en marge + report sur la page récap
+        const top=H-(p.y+7);
+        pg.drawText(winAnsi('OK ! '+ini+' '+today.slice(0,10)), {x:505, y:top, size:6.5, font:bold, color:rgb(0.11,0.49,0.25)});
+        if(sig){ const sc=Math.min(38/sig.width, 9/sig.height);
+          pg.drawImage(sig, {x:505, y:top-11, width:sig.width*sc, height:sig.height*sc}); }
+        reports.push(p);
+      }
+    }
+    // --- page récapitulative (points serrés + remarques trop longues)
+    if(reports.length){
+      let pg=pdf.addPage([595,842]); let y=800;
+      pg.drawText(winAnsi('Remise en conformite - complement'), {x:50, y, size:13, font:bold, color:rgb(0.12,0.23,0.36)}); y-=8;
+      pg.drawLine({start:{x:50,y}, end:{x:545,y}, thickness:1, color:rgb(0.12,0.23,0.36)}); y-=18;
+      pg.drawText(winAnsi(who+'  ·  '+today), {x:50, y, size:9, font, color:rgb(0.3,0.3,0.3)}); y-=20;
+      for(const p of reports){
+        if(y<120){ pg=pdf.addPage([595,842]); y=800; }
+        pg.drawText(winAnsi('Point '+p.n+(p.lieu?'  -  '+p.lieu:'')), {x:50, y, size:10, font:bold, color:rgb(0.12,0.23,0.36)}); y-=12;
+        wrapText(winAnsi(p.texte), font, 8, 495).slice(0,4).forEach(ln=>{ pg.drawText(ln,{x:50,y,size:8,font,color:rgb(0.35,0.35,0.35)}); y-=9.5; });
+        y-=2;
+        pg.drawText(winAnsi('OK ! CORRIGE  ·  '+who+'  ·  '+today), {x:50, y, size:9, font:bold, color:rgb(0.11,0.49,0.25)}); y-=11;
+        oibtFilledSegments(p).forEach(s=> wrapText(winAnsi('> '+s), font, 8.5, 495).forEach(ln=>{ pg.drawText(ln,{x:50,y,size:8.5,font,color:rgb(0.11,0.35,0.2)}); y-=10; }));
+        if(p.rem) wrapText(winAnsi('Remarque : '+p.rem), font, 8.5, 495).forEach(ln=>{ pg.drawText(ln,{x:50,y,size:8.5,font,color:rgb(0.15,0.15,0.15)}); y-=10; });
+        const sig=p.sig ? await pdf.embedPng(p.sig).catch(()=>null) : null;
+        if(sig){ const sc=Math.min(70/sig.width, 20/sig.height);
+          pg.drawImage(sig, {x:50, y:y-20, width:sig.width*sc, height:sig.height*sc}); y-=24; }
+        y-=10;
+      }
+    }
+    const out=await pdf.save();
+    const name=(OIBT.file||'rapport_oibt.pdf').replace(/\.pdf$/i,'')+'_signe.pdf';
+    downloadBlob(new Blob([out],{type:'application/pdf'}), name.replace(/[^\wÀ-ſ.-]/g,'_'));
+  }catch(e){
+    alert("Échec de l'écriture du PDF : "+e.message);
+  }finally{ btn.disabled=false; btn.textContent=old; updateOibtReq(); }
+}
+/* Découpe un texte pour une largeur donnée (police pdf-lib) */
+function wrapText(txt, font, size, maxW){
+  const mots=String(txt||'').split(/\s+/).filter(Boolean), out=[]; let ln='';
+  mots.forEach(m=>{
+    const t=ln?ln+' '+m:m;
+    let w; try{ w=font.widthOfTextAtSize(t, size); }catch(e){ w=t.length*size*0.5; }
+    if(w>maxW && ln){ out.push(ln); ln=m; } else ln=t;
+  });
+  if(ln) out.push(ln);
+  return out;
+}
+
 /* ================= Persistance (brouillon auto) ================= */
 const DRAFT='sevj_draft_arbre_v1', DRAFT_PHOTOS='sevj_draft_photos_arbre_v1', DRAFT_PIMG='sevj_draft_protimgs_arbre_v1';
 const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#dureeH'];
@@ -3720,7 +4214,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v54-arbre — dérivation + bornes au catalogue';
+const APP_VERSION='v56-arbre — OIBT : photos importées + valeurs à compléter';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -3783,6 +4277,16 @@ function init(){
   $('#backupExport').onclick=exportBackup;
   $('#backupImportBtn').onclick=()=>$('#backupImport').click();
   $('#backupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importBackup(f); e.target.value=''; });
+  /* ===== Rapport OIBT ===== */
+  $('#oibtImportBtn').onclick=()=>$('#oibtPdf').click();
+  $('#oibtPdf').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) oibtImport(f); e.target.value=''; });
+  $('#oibtGenBtn').onclick=oibtExportPDF;
+  $('#oibtResetBtn').onclick=resetOibt;
+  $('#oibtBackupExport').onclick=exportOibtBackup;
+  $('#oibtBackupImportBtn').onclick=()=>$('#oibtBackupImport').click();
+  $('#oibtBackupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importOibtBackup(f); e.target.value=''; });
+  oibtRestore();
+
   /* ===== Rapport de mesures ===== */
   $('#addRMRow').onclick=()=>{ addRMRow(); rmSave(); };
   $('#rmGenBtn').onclick=generateRM;

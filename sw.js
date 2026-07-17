@@ -1,7 +1,7 @@
 /* SEVJ · Relevé chantier — service worker (mode hors-ligne)
    ⚠ Après chaque mise à jour de l'app, incrémente la version (CACHE) ci-dessous
    pour forcer le rafraîchissement du cache sur les téléphones. */
-const CACHE = 'sevj-v54-arbre';
+const CACHE = 'sevj-v56-arbre';
 const ASSETS = [
   './',
   './index.html',
@@ -22,6 +22,9 @@ const ASSETS = [
   './couleur-EDIZIOdue-ENC-2.png',
   './vendor/jspdf.umd.min.js',
   './vendor/jspdf.plugin.autotable.min.js',
+  './vendor/pdf.min.js',            // lecture des PDF (onglet OIBT)
+  './vendor/pdf.worker.min.js',
+  './vendor/pdf-lib.min.js',        // écriture sur le PDF d'origine
 ];
 
 self.addEventListener('install', e => {
