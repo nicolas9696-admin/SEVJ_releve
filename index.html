@@ -579,7 +579,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     <div class="body">
       <p class="hint">Ajoute ici toutes les <b>protections</b> (disjoncteurs, fusibles). Chaque protection dit
       <b>quelle pièce elle alimente</b> — le départ apparaîtra alors dans cette pièce, où tu construis l'arbre
-      (boîte ou appareil). Coche <b>« selon DispoSuite »</b> pour joindre l'image du schéma.</p>
+      (dérivation ou appareil). Coche <b>« selon DispoSuite »</b> pour joindre l'image du schéma.</p>
       <div id="protections"></div>
       <button class="add" id="addProtBtn" style="border-style:solid; margin-top:4px">＋ Ajouter une protection</button>
     </div>
@@ -968,6 +968,11 @@ const MAT_EXTRA = [
   {n:'Tube Bergmann (existant)', e:'', c:'Existant', s:'chem'},
   {n:'Cheminement existant', e:'', c:'Existant', s:'chem'},
   {n:'Boîte existante', e:'', c:'Existant', s:'boite'},
+  {n:'Borne 2.5 mm²', e:'', c:'Borne', s:'boite'},
+  {n:'Borne 4 mm²',   e:'', c:'Borne', s:'boite'},
+  {n:'Borne 6 mm²',   e:'', c:'Borne', s:'boite'},
+  {n:'Borne 10 mm²',  e:'', c:'Borne', s:'boite'},
+  {n:'Borne 16 mm²',  e:'', c:'Borne', s:'boite'},
   {n:'Prise existante', e:'', c:'Existant', s:'app'},
   {n:'Interrupteur existant', e:'', c:'Existant', s:'app'},
   {n:'Point lumineux existant', e:'', c:'Existant', s:'app'},
@@ -1001,7 +1006,7 @@ const FAM_ORDER = {
   chem:['Tube ALU','Tube TIT','Tube KRFWG','Canal LF','Chemin de câble','Existant','Autre'],
   app:['EDIZIO.due ENC','EDIZIO.due AP','EDIZIO.liv ENC','EDIZIO.liv AP',
        'Point lumineux','Prise CEE / industrielle','NUP/NEVO (étanche)','Existant','Autre'],
-  boite:['Boîte','Existant','Autre'],
+  boite:['Dérivation','Borne','Existant','Autre'],
 };
 function familyOf(sec, name){
   const n=name||'';
@@ -1026,7 +1031,8 @@ function familyOf(sec, name){
     if(/NUP|NEVO/i.test(n)) return 'NUP/NEVO (étanche)';
     return 'Autre';
   }
-  return 'Boîte';   // boîtes : une seule catégorie
+  if(/\bborne/i.test(n)) return 'Borne';
+  return 'Dérivation';   // section « boîte » : dérivations par défaut
 }
 /* Couleurs d'une famille — le suffixe « ENC » / « AP » est ignoré (même gamme, mêmes couleurs) */
 function famBase(fam){ return String(fam||'').replace(/\s+(ENC|AP)$/,''); }
@@ -1252,8 +1258,8 @@ function addBoite(cont){
   const r = el('div','row');
   r.innerHTML = `
     <button class="rm" title="Supprimer">×</button>
-    <div class="tag">Boîte</div>
-    ${matBoxHtml('boite','Article (boîte de dérivation, support…)')}
+    <div class="tag">Dérivation</div>
+    ${matBoxHtml('boite','Article (boîte de dérivation, borne, support…)')}
     <div class="grid" style="margin-top:10px">
       <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="1" step="1" value="1"></div>
       <div><label class="fld">Nom / repère (optionnel)</label><input data-f="name" type="text" placeholder="ex : Dérivation plafond"></div>
@@ -1396,8 +1402,8 @@ function addRoom(name, colorIdx){
       <div class="sub">
         <div class="departs" data-departs></div>
         <p class="hint" data-nodep style="margin-top:2px">Assigne une protection à cette pièce depuis le <b>Tableau</b>, ou ajoute directement un élément ci-dessous (sa protection est alors définie dans le schéma <b>DispoSuite</b>).</p>
-        <button type="button" class="add" data-add-free style="border-style:solid; margin-top:8px; font-size:13px">＋ Boîte / appareil (à lier DispoSuite)</button>
-        <div class="tlegend"><span><i style="background:#e0a25c"></i> depuis le départ (protection)</span><span><i style="background:#4fc3b8"></i> depuis une boîte</span></div>
+        <button type="button" class="add" data-add-free style="border-style:solid; margin-top:8px; font-size:13px">＋ Dérivation / appareil (à lier DispoSuite)</button>
+        <div class="tlegend"><span><i style="background:#e0a25c"></i> depuis le départ (protection)</span><span><i style="background:#4fc3b8"></i> depuis une dérivation</span></div>
       </div>
       <div class="sub">
         <h4>Photos</h4>
@@ -1483,7 +1489,7 @@ const T_ICON = {
 };
 const T_ADD   = { disjoncteur:addDisj, boite:addBoite, point:addApp };
 const T_CLASS = { disjoncteur:'dj', boite:'bx', point:'pt' };
-const T_LABEL = { disjoncteur:'Disjoncteur', boite:'Boîte', point:'Appareil' };
+const T_LABEL = { disjoncteur:'Disjoncteur', boite:'Dérivation', point:'Appareil' };
 
 /* crée un nœud (disjoncteur / boîte / point) — corps = formulaire existant + liaison */
 function makeNode(type){
@@ -1566,12 +1572,12 @@ function makeNode(type){
   updateNodeSummary(node);
   return node;
 }
-/* petit sélecteur Appareil / Boîte au branchement */
+/* petit sélecteur Appareil / Dérivation au branchement */
 function openTypePicker(kids, brancher){
   const ex=brancher.querySelector('.typepick'); if(ex){ ex.remove(); return; }
   const p=el('div','typepick');
   p.innerHTML=`<button data-t="point"><span class="ti pt">${T_ICON.point}</span>Appareil</button>
-               <button data-t="boite"><span class="ti bx">${T_ICON.boite}</span>Boîte</button>`;
+               <button data-t="boite"><span class="ti bx">${T_ICON.boite}</span>Dérivation</button>`;
   p.querySelectorAll('button').forEach(b=>b.onclick=()=>{
     const br=el('div','tbranch'); br.appendChild(makeNode(b.dataset.t));
     kids.insertBefore(br, brancher); p.remove(); scheduleSave();
@@ -1604,7 +1610,7 @@ function makeDepartEl(pid, free){
     <span class="dep-fold" title="Réduire / déployer">▾</span>${free?'<button class="dep-del" title="Supprimer">×</button>':''}`;
   const kids=el('div','tkids '+(free?'spine-bx':'spine-dj'));
   const brancher=el('div','brancher');
-  const bBtn=el('button'); bBtn.type='button'; bBtn.textContent='＋ Ajouter (boîte / appareil)';
+  const bBtn=el('button'); bBtn.type='button'; bBtn.textContent='＋ Ajouter (dérivation / appareil)';
   bBtn.onclick=()=>openDepartPicker(kids,brancher);
   brancher.appendChild(bBtn); kids.appendChild(brancher);
   d.appendChild(hd); d.appendChild(kids);
@@ -1621,7 +1627,7 @@ function addFreeDepart(room){
 function openDepartPicker(kids, brancher){
   const ex=brancher.querySelector('.typepick'); if(ex){ ex.remove(); return; }
   const p=el('div','typepick');
-  p.innerHTML=`<button data-t="boite"><span class="ti bx">${T_ICON.boite}</span>Boîte</button>
+  p.innerHTML=`<button data-t="boite"><span class="ti bx">${T_ICON.boite}</span>Dérivation</button>
                <button data-t="point"><span class="ti pt">${T_ICON.point}</span>Appareil</button>`;
   p.querySelectorAll('button').forEach(b=>b.onclick=()=>{
     const br=el('div','tbranch'); br.appendChild(makeNode(b.dataset.t));
@@ -3714,7 +3720,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v53-arbre — rapport : signature du monteur';
+const APP_VERSION='v54-arbre — dérivation + bornes au catalogue';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
