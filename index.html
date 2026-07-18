@@ -3857,48 +3857,9 @@ function oibtFilledSegments(p){
   return rempli.split(/(?:\.\s+)/).filter(s=>/\d|____/.test(s) && /(valeur|apr.s|mesur|_)/i.test(s))
                .map(s=>s.trim()).filter(Boolean);
 }
-/* Bas réel du contenu d'un point sur SA page : son texte ET ses photos. */
-function oibtBottom(i){
-  const p=OIBT.pts[i];
-  let b=p.bottom;
-  (OIBT.obstacles||[]).forEach(o=>{
-    if(o.page===p.page && o.owner===p.n) b=Math.max(b, o.y+o.h);
-  });
-  return b;
-}
-/* Cherche un espace VRAIMENT vide sur la page : on balaie la carte des zones occupées
-   (texte + images) et on renvoie le 1ᵉʳ trou d'au moins `besoin` points de haut à partir
-   de `depuis`. -1 si la page n'a plus la place. */
-function oibtFreeAt(page, depuis, besoin){
-  const pg=OIBT.pages[page-1], bas=(pg?pg.h:842)-72;
-  let y=Math.max(depuis, 88);
-  const occ=(OIBT.occ||[]).filter(o=>o.page===page && o.y1>y).sort((a,b)=>a.y0-b.y0);
-  for(const o of occ){
-    if(o.y0-y >= besoin+4) return y;      // trou suffisant avant cet obstacle
-    if(o.y1>y) y=o.y1;                    // sinon on saute derrière lui
-  }
-  return (bas-y >= besoin) ? y : -1;      // reste la fin de page
-}
-/* Comme oibtFreeAt mais IGNORE les images : la colonne de gauche (le numéro du point) reste
-   libre à côté d'une photo. Sert à poser le petit « OK ! » sous le numéro, pas sous la photo.
-   On ne descend que si un vrai TEXTE (ou un marqueur déjà posé) occupe la place. */
-function oibtGutterY(page, from, need){
-  let y=Math.max(from, 88);
-  const occ=(OIBT.occ||[]).filter(o=>o.page===page && o.src!=='image' && o.y1>y).sort((a,b)=>a.y0-b.y0);
-  for(const o of occ){
-    if(o.y0-y>=need+2) return y;      // trou suffisant avant ce texte
-    if(o.y1>y) y=o.y1;                 // sinon on passe dessous
-  }
-  return y;                           // sinon en bas : la gouttière reste inscriptible
-}
-/* Où poser le bloc d'un point : juste sous son contenu si possible, sinon plus bas sur la
-   même page (le bloc portera alors un rappel « Point N »), sinon page récapitulative. */
-function oibtPlace(i, besoin){
-  const p=OIBT.pts[i], juste=oibtBottom(i)+4;
-  const y=oibtFreeAt(p.page, juste, besoin);
-  if(y<0) return null;
-  return {y, colle: (y-juste)<26};        // « collé » = directement sous le point
-}
+/* (Les anciens calculs de placement dans la page — oibtBottom / oibtFreeAt / oibtGutterY /
+   oibtPlace — ont été retirés : l'export n'écrit plus rien sur le rapport d'origine, donc
+   il n'y a plus de place à chercher entre les textes et les photos.) */
 async function oibtImport(file){
   const msg=$('#oibtMsg');
   msg.className='msg'; msg.textContent='Lecture du PDF…';
@@ -4044,108 +4005,126 @@ function resetOibt(){
   try{ localStorage.removeItem(OIBT_DRAFT); }catch(e){}
   oibtRender(); $('#oibtMsg').textContent=''; $('#oibtInfo').hidden=true;
 }
-/* ---- Export : petit « OK ! » + signature près de chaque point corrigé SUR le PDF
-       d'origine, puis une feuille annexe (n° du défaut + remarque + mesures + signature).
-       Plus de gros cadre dans la page : le détail vit sur l'annexe, le corps reste lisible. ---- */
+/* ---- Export : les pages du rapport d'origine ne sont PLUS annotées du tout. Écrire dans
+       la page était condamné d'avance — ElektroForm remplit la largeur (texte de x=46 à
+       x=556, photos en dessous) et Electrosuisse est un scan : aucune gouttière fiable,
+       donc du chevauchement tôt ou tard, et différemment selon le modèle.
+       À la place : le rapport reste intact, et une ANNEXE est ajoutée à la fin — un bloc
+       par point corrigé (n° + renvoi de page + texte du défaut, puis « OK ! », signature,
+       mesures, remarque). Même rendu pour les deux modèles, zéro superposition. ---- */
 async function oibtExportPDF(){
   if(!OIBT.pdf){ alert("Le PDF d'origine n'est pas chargé.\nRéimporte-le (ou restaure une sauvegarde .json qui le contient)."); return; }
   const btn=$('#oibtGenBtn'); const old=btn.textContent; btn.disabled=true; btn.textContent='Écriture du PDF…';
   try{
     const {PDFDocument, StandardFonts, rgb}=PDFLib;
     const pdf=await PDFDocument.load(bufFromB64(OIBT.pdf));
-    OIBT.occ=(OIBT.occ||[]).filter(o=>o.src!=='bloc');   // repart d'une carte propre à chaque export
     const font=await pdf.embedFont(StandardFonts.Helvetica);
     const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
     const pages=pdf.getPages();
+    const nOrig=pages.length;
     const who=currentUser?currentUser.name:'';
     const today=frDate(todayISO());
     const faits=OIBT.pts.filter(p=>p.ok);
-    const GREEN=rgb(0.11,0.49,0.25);
-    const es=(OIBT.modele==='electrosuisse');
-    const MARK_H=13;                                     // hauteur du « OK ! » seul (sans signature)
+    if(!faits.length){ alert('Aucun point n\'est marqué corrigé.'); return; }
 
-    // En-tête du rapport pour l'annexe : on recopie le HAUT de la page 1 d'origine (vecteur
-    // ElektroForm ou scan Electrosuisse). Aucune analyse de champ fragile — l'installation,
-    // le propriétaire et le périmètre du contrôle y figurent tels quels. Embarqué AVANT de
-    // dessiner les marqueurs pour que l'en-tête reste propre.
+    const NAVY=rgb(0.12,0.23,0.36), GREEN=rgb(0.11,0.49,0.25), INK=rgb(0.20,0.20,0.20),
+          GREY=rgb(0.42,0.42,0.42), FILET=rgb(0.84,0.84,0.84), VERTPALE=rgb(0.93,0.965,0.94);
+    const W=595, H=842, M=50, R=545, COL=R-M;             // colonne de texte : 495 pt
+    const IND=M+18, COLI=R-IND;                            // corps indenté sous le numéro
+    const HAUT=H-52, BAS=70;
+
+    const wOf=(t,f,s)=>{ try{ return f.widthOfTextAtSize(t,s); }catch(e){ return String(t).length*s*0.5; } };
+    const droite=(t,y,s,f,c)=>pg.drawText(t,{x:R-wOf(t,f,s), y, size:s, font:f, color:c});
+
+    // En-tête du chantier : le haut de la page 1 d'origine, recopié tel quel (installation,
+    // propriétaire, périmètre du contrôle). Marche pour le vectoriel comme pour le scan,
+    // sans analyse de champ fragile.
     let enteteEmb=null;
-    if(faits.length && pages[0]){
+    if(pages[0]){
       try{
         const src=pages[0], W0=src.getWidth(), H0=src.getHeight();
-        const cropH=Math.min(258, Math.round(H0*0.32));  // ~ bloc d'en-tête, avant la 1ʳᵉ section
+        const cropH=Math.min(258, Math.round(H0*0.32));   // ~ bloc d'en-tête, avant la 1ʳᵉ section
         enteteEmb=await pdf.embedPage(src, {left:0, bottom:H0-cropH, right:W0, top:H0});
       }catch(e){ enteteEmb=null; }
     }
 
-    // --- 1) Petit marqueur « OK ! » + signature, ancré à chaque point corrigé
-    for(let i=0;i<OIBT.pts.length;i++){
-      const p=OIBT.pts[i]; if(!p.ok) continue;
-      const pg=pages[p.page-1]; if(!pg) continue;
-      const H=pg.getHeight(), W=pg.getWidth();
-      const sig=p.sig ? await pdf.embedPng(p.sig).catch(()=>null) : null;
+    // Signatures embarquées une seule fois (le même monteur signe souvent tous les points)
+    const sigs=new Map();
+    for(const p of faits){ if(p.sig && !sigs.has(p.sig)) sigs.set(p.sig, await pdf.embedPng(p.sig).catch(()=>null)); }
 
-      // « OK ! » puis la signature JUSTE EN DESSOUS (empilés, pas côte à côte)
-      const okSize=9, okW=bold.widthOfTextAtSize('OK !', okSize);
-      const sigH=sig?12:0, sigW=sig ? Math.min(52, sig.width*(sigH/sig.height)) : 0;
-      const gapV=sig?2:0;
-      const markW=Math.max(okW, sigW), markH=MARK_H+gapV+sigH;
+    const feuilles=[];
+    let pg=null, y=0;
+    const nouvellePage=()=>{ pg=pdf.addPage([W,H]); feuilles.push(pg); y=HAUT; return pg; };
 
-      // yTop = haut du marqueur, compté depuis le HAUT de la page (comme oibtFreeAt / p.y)
-      let xLeft, yTop;
-      if(es){
-        // à droite de « Défaut M… », sur la même ligne
-        xLeft=Math.min((p.xRight||p.x+120)+12, W-markW-8);
-        yTop=p.y-4;
-      } else {
-        // ElektroForm : dans la gouttière gauche, juste sous le TEXTE du point (pas sous ses
-        // photos — la colonne de gauche est libre à côté d'elles). On ne descend que si un
-        // autre texte / un marqueur déjà posé occupe la place, jamais à cause d'une image.
-        xLeft=p.x;
-        yTop=oibtGutterY(p.page, p.bottom+3, markH);
+    // --- Page de garde de l'annexe
+    nouvellePage();
+    pg.drawText(winAnsi('ANNEXE · REMISE EN CONFORMITÉ'), {x:M, y, size:14, font:bold, color:NAVY});
+    y-=9;
+    pg.drawLine({start:{x:M,y}, end:{x:R,y}, thickness:1.2, color:NAVY}); y-=16;
+    pg.drawText(winAnsi('Défauts du rapport de contrôle corrigés et attestés par l\'exécuteur des travaux.'),
+                {x:M, y, size:9, font, color:GREY}); y-=20;
+    if(enteteEmb){
+      const dw=COL, dh=dw*(enteteEmb.height/enteteEmb.width);
+      pg.drawPage(enteteEmb, {x:M, y:y-dh, width:dw, height:dh});
+      pg.drawRectangle({x:M, y:y-dh, width:dw, height:dh, borderColor:FILET, borderWidth:0.6});
+      y-=dh+18;
+    }
+    pg.drawText(winAnsi(faits.length+' point(s) corrigé(s) sur '+OIBT.pts.length),
+                {x:M, y, size:10, font:bold, color:GREEN});
+    droite(winAnsi(who+'  ·  '+today), y, 10, bold, NAVY);
+    y-=8;
+    pg.drawLine({start:{x:M,y}, end:{x:R,y}, thickness:0.6, color:FILET}); y-=22;
+
+    // --- Un bloc par point corrigé
+    for(const p of faits){
+      const segs=oibtFilledSegments(p);
+      const ident = p.id ? ('Défaut M'+p.id) : (String(p.n).replace(/\.?$/,'.'));
+      const txtL  = p.texte ? wrapText(winAnsi(p.texte), font, 9, COLI) : [];
+      const lieuL = p.lieu  ? wrapText(winAnsi(p.lieu),  bold, 9, COLI) : [];
+      const mesL  = segs.flatMap(s=>wrapText(winAnsi('Mesure : '+s), font, 9, COLI-12));
+      const remL  = p.rem ? wrapText(winAnsi('Remarque : '+p.rem), font, 9, COLI-12) : [];
+      const sig   = p.sig ? sigs.get(p.sig) : null;
+      const sigH  = sig ? 24 : 0;
+
+      // cartouche vert : « OK ! » + signature + mesures + remarque
+      const contenuH = 12 + (sig?sigH+4:0) + mesL.length*11 + remL.length*11;
+      const okH = contenuH + 14;                          // + marge haute et basse du cartouche
+      const besoin = 15 + lieuL.length*11 + txtL.length*11 + 8 + okH + 20;
+      if(y-besoin < BAS) nouvellePage();
+
+      // en-tête du bloc : numéro à gauche, renvoi vers la page du rapport à droite
+      pg.drawText(winAnsi(ident), {x:M, y, size:12, font:bold, color:NAVY});
+      droite(winAnsi('rapport, page '+p.page+' / '+nOrig), y+1, 8, font, GREY);
+      y-=15;
+      lieuL.forEach(ln=>{ pg.drawText(ln, {x:IND, y, size:9, font:bold, color:INK}); y-=11; });
+      txtL .forEach(ln=>{ pg.drawText(ln, {x:IND, y, size:9, font,       color:GREY}); y-=11; });
+      y-=8;
+
+      // cartouche : fond vert pâle + barre verte à gauche. Le haut du cartouche est 10 pt
+      // au-dessus de la 1ʳᵉ ligne de texte (« OK ! »), le bas 4 pt sous la dernière.
+      const cartTop=y+10, cartBas=cartTop-okH;
+      pg.drawRectangle({x:IND, y:cartBas, width:R-IND, height:okH, color:VERTPALE});
+      pg.drawRectangle({x:IND, y:cartBas, width:2.5,   height:okH, color:GREEN});
+      let yc=y;
+      pg.drawText(winAnsi('OK !  Corrigé le '+today+' par '+who), {x:IND+12, y:yc, size:10, font:bold, color:GREEN});
+      yc-=12;
+      if(sig){
+        const sc=Math.min(86/sig.width, sigH/sig.height);
+        pg.drawImage(sig, {x:IND+12, y:yc-sig.height*sc+3, width:sig.width*sc, height:sig.height*sc});
+        yc-=sigH+4;
       }
-      const bottom=H-yTop-markH;                          // pdf-lib : origine en bas
-      pg.drawText('OK !', {x:xLeft, y:bottom+markH-okSize, size:okSize, font:bold, color:GREEN});
-      if(sig) pg.drawImage(sig, {x:xLeft, y:bottom, width:sigW, height:sigH});
-      OIBT.occ.push({page:p.page, y0:yTop-2, y1:yTop+markH+2, src:'bloc'});
+      mesL.forEach(ln=>{ pg.drawText(ln, {x:IND+12, y:yc, size:9, font, color:rgb(0.11,0.35,0.2)}); yc-=11; });
+      remL.forEach(ln=>{ pg.drawText(ln, {x:IND+12, y:yc, size:9, font, color:INK}); yc-=11; });
+      y=cartBas-20;                                       // respiration avant le point suivant
     }
 
-    // --- 2) Feuille annexe : détail de chaque point corrigé
-    if(faits.length){
-      const NAVY=rgb(0.12,0.23,0.36), INK=rgb(0.2,0.2,0.2), GREY=rgb(0.35,0.35,0.35);
-      let pg=pdf.addPage([595,842]); let y=800;
-      pg.drawText(winAnsi('Annexe - remise en conformite'), {x:50, y, size:13, font:bold, color:NAVY}); y-=8;
-      pg.drawLine({start:{x:50,y}, end:{x:545,y}, thickness:1, color:NAVY}); y-=16;
-      // En-tête du chantier recopié de la page 1 (installation, propriétaire, périmètre du contrôle…)
-      if(enteteEmb){
-        const dw=495, dh=dw*(enteteEmb.height/enteteEmb.width);
-        pg.drawPage(enteteEmb, {x:50, y:y-dh, width:dw, height:dh});
-        pg.drawRectangle({x:50, y:y-dh, width:dw, height:dh, borderColor:rgb(0.78,0.78,0.78), borderWidth:0.6});
-        y-=dh+16;
-      }
-      pg.drawText(winAnsi('Points corriges  -  '+who+'  ·  '+today), {x:50, y, size:9, font:bold, color:GREY}); y-=22;
-      for(const p of faits){
-        const segs=oibtFilledSegments(p);
-        const txtL=p.texte ? wrapText(winAnsi(p.texte), font, 9, 485) : [];
-        // hauteur estimée du bloc : titre + texte du défaut + ligne OK + mesures + remarque + signature
-        const remL=p.rem ? wrapText(winAnsi('Remarque : '+p.rem), font, 9, 485).length : 0;
-        const segL=segs.reduce((a,s)=>a+wrapText(winAnsi('Mesure : '+s), font, 9, 485).length, 0);
-        const besoin=14+txtL.length*11+3+13+segL*11+remL*11+(p.sig?26:0)+14;
-        if(y-besoin<70){ pg=pdf.addPage([595,842]); y=800; }
-        const ident = p.id ? ('Defaut M'+p.id) : ('Point '+p.n);
-        pg.drawText(winAnsi(ident+(p.lieu?'  -  '+p.lieu:'')), {x:50, y, size:11, font:bold, color:NAVY}); y-=14;
-        txtL.forEach(ln=>{ pg.drawText(ln, {x:60, y, size:9, font, color:GREY}); y-=11; });
-        if(txtL.length) y-=3;
-        // OK ! puis la signature juste en dessous, et enfin les mesures / remarques
-        pg.drawText(winAnsi('OK ! Corrige  ·  '+who+'  ·  '+today), {x:50, y, size:9, font:bold, color:GREEN}); y-=13;
-        const sig=p.sig ? await pdf.embedPng(p.sig).catch(()=>null) : null;
-        if(sig){ const sc=Math.min(80/sig.width, 22/sig.height);
-          pg.drawImage(sig, {x:60, y:y-22, width:sig.width*sc, height:sig.height*sc}); y-=26; }
-        segs.forEach(s=> wrapText(winAnsi('Mesure : '+s), font, 9, 485).forEach(ln=>{ pg.drawText(ln,{x:60,y,size:9,font,color:rgb(0.11,0.35,0.2)}); y-=11; }));
-        if(p.rem) wrapText(winAnsi('Remarque : '+p.rem), font, 9, 485).forEach(ln=>{ pg.drawText(ln,{x:60,y,size:9,font,color:INK}); y-=11; });
-        y-=6;
-        pg.drawLine({start:{x:50,y:y+3}, end:{x:545,y:y+3}, thickness:0.4, color:rgb(0.8,0.8,0.8)}); y-=8;
-      }
-    }
+    // --- Pied de page des feuilles d'annexe
+    feuilles.forEach((f,i)=>{
+      f.drawLine({start:{x:M,y:BAS-14}, end:{x:R,y:BAS-14}, thickness:0.5, color:FILET});
+      f.drawText(winAnsi('Annexe · remise en conformité — '+(OIBT.file||'')), {x:M, y:BAS-26, size:7.5, font, color:GREY});
+      const t=winAnsi('Annexe '+(i+1)+' / '+feuilles.length);
+      f.drawText(t, {x:R-wOf(t,font,7.5), y:BAS-26, size:7.5, font, color:GREY});
+    });
     const out=await pdf.save();
     const name=(OIBT.file||'rapport_oibt.pdf').replace(/\.pdf$/i,'')+'_signe.pdf';
     downloadBlob(new Blob([out],{type:'application/pdf'}), name.replace(/[^\wÀ-ſ.-]/g,'_'));
@@ -4378,7 +4357,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v62-arbre — OIBT : signature sous le « OK ! » (page et annexe)';
+const APP_VERSION='v63-arbre — OIBT : rapport d\'origine intact, tout le « OK ! » sur l\'annexe';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
