@@ -3987,6 +3987,62 @@ function oibtPhotoBands(txtRows, content, AH, pointRows){
   }
   return bands;
 }
+/* Une bande n'est pas une photo : c'est une TRANCHE de page, qui peut contenir une photo
+   étroite (le rapport en pose souvent une du tiers de la largeur) ou deux photos côte à côte.
+   On projette donc le contenu sur les colonnes pour retrouver les vrais bords gauche/droit.
+   `plein` = fraction de pixels « contenu » exigée par colonne. Fonction PURE → testable. */
+function oibtContentCols(data, AW, y0, y1){
+  const cols=new Array(AW).fill(false), h=Math.max(1, y1-y0+1);
+  for(let rx=0; rx<AW; rx++){
+    let cnt=0;
+    for(let ry=y0; ry<=y1; ry++){
+      const i=(ry*AW+rx)*4, r=data[i], g=data[i+1], b=data[i+2];
+      const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+      if(mx<232 || (mx-mn)>26) cnt++;
+    }
+    cols[rx] = cnt > h*0.12;                            // colonne majoritairement vide = marge
+  }
+  return cols;
+}
+/* Groupes de colonnes contiguës séparés par une marge blanche : 1 groupe = 1 photo.
+   C'est ce qui sépare deux photos posées côte à côte. `gap` est en PIXELS d'analyse, pas
+   en pourcentage : mesuré sur un vrai rapport, le filet blanc entre deux photos voisines
+   ne fait que 2 px — un seuil proportionnel à la largeur de page l'écraserait.
+   Fonction PURE → testable. */
+function oibtSplitCols(cols, AW, gap){
+  const MINW=Math.max(8, AW*0.05), GAP=Math.max(2, gap||2), out=[];
+  let a=-1, blanc=0;
+  for(let x=0; x<AW; x++){
+    if(cols[x]){ if(a<0) a=x; blanc=0; }
+    else if(a>=0){ blanc++; if(blanc>=GAP){ const b=x-blanc; if(b-a>=MINW) out.push({x0:a, x1:b}); a=-1; blanc=0; } }
+  }
+  if(a>=0 && (AW-1-a)>=MINW) out.push({x0:a, x1:AW-1});
+  return out;
+}
+/* Symétrique de oibtSplitCols, mais en lignes et à l'intérieur d'un groupe de colonnes :
+   découpe la colonne en blocs séparés par du blanc et mesure la densité d'encre de chacun.
+   Sert à deux choses : resserrer la photo sur son vrai bord haut/bas, et jeter ce qui traîne
+   plus bas dans la même colonne (cachet, signature du contrôleur, légende).
+   La densité sépare une photo (dense : > 25 %) d'un paragraphe que l'OCR aurait oublié
+   (clairsemé : ~10 %). Fonction PURE → testable. */
+function oibtRowRuns(data, AW, x0, x1, y0, y1, gap){
+  const w=x1-x0+1, GAP=Math.max(2, gap||2), runs=[];
+  let top=-1, bot=-1, encre=0, blanc=0;
+  const clore=()=>{ if(top>=0){ const aire=w*(bot-top+1);
+    runs.push({top, bot, densite: aire?encre/aire:0}); } top=-1; encre=0; };
+  for(let ry=y0; ry<=y1; ry++){
+    let cnt=0;
+    for(let rx=x0; rx<=x1; rx++){
+      const i=(ry*AW+rx)*4, r=data[i], g=data[i+1], b=data[i+2];
+      const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+      if(mx<232 || (mx-mn)>26) cnt++;
+    }
+    if(cnt > w*0.12){ if(top<0){ top=ry; encre=0; } bot=ry; blanc=0; encre+=cnt; }
+    else if(top>=0){ blanc++; if(blanc>=GAP) clore(); }
+  }
+  clore();
+  return runs;
+}
 /* Rapport scanné (page = 1 image) : on recadre chaque photo en s'appuyant sur les lignes de
    texte OCR (qui bornent les photos) + l'analyse pixel. Générique : aucun réglage par fichier,
    marche pour ElektroForm scanné comme pour Electrosuisse, 1 ou plusieurs photos par point. */
@@ -4004,7 +4060,8 @@ async function oibtCropScans(doc, scans, pts, pages, lignes){
       const AW=Math.min(280, bmp.width), AH=Math.max(1, Math.round(bmp.height*AW/bmp.width));
       const ac=document.createElement('canvas'); ac.width=AW; ac.height=AH;
       const actx=ac.getContext('2d'); actx.drawImage(bmp,0,0,AW,AH);
-      const content=oibtContentRows(actx.getImageData(0,0,AW,AH).data, AW, AH);
+      const adata=actx.getImageData(0,0,AW,AH).data;
+      const content=oibtContentRows(adata, AW, AH);
       // point de la page (pt) -> rangée d'analyse, calé sur la position RÉELLE du scan
       const pt2ar = y => (y - sc.y) * (AH / (sc.h||pg.h));
       const txtRows=lignes.filter(l=>l.page===sc.page).map(l=>{
@@ -4013,14 +4070,47 @@ async function oibtCropScans(doc, scans, pts, pages, lignes){
       }).sort((a,b)=>a.top-b.top);
       const pointRows=mine.map(p=>pt2ar(p.y));
       const bands=oibtPhotoBands(txtRows, content, AH, pointRows);
-      const arToBmp=bmp.height/AH, ech=Math.min(1, 1000/bmp.width);
+      const arToBmp=bmp.height/AH;
       for(const bd of bands){
-        const sy=Math.round(bd.top*arToBmp), sh=Math.round((bd.bot-bd.top)*arToBmp);
-        if(sh<24) continue;
-        const c=document.createElement('canvas');
-        c.width=Math.round(bmp.width*ech); c.height=Math.round(sh*ech);
-        c.getContext('2d').drawImage(bmp, 0, sy, bmp.width, sh, 0, 0, c.width, c.height);
-        mine[bd.owner].photos.push(c.toDataURL('image/jpeg', 0.72));
+        /* La bande est repassée en HAUTE résolution avant d'être découpée : à 280 px de
+           large, le filet blanc qui sépare deux photos voisines (~2 pt) fait moins d'un
+           pixel et disparaît. Le passage fin est borné à la bande, donc peu coûteux. */
+        const by=Math.round(bd.top*arToBmp), bh=Math.round((bd.bot-bd.top+1)*arToBmp);
+        if(bh<40) continue;
+        // Résolution native du scan (plafonnée) : le filet blanc entre deux photos ne fait
+        // que 2 px, et le moindre rééchantillonnage le noie dans ses voisins.
+        const FW=Math.min(bmp.width, 1600);
+        const FH=Math.max(1, Math.round(bh*FW/bmp.width));
+        const fc=document.createElement('canvas'); fc.width=FW; fc.height=FH;
+        const fx=fc.getContext('2d'); fx.drawImage(bmp, 0, by, bmp.width, bh, 0, 0, FW, FH);
+        const fdata=fx.getImageData(0,0,FW,FH).data;
+        const toBmpX=bmp.width/FW, toBmpY=bh/FH;
+        const pxParPt=FW/(pg.w||595);
+        const gap=Math.round(pxParPt*0.6);
+        const MINH=Math.max(14, FH*0.10), MINW=Math.max(8, FW*0.05);
+        const cuts=[];
+        for(const mc of oibtSplitCols(oibtContentCols(fdata, FW, 0, FH-1), FW, gap)){
+          if(mc.x1-mc.x0 < MINW) continue;                         // rognure, pas une photo
+          for(const t of oibtRowRuns(fdata, FW, mc.x0, mc.x1, 0, FH-1, gap*3)){
+            if(t.bot-t.top < MINH) continue;                       // cachet, légende, filet
+            if(t.densite < 0.25) continue;                         // texte oublié par l'OCR
+            cuts.push({x0:mc.x0, x1:mc.x1, top:t.top, bot:t.bot});
+          }
+        }
+        cuts.sort((a,b)=> a.top-b.top || a.x0-b.x0);               // ordre de lecture
+        for(const cut of cuts){
+          const m=2;                                               // petite marge de sécurité
+          const x0=Math.max(0, cut.x0-m), x1=Math.min(FW-1, cut.x1+m);
+          const y0=Math.max(0, cut.top-m), y1=Math.min(FH-1, cut.bot+m);
+          const sx=Math.round(x0*toBmpX),      sw=Math.round((x1-x0+1)*toBmpX);
+          const sy=by+Math.round(y0*toBmpY),   sh=Math.round((y1-y0+1)*toBmpY);
+          if(sw<40 || sh<40) continue;
+          const ech=Math.min(1, 1000/sw);
+          const c=document.createElement('canvas');
+          c.width=Math.round(sw*ech); c.height=Math.round(sh*ech);
+          c.getContext('2d').drawImage(bmp, sx, sy, sw, sh, 0, 0, c.width, c.height);
+          mine[bd.owner].photos.push(c.toDataURL('image/jpeg', 0.72));
+        }
       }
     }catch(e){ /* scan illisible : on continue sans l'image */ }
   }
@@ -4582,7 +4672,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v70-arbre — OIBT : extraction photos scan générique (écarts de texte + analyse pixel)';
+const APP_VERSION='v71-arbre — OIBT : photos de scan découpées en rectangles (colonnes + lignes)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
