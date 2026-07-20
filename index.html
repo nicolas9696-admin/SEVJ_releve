@@ -346,8 +346,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .tile .arrow{display:none}
 /* Listing tableau — lignes N° + désignation */
 .lst-row{display:flex; gap:8px; align-items:center; margin-bottom:8px}
-.lst-row .lst-no{flex:0 0 64px; width:64px; text-align:center; font-weight:700}
+.lst-row .lst-no{flex:0 0 56px; width:56px; text-align:center; font-weight:700}
 .lst-row .lst-des{flex:1; min-width:0}
+.lst-actions{flex:0 0 auto; display:flex; gap:4px; align-items:center}
+.lst-mv{width:28px; height:34px; padding:0; border:1px solid var(--line); background:var(--card);
+  color:var(--navy2); border-radius:8px; font-size:12px; line-height:1; cursor:pointer}
+.lst-mv:active{transform:scale(.9)}
 /* ---------- Barre de navigation de fonction ---------- */
 .func-nav{display:flex; align-items:center; gap:12px; margin:0 0 14px}
 .func-nav .home-btn{display:inline-flex; align-items:center; gap:6px; padding:9px 15px;
@@ -2729,12 +2733,23 @@ function addListingRow(no='', des='', focus=false){
   const r=el('div','lst-row');
   r.innerHTML=`<input class="lst-no" type="text" inputmode="numeric" placeholder="N°" value="${esc(no)}">`
             + `<input class="lst-des" type="text" placeholder="Désignation (ex : Lumière cuisine)" value="${esc(des)}">`
-            + `<button class="rm" type="button" title="Supprimer">×</button>`;
+            + `<div class="lst-actions">`
+            +   `<button class="lst-mv" type="button" data-dir="up" title="Monter" aria-label="Monter">▲</button>`
+            +   `<button class="lst-mv" type="button" data-dir="down" title="Descendre" aria-label="Descendre">▼</button>`
+            +   `<button class="rm" type="button" title="Supprimer" aria-label="Supprimer">×</button>`
+            + `</div>`;
+  r.querySelectorAll('.lst-mv').forEach(b=> b.onclick=()=>moveListingRow(r, b.dataset.dir));
   r.querySelector('.rm').onclick=()=>{ r.remove(); if(!box.querySelector('.lst-row')) addListingRow(); updateListingReq(); saveListingDraft(); };
   r.querySelector('.lst-des').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); addListingRow('','',true); } });
   box.appendChild(r);
   if(focus){ const ni=r.querySelector('.lst-no'); if(ni) ni.focus(); }
   updateListingReq();
+}
+function moveListingRow(row, dir){
+  const box=row.parentNode; if(!box) return;
+  if(dir==='up'){ const p=row.previousElementSibling; if(p) box.insertBefore(row, p); }
+  else{ const n=row.nextElementSibling; if(n) box.insertBefore(n, row); }
+  saveListingDraft();
 }
 function collectListing(){
   const rows=[...document.querySelectorAll('#lstRows .lst-row')]
@@ -2769,31 +2784,54 @@ function listingFileName(d){
   const t=(d.title||'listing').replace(/[^\wÀ-ſ.-]+/g,'_').replace(/^_+|_+$/g,'')||'listing';
   return 'Listing_'+t+'.pdf';
 }
+let LST_LOGO=null;   // {data, ratio} — logo officiel SEVJ (regie-logo.png), pas le logo « Relevé »
+function preloadListingLogo(){
+  try{
+    const img=new Image();
+    img.onload=()=>{ try{
+      let w=img.naturalWidth||360, h=img.naturalHeight||264;
+      const maxW=600; if(w>maxW){ h=Math.round(h*maxW/w); w=maxW; }   // borne la taille du PDF
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,w,h); x.drawImage(img,0,0,w,h);
+      LST_LOGO={ data:c.toDataURL('image/jpeg',0.9), ratio:w/h };   // JPEG fond blanc = PDF léger
+    }catch(e){} };
+    img.src='regie-logo.png';
+  }catch(e){}
+}
+/* Étiquette d'armoire : tient TOUJOURS sur une seule page A4 — on réduit police + interligne
+   jusqu'à ce que tout le tableau rentre entre l'en-tête et le pied de page. */
 function buildListingPDF(d){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({unit:'mm', format:'a4'});
   const M=16, W=210, H=297;
-  const ratio=547/238, logoW=42, logoH=logoW/ratio, top=12+logoH+7;
-  const drawFrame=()=>{
-    try{ doc.addImage(LOGO,'PNG',M,12,logoW,logoH); }catch(e){}
+  const lg=LST_LOGO, logoH=15, logoW=lg?logoH*lg.ratio:0;
+  const top=12+(lg?logoH:6)+8, bottomLimit=H-14;
+  const drawFrame=doc=>{
+    if(lg){ try{ doc.addImage(lg.data,'JPEG',M,12,logoW,logoH); }catch(e){} }
     if(d.title){ doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...CLR.navy);
-      const tt=doc.splitTextToSize(pdfSafe(d.title), W-2*M-logoW-6);
-      doc.text(tt, W-M, 18, {align:'right'}); }
+      const tt=doc.splitTextToSize(pdfSafe(d.title), W-2*M-logoW-8);
+      doc.text(tt, W-M, lg?18:16, {align:'right'}); }
     doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...CLR.mut);
     doc.text(pdfSafe('Fait par '+(d.par||'-')+' le '+frDate(d.date)), M, H-8);
     doc.text('SEVJ', W-M, H-8, {align:'right'});
   };
-  doc.autoTable({
-    margin:{top, left:M, right:M, bottom:16},
-    theme:'grid',
-    head:[['N°','Désignation']],
-    body:d.rows.map(r=>[r.no||'', r.des||'']),
-    styles:{fontSize:11, cellPadding:2.4, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'middle'},
-    headStyles:{fillColor:CLR.navy, textColor:[255,255,255], fontStyle:'bold', halign:'left'},
-    columnStyles:{0:{cellWidth:20, halign:'center', fontStyle:'bold', textColor:CLR.navy}, 1:{cellWidth:W-2*M-20}},
-    didParseCell:sd=>{ sd.cell.text=sd.cell.text.map(pdfSafe); },
-    didDrawPage:drawFrame
-  });
+  let fs=11, pad=2.4, doc;
+  for(let i=0;i<16;i++){
+    doc=new jsPDF({unit:'mm', format:'a4'});
+    doc.autoTable({
+      margin:{top, left:M, right:M, bottom:14},
+      theme:'grid',
+      head:[['N°','Désignation']],
+      body:d.rows.map(r=>[r.no||'', r.des||'']),
+      styles:{fontSize:fs, cellPadding:pad, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'middle'},
+      headStyles:{fillColor:CLR.navy, textColor:[255,255,255], fontStyle:'bold', halign:'left'},
+      columnStyles:{0:{cellWidth:18, halign:'center', fontStyle:'bold', textColor:CLR.navy}, 1:{cellWidth:W-2*M-18}},
+      didParseCell:sd=>{ sd.cell.text=sd.cell.text.map(pdfSafe); },
+      didDrawPage:()=>drawFrame(doc)
+    });
+    const ok = doc.getNumberOfPages()===1 && doc.lastAutoTable.finalY<=bottomLimit;
+    if(ok || fs<=4.5) break;          // rentre sur une page, ou déjà au plus petit
+    fs=Math.max(4.5, fs*0.93); pad=Math.max(0.5, pad*0.9);
+  }
   return doc;
 }
 async function listingGen(){
@@ -2803,14 +2841,8 @@ async function listingGen(){
   if(!d.rows.length){ alert("Ajoute au moins une ligne."); return; }
   saveListingDraft();
   const blob=buildListingPDF(d).output('blob');
-  const name=listingFileName(d);
-  const file=new File([blob], name, {type:'application/pdf'});
-  if(navigator.canShare && navigator.canShare({files:[file]})){
-    try{ await navigator.share({files:[file], title:d.title||'Listing tableau'}); }
-    catch(e){ /* annulé */ }
-  } else {
-    downloadBlob(blob, name);
-  }
+  // Génération directe : on ouvre / télécharge le PDF, sans feuille de partage.
+  downloadBlob(blob, listingFileName(d));
 }
 
 /* ==================================================================
@@ -4494,7 +4526,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v64-arbre — Nouveau : générateur de listing tableau + hub réorganisé (grille)';
+const APP_VERSION='v66-arbre — Listing tableau : génération directe du PDF (sans partage)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -4600,6 +4632,7 @@ function init(){
   $('#homeBtn').onclick=showHome;
 
   /* ===== Listing tableau ===== */
+  preloadListingLogo();
   $('#lstAddRow').onclick=()=>addListingRow('','',true);
   $('#lstGenBtn').onclick=listingGen;
   $('#lstResetBtn').onclick=resetListing;
