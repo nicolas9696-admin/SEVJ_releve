@@ -1996,7 +1996,7 @@ function applyLogin(c){
   $('#loginBtn').style.display='none'; $('#logoutBtn').style.display='';
   const s=$('#collab'); const idx=COLLABORATORS.indexOf(c); if(s && idx>=0) s.value=String(idx);
   const u=$('#collabUser'); if(u) u.value=c.name;
-  buildRef(); updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq(); updateOibtReq();
+  buildRef(); updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq(); updateOibtReq(); updateListingMonteur(); updateListingReq();
 }
 async function doLogin(){
   const idx=$('#collab').value, pw=$('#pass').value, msg=$('#loginMsg');
@@ -2019,7 +2019,7 @@ function doLogout(){
   const st=$('#stayLogged'); if(st) st.checked=false;
   $('#whoName').textContent='— non connecté —';
   $('#loginBtn').style.display=''; $('#logoutBtn').style.display='none';
-  $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq(); updateOibtReq();
+  $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq(); updateOibtReq(); updateListingMonteur(); updateListingReq();
 }
 
 /* ================= Champs obligatoires (rouge / vert) ================= */
@@ -4533,7 +4533,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v67-arbre — OIBT : chaque point garde le nom du collaborateur qui l\'a validé';
+const APP_VERSION='v68-arbre — Listing : « Fait par » suit la connexion (bug non connecté corrigé)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
