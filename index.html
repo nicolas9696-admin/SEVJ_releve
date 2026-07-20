@@ -299,13 +299,14 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .home-hero{text-align:center; margin:14px 0 22px}
 .home-hero h1{margin:0; font-size:24px; font-weight:800; color:var(--navy)}
 .home-hero p{margin:6px 0 0; color:var(--mut); font-size:14px}
-.home-tiles{display:flex; flex-direction:column; gap:14px}
-.tile{display:flex; align-items:center; gap:15px; width:100%; text-align:left; cursor:pointer;
-  padding:18px 16px; border-radius:18px; background:var(--card); border:1px solid var(--line);
+.home-tiles{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+@media(max-width:340px){ .home-tiles{grid-template-columns:1fr} }
+.tile{display:flex; flex-direction:column; align-items:flex-start; gap:11px; width:100%; height:100%; text-align:left; cursor:pointer;
+  padding:15px 14px; border-radius:16px; background:var(--card); border:1px solid var(--line);
   box-shadow:0 4px 16px rgba(31,59,91,.08); transition:transform .12s ease, box-shadow .12s ease}
 .tile:hover{transform:translateY(-2px); box-shadow:0 8px 22px rgba(31,59,91,.14)}
 .tile:active{transform:scale(.985)}
-.tile .ic{flex:0 0 auto; width:60px; height:60px; border-radius:15px; font-size:28px;
+.tile .ic{flex:0 0 auto; width:50px; height:50px; border-radius:14px; font-size:26px;
   display:flex; align-items:center; justify-content:center; color:#fff;
   box-shadow:0 4px 12px rgba(0,0,0,.18)}
 .tile-releve .ic{background:linear-gradient(135deg,#2E5C8A,#1F3B5B)}
@@ -313,6 +314,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .tile-proto  .ic{background:linear-gradient(135deg,#7a5cc0,#553a99)}
 .tile-rm     .ic{background:linear-gradient(135deg,#c2603a,#8f3d1f)}
 .tile-oibt   .ic{background:linear-gradient(135deg,#1c8f7a,#0e5c4e)}
+.tile-listing .ic{background:linear-gradient(135deg,#c79a2e,#8a6410)}
 /* ---------- Rapport OIBT : points importés ---------- */
 .oibt-pt{border:1px solid var(--line); border-left:5px solid var(--navy2); border-radius:12px;
   padding:12px; margin:0 0 14px; background:#fbfdff; box-shadow:0 1px 4px rgba(31,59,91,.06)}
@@ -339,9 +341,13 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .oibt-val span{flex:0 0 auto; font-weight:800; color:var(--navy2); font-size:12px}
 .oibt-val input{flex:1}
 .tile .tx{flex:1; min-width:0}
-.tile .tx .t{display:block; font-size:18px; font-weight:800; color:var(--navy)}
-.tile .tx .d{display:block; font-size:12.5px; color:var(--mut); margin-top:3px; line-height:1.35}
-.tile .arrow{flex:0 0 auto; font-size:22px; font-weight:700; color:var(--navy2); opacity:.7}
+.tile .tx .t{display:block; font-size:15.5px; font-weight:800; color:var(--navy); line-height:1.2}
+.tile .tx .d{display:block; font-size:11.5px; color:var(--mut); margin-top:4px; line-height:1.3}
+.tile .arrow{display:none}
+/* Listing tableau — lignes N° + désignation */
+.lst-row{display:flex; gap:8px; align-items:center; margin-bottom:8px}
+.lst-row .lst-no{flex:0 0 64px; width:64px; text-align:center; font-weight:700}
+.lst-row .lst-des{flex:1; min-width:0}
 /* ---------- Barre de navigation de fonction ---------- */
 .func-nav{display:flex; align-items:center; gap:12px; margin:0 0 14px}
 .func-nav .home-btn{display:inline-flex; align-items:center; gap:6px; padding:9px 15px;
@@ -531,6 +537,14 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
           <path d="M9 12.5l2 2 4-4.5"/><path d="M9 18h6"/>
         </svg></span>
         <span class="tx"><span class="t">Rapport OIBT</span><span class="d">Importer un rapport de contrôle et signer les points corrigés</span></span>
+        <span class="arrow">→</span>
+      </button>
+      <button type="button" class="tile tile-listing" data-goto="listing">
+        <span class="ic"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/>
+          <path d="M7 13h4M7 16.5h6"/><path d="M15.5 13h1.5M15.5 16.5h1.5"/>
+        </svg></span>
+        <span class="tx"><span class="t">Listing tableau</span><span class="d">Étiquette d'armoire électrique → PDF prêt à imprimer</span></span>
         <span class="arrow">→</span>
       </button>
     </div>
@@ -915,6 +929,29 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 
   </div><!-- /#tabOIBT -->
 
+  <div id="tabListing" hidden>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16M8 13h8M8 16.5h5"/></svg></span> Étiquette de tableau</h2>
+      <div class="body">
+        <p class="hint">Génère une <b>étiquette d'armoire</b> prête à imprimer : un titre, puis les lignes <b>N° + désignation</b> ajoutées une à une. En pied de page : « Fait par … le … ».</p>
+        <label class="fld" for="lstTitle">Titre <span style="color:var(--mut);font-weight:400">(facultatif)</span></label>
+        <input id="lstTitle" type="text" placeholder="ex : Tableau VIC 1 — 1er étage" autocomplete="off">
+        <p class="hint" style="margin:8px 0 0">Signé « Fait par <b id="lstParName">— non connecté —</b> le <b id="lstDate">—</b> » en pied de page.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span> Lignes</h2>
+      <div class="body">
+        <div id="lstRows"></div>
+        <button class="add" id="lstAddRow" type="button">＋ Ajouter une ligne</button>
+        <p class="hint" style="margin:8px 0 0">Astuce : appuie sur <b>Entrée</b> dans une désignation pour créer la ligne suivante.</p>
+      </div>
+    </section>
+
+  </div><!-- /#tabListing -->
+
 </main>
 
 <div class="bar" id="barReleve">
@@ -936,6 +973,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 <div class="bar" id="barOIBT" hidden>
   <button class="btn-2" id="oibtResetBtn">Réinitialiser</button>
   <button class="btn-main" id="oibtGenBtn" disabled>Exporter le PDF signé</button>
+</div>
+<div class="bar" id="barListing" hidden>
+  <button class="btn-2" id="lstResetBtn">Réinitialiser</button>
+  <button class="btn-main" id="lstGenBtn" disabled>Générer le PDF</button>
 </div>
 
 <!-- Fenêtre de choix d'article -->
@@ -2678,6 +2719,101 @@ function downloadBlob(blob, name){
 }
 
 /* ==================================================================
+   LISTING TABLEAU — étiquette d'armoire électrique (PDF prêt à imprimer)
+   Titre + lignes « N° + désignation » ajoutées une à une. Pied de page :
+   « Fait par <collaborateur connecté> le <date> ».
+   ================================================================== */
+const LST_DRAFT='sevj_listing_v1';
+function addListingRow(no='', des='', focus=false){
+  const box=$('#lstRows'); if(!box) return;
+  const r=el('div','lst-row');
+  r.innerHTML=`<input class="lst-no" type="text" inputmode="numeric" placeholder="N°" value="${esc(no)}">`
+            + `<input class="lst-des" type="text" placeholder="Désignation (ex : Lumière cuisine)" value="${esc(des)}">`
+            + `<button class="rm" type="button" title="Supprimer">×</button>`;
+  r.querySelector('.rm').onclick=()=>{ r.remove(); if(!box.querySelector('.lst-row')) addListingRow(); updateListingReq(); saveListingDraft(); };
+  r.querySelector('.lst-des').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); addListingRow('','',true); } });
+  box.appendChild(r);
+  if(focus){ const ni=r.querySelector('.lst-no'); if(ni) ni.focus(); }
+  updateListingReq();
+}
+function collectListing(){
+  const rows=[...document.querySelectorAll('#lstRows .lst-row')]
+    .map(r=>({ no:r.querySelector('.lst-no').value.trim(), des:r.querySelector('.lst-des').value.trim() }))
+    .filter(x=>x.no!=='' || x.des!=='');
+  return { title:($('#lstTitle')?.value||'').trim(), rows,
+           par: currentUser?currentUser.name:'', date:todayISO() };
+}
+function updateListingReq(){
+  const n=[...document.querySelectorAll('#lstRows .lst-row')]
+    .filter(r=>r.querySelector('.lst-des').value.trim()!=='' || r.querySelector('.lst-no').value.trim()!=='').length;
+  const b=$('#lstGenBtn'); if(b) b.disabled = !(currentUser && n>0);
+}
+function updateListingMonteur(){
+  const p=$('#lstParName'); if(p) p.textContent = currentUser?currentUser.name:'— non connecté —';
+  const d=$('#lstDate'); if(d) d.textContent = frDate(todayISO());
+}
+function saveListingDraft(){ try{ localStorage.setItem(LST_DRAFT, JSON.stringify(collectListing())); }catch(e){} }
+function loadListingDraft(){
+  let d=null; try{ d=JSON.parse(localStorage.getItem(LST_DRAFT)||'null'); }catch(e){}
+  const box=$('#lstRows'); if(box) box.innerHTML='';
+  if(d){ if($('#lstTitle')) $('#lstTitle').value=d.title||''; (d.rows||[]).forEach(x=>addListingRow(x.no,x.des)); }
+  if(!box || !box.querySelector('.lst-row')) addListingRow();
+}
+function resetListing(){
+  if(!confirm('Effacer le listing en cours ?')) return;
+  if($('#lstTitle')) $('#lstTitle').value=''; $('#lstRows').innerHTML=''; addListingRow();
+  try{ localStorage.removeItem(LST_DRAFT); }catch(e){}
+  updateListingReq();
+}
+function listingFileName(d){
+  const t=(d.title||'listing').replace(/[^\wÀ-ſ.-]+/g,'_').replace(/^_+|_+$/g,'')||'listing';
+  return 'Listing_'+t+'.pdf';
+}
+function buildListingPDF(d){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const M=16, W=210, H=297;
+  const ratio=547/238, logoW=42, logoH=logoW/ratio, top=12+logoH+7;
+  const drawFrame=()=>{
+    try{ doc.addImage(LOGO,'PNG',M,12,logoW,logoH); }catch(e){}
+    if(d.title){ doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...CLR.navy);
+      const tt=doc.splitTextToSize(pdfSafe(d.title), W-2*M-logoW-6);
+      doc.text(tt, W-M, 18, {align:'right'}); }
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...CLR.mut);
+    doc.text(pdfSafe('Fait par '+(d.par||'-')+' le '+frDate(d.date)), M, H-8);
+    doc.text('SEVJ', W-M, H-8, {align:'right'});
+  };
+  doc.autoTable({
+    margin:{top, left:M, right:M, bottom:16},
+    theme:'grid',
+    head:[['N°','Désignation']],
+    body:d.rows.map(r=>[r.no||'', r.des||'']),
+    styles:{fontSize:11, cellPadding:2.4, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'middle'},
+    headStyles:{fillColor:CLR.navy, textColor:[255,255,255], fontStyle:'bold', halign:'left'},
+    columnStyles:{0:{cellWidth:20, halign:'center', fontStyle:'bold', textColor:CLR.navy}, 1:{cellWidth:W-2*M-20}},
+    didParseCell:sd=>{ sd.cell.text=sd.cell.text.map(pdfSafe); },
+    didDrawPage:drawFrame
+  });
+  return doc;
+}
+async function listingGen(){
+  if(!window.jspdf){ alert("Librairie PDF non chargée."); return; }
+  if(!currentUser){ alert("Connecte-toi d'abord (le pied de page indique « Fait par … »)."); return; }
+  const d=collectListing();
+  if(!d.rows.length){ alert("Ajoute au moins une ligne."); return; }
+  saveListingDraft();
+  const blob=buildListingPDF(d).output('blob');
+  const name=listingFileName(d);
+  const file=new File([blob], name, {type:'application/pdf'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:d.title||'Listing tableau'}); }
+    catch(e){ /* annulé */ }
+  } else {
+    downloadBlob(blob, name);
+  }
+}
+
+/* ==================================================================
    BON DE RÉGIE  (2ᵉ onglet)  — aucune donnée client n'est enregistrée
    ================================================================== */
 const REG_CATS  = ["Travaux supplémentaires","Raccordement","Contrôle","Adaptation","Déplacement","Matériel","Autre"];
@@ -2892,12 +3028,12 @@ function resetRegie(){
 
 /* ---- Accueil / Fonctions ---- */
 let ACTIVE_TAB='releve';
-const TABS=['releve','regie','proto','rm','oibt'];
+const TABS=['releve','regie','proto','rm','oibt','listing'];
 const FUNC_TITLES={releve:'📋 Relevé chantier', regie:'🧾 Bon de régie',
                    proto:"📟 Protocole d'essai et de mesure", rm:'📄 Rapport de mesures',
-                   oibt:'✅ Rapport OIBT'};
-const TAB_EL={releve:'#tabReleve', regie:'#tabRegie', proto:'#tabProto', rm:'#tabRM', oibt:'#tabOIBT'};
-const BAR_EL={releve:'#barReleve', regie:'#barRegie', proto:'#barProto', rm:'#barRM', oibt:'#barOIBT'};
+                   oibt:'✅ Rapport OIBT', listing:'🔖 Listing tableau'};
+const TAB_EL={releve:'#tabReleve', regie:'#tabRegie', proto:'#tabProto', rm:'#tabRM', oibt:'#tabOIBT', listing:'#tabListing'};
+const BAR_EL={releve:'#barReleve', regie:'#barRegie', proto:'#barProto', rm:'#barRM', oibt:'#barOIBT', listing:'#barListing'};
 function showHome(){
   $('#homeScreen').hidden = false;
   $('#funcNav').hidden = true;
@@ -2916,6 +3052,7 @@ function setTab(t){
   if(ACTIVE_TAB==='proto'){ updateProtoMonteur(); updateProtoReq(); }
   if(ACTIVE_TAB==='rm'){ updateRMMonteur(); updateRMReq(); }
   if(ACTIVE_TAB==='oibt'){ updateOibtReq(); }
+  if(ACTIVE_TAB==='listing'){ updateListingMonteur(); updateListingReq(); }
   window.scrollTo(0,0);
 }
 
@@ -4357,7 +4494,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v63-arbre — OIBT : rapport d\'origine intact, tout le « OK ! » sur l\'annexe';
+const APP_VERSION='v64-arbre — Nouveau : générateur de listing tableau + hub réorganisé (grille)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -4461,6 +4598,15 @@ function init(){
   /* ===== Accueil / navigation ===== */
   document.querySelectorAll('.tile[data-goto]').forEach(b=> b.onclick=()=>setTab(b.dataset.goto));
   $('#homeBtn').onclick=showHome;
+
+  /* ===== Listing tableau ===== */
+  $('#lstAddRow').onclick=()=>addListingRow('','',true);
+  $('#lstGenBtn').onclick=listingGen;
+  $('#lstResetBtn').onclick=resetListing;
+  $('#lstTitle').addEventListener('input',()=>{ updateListingReq(); saveListingDraft(); });
+  $('#lstRows').addEventListener('input',()=>{ updateListingReq(); saveListingDraft(); });
+  loadListingDraft();
+  updateListingMonteur(); updateListingReq();
 
   /* ===== Bon de régie ===== */
   $('#addRegItem').onclick=()=>{ addRegItem(); };
