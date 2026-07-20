@@ -3942,36 +3942,85 @@ async function oibtParse(buf, avecPhotos){
   });
   if(avecPhotos){
     await oibtCropPhotos(doc, photos);
-    // rapport scanné : la page entière est une image -> on en découpe la bande du défaut,
-    // seule façon de montrer la photo, qui est « cuite » dans le scan.
-    if(modele==='electrosuisse') await oibtCropScans(doc, scans, pts, pages);
+    // rapport scanné (la page entière est UNE image) : on découpe la bande sous le texte de
+    // chaque défaut — seule façon de récupérer la photo « cuite » dans le scan. Vaut aussi
+    // bien pour ElektroForm scanné que pour Electrosuisse.
+    if(scans.length) await oibtCropScans(doc, scans, pts, pages, lignes);
   }
   return {pages, pts, images:photos, occ, modele};
 }
 /* Découpe, dans le scan de la page, la bande qui va d'un défaut au suivant */
-async function oibtCropScans(doc, scans, pts, pages){
+/* Rangées « avec contenu » d'une image basse résolution : une photo est sombre ou colorée,
+   le fond d'un scan est quasi blanc. Fonction PURE (data = Uint8ClampedArray RGBA) → testable. */
+function oibtContentRows(data, AW, AH){
+  const rows=new Array(AH).fill(false);
+  for(let ry=0; ry<AH; ry++){
+    let cnt=0;
+    for(let rx=0; rx<AW; rx++){
+      const i=(ry*AW+rx)*4, r=data[i], g=data[i+1], b=data[i+2];
+      const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+      if(mx<232 || (mx-mn)>26) cnt++;                 // sombre OU coloré = contenu (≠ blanc de scan)
+    }
+    rows[ry] = cnt > AW*0.045;                         // au moins ~4.5 % de la largeur
+  }
+  return rows;
+}
+/* Déduit les bandes-photo : chaque grand écart ENTRE deux lignes de texte peut contenir une
+   photo ; on la confirme/cadre via les rangées de contenu. Rattache chaque photo au dernier
+   point situé au-dessus. Tout est exprimé en rangées d'analyse. Fonction PURE → testable.
+   - txtRows  : [{top,bot}] des lignes de texte (bornes), triées
+   - content  : bool[] par rangée (oibtContentRows)
+   - pointRows: rangée d'analyse du marqueur de chaque point (même ordre que `mine`)          */
+function oibtPhotoBands(txtRows, content, AH, pointRows){
+  const GAP=Math.max(12, AH*0.035), MINH=Math.max(14, AH*0.03), bands=[];
+  const segs=[];
+  for(let i=0;i<txtRows.length-1;i++){ const y0=txtRows[i].bot, y1=txtRows[i+1].top; if(y1-y0>=GAP) segs.push([y0,y1]); }
+  if(txtRows.length){ const y0=txtRows[txtRows.length-1].bot; if((AH-4)-y0>=GAP) segs.push([y0, AH-4]); }
+  for(const [y0,y1] of segs){
+    const a=Math.max(0,Math.round(y0)), b=Math.min(AH-1,Math.round(y1));
+    let first=-1,last=-1;
+    for(let ry=a;ry<=b;ry++){ if(content[ry]){ if(first<0)first=ry; last=ry; } }
+    if(first<0 || (last-first)<MINH) continue;         // écart vide ou trop petit = pas de photo
+    first=Math.max(a,first-2); last=Math.min(b,last+2);
+    let owner=-1; pointRows.forEach((pr,idx)=>{ if(pr<=first+2) owner=idx; });
+    if(owner>=0) bands.push({owner, top:first, bot:last});
+  }
+  return bands;
+}
+/* Rapport scanné (page = 1 image) : on recadre chaque photo en s'appuyant sur les lignes de
+   texte OCR (qui bornent les photos) + l'analyse pixel. Générique : aucun réglage par fichier,
+   marche pour ElektroForm scanné comme pour Electrosuisse, 1 ou plusieurs photos par point. */
+async function oibtCropScans(doc, scans, pts, pages, lignes){
   for(const sc of scans){
     const pg=pages[sc.page-1]; if(!pg) continue;
     const mine=pts.filter(p=>p.page===sc.page).sort((a,b)=>a.y-b.y);
     if(!mine.length) continue;
-    let bmp=null;
     try{
       const page=await doc.getPage(sc.page);
       const o=await new Promise((res,rej)=>{ if(!page.objs.has(sc.id)) return rej(0);
         page.objs.get(sc.id, res); setTimeout(()=>rej(0), 4000); });
-      bmp=o.bitmap||null; if(!bmp) continue;
-      for(let i=0;i<mine.length;i++){
-        const p=mine[i];
-        const yA=Math.max(0, p.y-6), yB=(i+1<mine.length? mine[i+1].y-6 : 705);
-        if(yB-yA<20) continue;
-        // page (pt) -> pixels du scan
-        const kx=bmp.width/pg.w, ky=bmp.height/pg.h;
-        const sx=0, sw=bmp.width, sy=Math.round(yA*ky), sh=Math.round((yB-yA)*ky);
+      const bmp=o.bitmap||null; if(!bmp) continue;
+      // Analyse basse résolution de tout le scan (une seule passe)
+      const AW=Math.min(280, bmp.width), AH=Math.max(1, Math.round(bmp.height*AW/bmp.width));
+      const ac=document.createElement('canvas'); ac.width=AW; ac.height=AH;
+      const actx=ac.getContext('2d'); actx.drawImage(bmp,0,0,AW,AH);
+      const content=oibtContentRows(actx.getImageData(0,0,AW,AH).data, AW, AH);
+      // point de la page (pt) -> rangée d'analyse, calé sur la position RÉELLE du scan
+      const pt2ar = y => (y - sc.y) * (AH / (sc.h||pg.h));
+      const txtRows=lignes.filter(l=>l.page===sc.page).map(l=>{
+        const s=Math.max.apply(null, l.frags.filter(f=>!f.vide).map(f=>f.size))||9;
+        return {top:pt2ar(l.y - s), bot:pt2ar(l.y + s*0.4)};
+      }).sort((a,b)=>a.top-b.top);
+      const pointRows=mine.map(p=>pt2ar(p.y));
+      const bands=oibtPhotoBands(txtRows, content, AH, pointRows);
+      const arToBmp=bmp.height/AH, ech=Math.min(1, 1000/bmp.width);
+      for(const bd of bands){
+        const sy=Math.round(bd.top*arToBmp), sh=Math.round((bd.bot-bd.top)*arToBmp);
+        if(sh<24) continue;
         const c=document.createElement('canvas');
-        const ech=Math.min(1, 1000/sw);
-        c.width=Math.round(sw*ech); c.height=Math.round(sh*ech);
-        c.getContext('2d').drawImage(bmp, sx, sy, sw, sh, 0, 0, c.width, c.height);
-        p.photos.push(c.toDataURL('image/jpeg', 0.72));
+        c.width=Math.round(bmp.width*ech); c.height=Math.round(sh*ech);
+        c.getContext('2d').drawImage(bmp, 0, sy, bmp.width, sh, 0, 0, c.width, c.height);
+        mine[bd.owner].photos.push(c.toDataURL('image/jpeg', 0.72));
       }
     }catch(e){ /* scan illisible : on continue sans l'image */ }
   }
@@ -4533,7 +4582,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v68-arbre — Listing : « Fait par » suit la connexion (bug non connecté corrigé)';
+const APP_VERSION='v70-arbre — OIBT : extraction photos scan générique (écarts de texte + analyse pixel)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
