@@ -4092,17 +4092,23 @@ function oibtRender(){
           <canvas class="sigpad" data-osig="${i}" width="600" height="140"></canvas>
           <button type="button" class="sig-clear" data-oclear="${i}">Effacer</button>
         </div>
+        <div class="oibt-stat" data-o="by" style="margin-top:6px">${p.by?('✔ Validé par '+esc(p.by)+' le '+frDate(p.byDate||todayISO())):''}</div>
       </div>`;
     // repli au clic sur l'en-tête
     d.querySelector('.oibt-hd').onclick=()=>{ const f=d.classList.toggle('folded');
       d.querySelector('.oibt-fold').textContent=f?'▸':'▾'; };
-    d.querySelector('[data-o="ok"]').onchange=e=>{ p.ok=e.target.checked; d.classList.toggle('done',p.ok); oibtProgress(); oibtSave(); updateOibtReq(); };
+    const refreshBy=()=>{ const b=d.querySelector('[data-o="by"]'); if(b) b.textContent=p.by?('✔ Validé par '+p.by+' le '+frDate(p.byDate||todayISO())):''; };
+    // Estampille le point avec le collaborateur CONNECTÉ au moment où il le valide (coche
+    // « Corrigé » ou signe). Chaque point garde ainsi le nom de celui qui l'a réellement fait,
+    // même si un collègue reprend le rapport plus tard avec son propre compte.
+    const stampBy=()=>{ if(currentUser){ p.by=currentUser.name; p.byIni=currentUser.ini; if(!p.byDate) p.byDate=todayISO(); refreshBy(); } };
+    d.querySelector('[data-o="ok"]').onchange=e=>{ p.ok=e.target.checked; if(p.ok) stampBy(); d.classList.toggle('done',p.ok); oibtProgress(); oibtSave(); updateOibtReq(); };
     d.querySelector('[data-o="rem"]').addEventListener('input',e=>{ p.rem=e.target.value; oibtSave(); });
     d.querySelectorAll('[data-oval]').forEach(inp=> inp.addEventListener('input',e=>{
       p.vals=p.vals||[]; p.vals[+e.target.dataset.oval]=e.target.value; oibtSave(); }));
     const pad=d.querySelector('.sigpad'); setupSigPad(pad);
     if(p.sig) oibtDrawSig(pad, p.sig);
-    pad.addEventListener('pointerup',()=>{ p.sig=pad._sig?pad._sig.data():null; oibtSave(); });
+    pad.addEventListener('pointerup',()=>{ p.sig=pad._sig?pad._sig.data():null; if(p.sig) stampBy(); oibtSave(); });
     d.querySelector('.sig-clear').onclick=()=>{ if(pad._sig) pad._sig.clear(); p.sig=null; oibtSave(); };
     cont.appendChild(d);
   });
@@ -4132,7 +4138,7 @@ function oibtSave(){
     file:OIBT.file, pages:OIBT.pages, obstacles:OIBT.obstacles||[], modele:OIBT.modele,
     occ:(OIBT.occ||[]).filter(o=>o.src!=='bloc'),
     pts:OIBT.pts.map(p=>({n:p.n,id:p.id,page:p.page,x:p.x,y:p.y,xRight:p.xRight,bottom:p.bottom,lieu:p.lieu,texte:p.texte,
-                          rem:p.rem,ok:p.ok,vals:p.vals||[]}))
+                          rem:p.rem,ok:p.ok,vals:p.vals||[], by:p.by,byIni:p.byIni,byDate:p.byDate}))
   })); }catch(e){ warnQuota(); }
 }
 function oibtRestore(){
@@ -4240,7 +4246,7 @@ async function oibtExportPDF(){
     }
     pg.drawText(winAnsi(faits.length+' point(s) corrigé(s) sur '+OIBT.pts.length),
                 {x:M, y, size:10, font:bold, color:GREEN});
-    droite(winAnsi(who+'  ·  '+today), y, 10, bold, NAVY);
+    droite(winAnsi('Établi le '+today), y, 10, bold, NAVY);
     y-=8;
     pg.drawLine({start:{x:M,y}, end:{x:R,y}, thickness:0.6, color:FILET}); y-=22;
 
@@ -4275,7 +4281,8 @@ async function oibtExportPDF(){
       pg.drawRectangle({x:IND, y:cartBas, width:R-IND, height:okH, color:VERTPALE});
       pg.drawRectangle({x:IND, y:cartBas, width:2.5,   height:okH, color:GREEN});
       let yc=y;
-      pg.drawText(winAnsi('OK !  Corrigé le '+today+' par '+who), {x:IND+12, y:yc, size:10, font:bold, color:GREEN});
+      const pby=p.by||who||'—', pdate=p.byDate?frDate(p.byDate):today;
+      pg.drawText(winAnsi('OK !  Corrigé le '+pdate+' par '+pby), {x:IND+12, y:yc, size:10, font:bold, color:GREEN});
       yc-=12;
       if(sig){
         const sc=Math.min(86/sig.width, sigH/sig.height);
@@ -4526,7 +4533,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v66-arbre — Listing tableau : génération directe du PDF (sans partage)';
+const APP_VERSION='v67-arbre — OIBT : chaque point garde le nom du collaborateur qui l\'a validé';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
