@@ -355,8 +355,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .oibt-vg{margin:10px 0 4px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff}
 .oibt-vg img{display:block; width:100%; height:auto}
 .oibt-vg-h{font-size:11px; color:var(--mut); margin-bottom:8px}
-.oibt-num-edit{display:flex; align-items:center; gap:8px; margin:8px 0}
-.oibt-num-edit input{flex:0 0 90px}
+.oibt-num-edit{display:flex; align-items:center; gap:8px; margin:8px 0; flex-wrap:wrap}
+.oibt-num-edit input[data-o="n"]{flex:0 0 70px}
+.oibt-val-x{flex:0 0 auto; background:#fff; color:#b3261e; border:1px solid #b3261e; border-radius:50%;
+  width:24px; height:24px; line-height:22px; font-size:13px; font-weight:800; cursor:pointer; padding:0}
+.oibt-addval{margin-top:6px; background:none; border:1px dashed var(--navy2); color:var(--navy2);
+  border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer}
 .oibt-del{margin-top:10px; background:none; border:1px solid #b3261e; color:#b3261e; border-radius:8px;
   padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer}
 .oibt-vals{background:#eef3f9; border-radius:10px; padding:8px 10px; margin:8px 0}
@@ -3826,9 +3830,14 @@ function winAnsi(s){
 }
 /* ---- Extraction des points depuis le PDF (pdf.js) ---- */
 /* Rectangles des images d'une page : on suit la matrice courante (CTM) et, à chaque
-/* Modèle A — ElektroForm : marqueur « N. » à x≈50, texte à x≈73, lieu en corps ≥10.5 */
+/* Modèle A — ElektroForm : marqueur « N. » à x≈50, texte à x≈73.
+   On NE DEVINE PLUS le titre de section. L'ancienne règle (« toute ligne en corps ≥ 10,5 est
+   un titre de lieu ») donnait des libellés absurdes sur les rapports scannés, où l'OCR rend
+   les corps de police fantaisistes : « LT », « __,. :T,.39 », ou un paragraphe entier de
+   mentions légales pris pour un titre. Le titre est désormais saisi par l'utilisateur, qui
+   sait ce qu'il regarde — à défaut, on affiche simplement la page. */
 function oibtParseEF(lignes, joint){
-  const pts=[]; let cur=null, lieu='', stop=false;
+  const pts=[]; let cur=null, stop=false;
   lignes.forEach(l=>{
     if(l.y<90) return;                                    // bandeau d'en-tête de page
     const whole=joint(l.frags);
@@ -3837,11 +3846,11 @@ function oibtParseEF(lignes, joint){
     if(stop) return;
     const f0=l.frags.find(f=>!f.vide)||l.frags[0];
     const maxSize=Math.max.apply(null, l.frags.filter(f=>!f.vide).map(f=>f.size));
-    if(maxSize>=10.5){ lieu=whole.replace(/:$/,'').trim(); cur=null; return; }   // en-tête de lieu
+    if(maxSize>=10.5){ cur=null; return; }                // titre de section : borne le point courant
     const m=OIBT_NUM.exec(f0.txt.trim());
     if(m && f0.x>=45 && f0.x<=58 && f0.size<10){          // marqueur de point
       cur={n:+m[1], page:l.page, x:Math.round(f0.x), y:Math.round(l.y), bottom:l.y+f0.size,
-           lieu, texte:[], rem:'', ok:false, sig:null};
+           titre:'', texte:[], rem:'', ok:false, sig:null};
       pts.push(cur);
       const reste=joint(l.frags.filter(f=>f.x>=60 && f!==f0));   // le texte est sur la même ligne
       if(reste) cur.texte.push(reste);
@@ -3863,12 +3872,9 @@ function oibtParseES(lignes, pages, joint){
       const fr=l.frags.filter(f=>!f.vide), last=fr[fr.length-1];
       const xR=last ? last.x+String(last.txt).length*(last.size||9)*0.5 : l.frags[0].x+120;
       pts.push({n:pts.length+1, id:m[1], page:l.page, x:Math.round(l.frags[0].x), y:Math.round(l.y),
-                xRight:Math.round(xR), bottom:l.y+10, lieu:'', texte:[], rem:'', ok:false, sig:null});
+                xRight:Math.round(xR), bottom:l.y+10, titre:'', texte:[], rem:'', ok:false, sig:null});
     }
   });
-  /* Pas de détection de lieu ici : sur ce modèle, les noms de local (« Sous-sol »,
-     « Rez-de-chaussée ») apparaissent AUSSI à l'intérieur des phrases — toute heuristique
-     rattacherait un lieu faux. On préfère ne rien afficher que d'afficher une erreur. */
   lignes.forEach(l=>{
     if(l.y<95 || l.y>700) return;                         // en-tête / pied du scan
     const whole=joint(l.frags);
@@ -4088,7 +4094,7 @@ async function oibtImport(file){
 function oibtAjoutePoint(page, y){
   const t=oibtOrdre();
   let rang=t.filter(q=> q.page<page || (q.page===page && q.y<=y)).length + 1;
-  const p={ n:String(rang), page, y, texte:'', lieu:'', rem:'', ok:false, sig:null, vals:[], manuel:true };
+  const p={ n:String(rang), page, y, texte:'', titre:'', rem:'', ok:false, sig:null, vals:[], manuel:true };
   OIBT.pts.push(p);
   oibtRender(); oibtSave();
   const c=document.querySelector('.oibt-pt[data-i="'+OIBT.pts.indexOf(p)+'"]');
@@ -4164,7 +4170,7 @@ function oibtRender(){
       <div class="oibt-hd">
         <span class="oibt-num">${esc(String(p.n))}</span>
         <div class="oibt-hc">
-          <div class="oibt-lieu">${esc(p.lieu||('Page '+p.page))}</div>
+          <div class="oibt-lieu">${esc(p.titre||('Page '+p.page))}</div>
           <div class="oibt-res">${esc(p.texte.slice(0,70))}${p.texte.length>70?'…':(p.texte?'':'Zone désignée sur le rapport')}</div>
         </div>
         <span class="oibt-fold">▾</span>
@@ -4173,14 +4179,16 @@ function oibtRender(){
         <div class="oibt-vg"><img data-o="vg" alt="Zone du point ${esc(String(p.n))} dans le rapport"></div>
         <div class="oibt-vg-h">Zone reprise du rapport (page ${p.page}). Déplace le repère sur le rapport pour l'ajuster.</div>
         <div class="oibt-num-edit">
-          <label class="fld" style="margin:0">N° du défaut dans le rapport</label>
+          <label class="fld" style="margin:0">N° du défaut</label>
           <input data-o="n" type="text" value="${esc(String(p.n))}" inputmode="text">
+          <input data-o="titre" type="text" value="${esc(p.titre||'')}" placeholder="titre (ex : Appartement rez — tableau)" style="flex:1">
         </div>
         ${p.texte?`<div class="oibt-txt">${esc(p.texte)}</div>`:''}
-        ${oibtBlanks(p.texte).length ? `<div class="oibt-vals">
-          <div class="fld" style="margin-bottom:4px">Valeurs à compléter (les « ____ » du texte)</div>
-          ${oibtBlanks(p.texte).map((_,k)=>`<div class="oibt-val"><span>${k+1}.</span><input data-oval="${k}" type="text" value="${esc((p.vals&&p.vals[k])||'')}" placeholder="valeur mesurée"></div>`).join('')}
-        </div>` : ''}
+        <div class="oibt-vals">
+          <div class="fld" style="margin-bottom:4px">Valeurs mesurées à consigner</div>
+          <div data-o="vals"></div>
+          <button type="button" class="oibt-addval" data-o="addval">+ Ajouter une valeur</button>
+        </div>
         <div class="chk"><input type="checkbox" data-o="ok"${p.ok?' checked':''}><label><b>Corrigé</b></label></div>
         <label class="fld">Remarque / mesure</label>
         <textarea data-o="rem" placeholder="ex : câble remplacé, 500 MΩ mesuré">${esc(p.rem||'')}</textarea>
@@ -4198,7 +4206,28 @@ function oibtRender(){
     // vignette : découpée à la volée dans les pages rendues
     oibtVignette(p, 700).then(src=>{ const im=d.querySelector('[data-o="vg"]'); if(im && src) im.src=src; });
     d.querySelector('[data-o="n"]').addEventListener('input',e=>{ p.n=e.target.value; oibtSave(); });
+    d.querySelector('[data-o="titre"]').addEventListener('input',e=>{
+      p.titre=e.target.value; d.querySelector('.oibt-lieu').textContent=p.titre||('Page '+p.page); oibtSave(); });
     d.querySelector('[data-o="del"]').onclick=()=>{ if(confirm('Supprimer le point '+p.n+' ?')) oibtSupprimePoint(p); };
+    /* Les lignes de valeurs sont une LISTE, pas un calque sur les « ____ » du texte : sur un
+       rapport scanné l'OCR en avale une partie (deux blancs à remplir, un seul détecté).
+       On propose donc ce qu'on a trouvé, et on laisse ajouter ou retirer une ligne. */
+    const boxVals=d.querySelector('[data-o="vals"]');
+    const dessineVals=()=>{
+      boxVals.innerHTML='';
+      (p.vals||[]).forEach((v,k)=>{
+        const r=el('div','oibt-val');
+        r.innerHTML=`<span>${k+1}.</span><input type="text" value="${esc(v||'')}" placeholder="valeur mesurée">`
+                   +`<button type="button" class="oibt-val-x" title="Retirer cette ligne">×</button>`;
+        r.querySelector('input').addEventListener('input',e=>{ p.vals[k]=e.target.value; oibtSave(); });
+        r.querySelector('.oibt-val-x').onclick=()=>{ p.vals.splice(k,1); dessineVals(); oibtSave(); };
+        boxVals.appendChild(r);
+      });
+      if(!(p.vals||[]).length) boxVals.innerHTML='<div class="oibt-vg-h" style="margin:0">Aucune valeur à consigner pour ce point.</div>';
+    };
+    dessineVals();
+    d.querySelector('[data-o="addval"]').onclick=()=>{ p.vals=p.vals||[]; p.vals.push(''); dessineVals(); oibtSave();
+      const ins=boxVals.querySelectorAll('input'); if(ins.length) ins[ins.length-1].focus(); };
     const refreshBy=()=>{ const b=d.querySelector('[data-o="by"]'); if(b) b.textContent=p.by?('✔ Validé par '+p.by+' le '+frDate(p.byDate||todayISO())):''; };
     // Estampille le point avec le collaborateur CONNECTÉ au moment où il le valide (coche
     // « Corrigé » ou signe). Chaque point garde ainsi le nom de celui qui l'a réellement fait,
@@ -4206,8 +4235,6 @@ function oibtRender(){
     const stampBy=()=>{ if(currentUser){ p.by=currentUser.name; p.byIni=currentUser.ini; if(!p.byDate) p.byDate=todayISO(); refreshBy(); } };
     d.querySelector('[data-o="ok"]').onchange=e=>{ p.ok=e.target.checked; if(p.ok) stampBy(); d.classList.toggle('done',p.ok); oibtProgress(); oibtSave(); updateOibtReq(); };
     d.querySelector('[data-o="rem"]').addEventListener('input',e=>{ p.rem=e.target.value; oibtSave(); });
-    d.querySelectorAll('[data-oval]').forEach(inp=> inp.addEventListener('input',e=>{
-      p.vals=p.vals||[]; p.vals[+e.target.dataset.oval]=e.target.value; oibtSave(); }));
     const pad=d.querySelector('.sigpad'); setupSigPad(pad);
     if(p.sig) oibtDrawSig(pad, p.sig);
     pad.addEventListener('pointerup',()=>{ p.sig=pad._sig?pad._sig.data():null; if(p.sig) stampBy(); oibtSave(); });
@@ -4237,7 +4264,7 @@ function updateOibtReq(){
 function oibtSave(){
   try{ localStorage.setItem(OIBT_DRAFT, JSON.stringify({
     file:OIBT.file, modele:OIBT.modele,
-    pts:OIBT.pts.map(p=>({n:p.n, id:p.id, page:p.page, y:p.y, lieu:p.lieu, texte:p.texte, manuel:p.manuel,
+    pts:OIBT.pts.map(p=>({n:p.n, id:p.id, page:p.page, y:p.y, titre:p.titre, texte:p.texte, manuel:p.manuel,
                           rem:p.rem, ok:p.ok, vals:p.vals||[], by:p.by, byIni:p.byIni, byDate:p.byDate}))
   })); }catch(e){ warnQuota(); }
 }
@@ -4372,13 +4399,23 @@ async function oibtExportPDF(){
 
     // --- Un bloc par point corrigé
     for(const p of faits){
-      const segs=oibtFilledSegments(p);
       const ident = p.id ? ('Défaut M'+p.id) : (String(p.n).replace(/\.?$/,'.'));
       const vg    = vgs.get(p);
       // le texte n'est repris QUE si la vignette manque : sinon on le lirait deux fois
       const txtL  = (!vg && p.texte) ? wrapText(winAnsi(p.texte), font, 9, COLI) : [];
-      const lieuL = p.lieu ? wrapText(winAnsi(p.lieu), bold, 9, COLI) : [];
-      const mesL  = segs.flatMap(s=>wrapText(winAnsi('Mesure : '+s), font, 9, COLI-12));
+      const lieuL = p.titre ? wrapText(winAnsi(p.titre), bold, 9, COLI) : [];
+      /* Toutes les valeurs saisies sont consignées. Quand le texte du défaut contient des
+         « ____ », on reprend la phrase où ils figurent (« Mesure : … 500 Mohm … ») ; sinon
+         on écrit la valeur seule. L'utilisateur reste maître du nombre de lignes. */
+      const segs  = oibtFilledSegments(p);
+      const nBl   = oibtBlanks(p.texte).length;
+      const vals  = (p.vals||[]).map(v=>String(v||'').trim());
+      // valeurs saisies au-delà des « ____ » retrouvés : elles ne doivent pas se perdre
+      const rab   = vals.slice(nBl).filter(Boolean);
+      const mes   = segs.map(s=>'Mesure : '+s)
+                        .concat(rab.map(v=>'Valeur mesurée : '+v));
+      const mesL  = (mes.length ? mes : vals.filter(Boolean).map(v=>'Valeur mesurée : '+v))
+                    .flatMap(s=>wrapText(winAnsi(s), font, 9, COLI-12));
       const remL  = p.rem ? wrapText(winAnsi('Remarque : '+p.rem), font, 9, COLI-12) : [];
       const sig   = p.sig ? sigs.get(p.sig) : null;
       const sigH  = sig ? 24 : 0;
@@ -4661,7 +4698,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v73-arbre — OIBT : le rapport s\'affiche et s\'annote, plus d\'analyse de mise en page';
+const APP_VERSION='v74-arbre — OIBT : valeurs mesurées libres, titre saisi, plus de titre deviné';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
