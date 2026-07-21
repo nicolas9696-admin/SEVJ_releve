@@ -4041,29 +4041,43 @@ function oibtLoupeFerme(){ const w=$('#oibtLoupe'); if(w) w.hidden=true; }
 async function oibtCalcBandes(){
   OIBT.bandes={haut:0, bas:1};
   const N=OIBT.vues.length;
-  if(N<2) return OIBT.bandes;                      // une seule page : rien à comparer
-  const AW=140, AH=160, profils=[];
-  for(let pg=1; pg<=Math.min(N,8); pg++){          // 8 pages suffisent à repérer un bandeau
+  if(N<3) return OIBT.bandes;                      // moins de 3 pages : on ne conclut pas
+  const AW=64, AH=200, motifs=[];
+  for(let pg=1; pg<=Math.min(N,8); pg++){
     try{
       const im=await oibtImg(pg); if(!im) continue;
       const c=document.createElement('canvas'); c.width=AW; c.height=AH;
       const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,AW,AH);
       x.drawImage(im, 0, 0, AW, AH);
-      profils.push(oibtContentRows(x.getImageData(0,0,AW,AH).data, AW, AH));
+      const d=x.getImageData(0,0,AW,AH).data, lignes=[];
+      for(let ry=0; ry<AH; ry++){
+        let s='';
+        for(let rx=0; rx<AW; rx++){
+          const i=(ry*AW+rx)*4, mx=Math.max(d[i],d[i+1],d[i+2]), mn=Math.min(d[i],d[i+1],d[i+2]);
+          s += (mx<232 || (mx-mn)>26) ? '1' : '0';   // empreinte d'encre de la rangée
+        }
+        lignes.push(s);
+      }
+      motifs.push(lignes);
     }catch(e){}
   }
-  if(profils.length<2) return OIBT.bandes;
-  const seuil=Math.max(2, Math.ceil(profils.length*0.6));   // « la plupart des pages »
-  const commun=i=>profils.reduce((a,pr)=>a+(pr[i]?1:0),0)>=seuil;
-  let haut=0, trou=0;                              // en-tête : depuis le haut, 1er quart
-  for(let i=0;i<Math.round(AH*0.25);i++){
-    if(commun(i)){ haut=i+1; trou=0; } else if(haut && ++trou>5) break;
-  }
-  let bas=AH, trou2=0;                             // pied : depuis le bas, dernier quart
-  for(let i=AH-1;i>=Math.round(AH*0.75);i--){
-    if(commun(i)){ bas=i; trou2=0; } else if(bas<AH && ++trou2>5) break;
-  }
-  OIBT.bandes={ haut:Math.min(0.25,(haut+2)/AH), bas:Math.max(0.75,(bas-2)/AH) };
+  if(motifs.length<3) return OIBT.bandes;
+  /* Un bandeau, ce n'est pas « il y a de l'encre sur la plupart des pages » — le corps du
+     texte remplirait ce critère et on couperait du vrai contenu. C'est « LE MÊME dessin
+     d'encre se répète » : un logo, un filet, « Page x de y ». Le texte courant, lui, change
+     d'une page à l'autre, donc son empreinte diffère et il n'est jamais pris pour un bandeau. */
+  const seuil=Math.ceil(motifs.length*0.8);
+  const bandeau=i=>{
+    const cpt={};
+    motifs.forEach(m=>{ const s=m[i]; if(s.indexOf('1')<0) return; cpt[s]=(cpt[s]||0)+1; });
+    return Object.keys(cpt).some(k=>cpt[k]>=seuil);
+  };
+  const LIM=Math.round(AH*0.12);                   // filet de sécurité : jamais plus de 12 %
+  let haut=0, trou=0;
+  for(let i=0;i<LIM;i++){ if(bandeau(i)){ haut=i+1; trou=0; } else if(haut && ++trou>4) break; }
+  let bas=AH, trou2=0;
+  for(let i=AH-1;i>=AH-LIM;i--){ if(bandeau(i)){ bas=i; trou2=0; } else if(bas<AH && ++trou2>4) break; }
+  OIBT.bandes={ haut:Math.min(0.12,(haut+1)/AH), bas:Math.max(0.88,(bas-1)/AH) };
   return OIBT.bandes;
 }
 function oibtZone(p){
@@ -4072,16 +4086,19 @@ function oibtZone(p){
   const suiv=t[i+1], MARGE=8;
   const B=OIBT.bandes||{haut:0, bas:1};
   const hautDe=pg=>(OIBT.vues[pg-1]||{h:842}).h;
-  const corps=pg=>({y0:hautDe(pg)*B.haut, y1:hautDe(pg)*B.bas});   // zone utile de la page
   // sans point suivant, on s'arrête à la fin de la page suivante : de quoi attraper une
   // page de photos, sans avaler tout le reste du document (annexes, mentions légales…)
   const finPage = suiv ? suiv.page : Math.min(OIBT.vues.length, p.page+1);
   const tr=[];
   for(let pg=p.page; pg<=finPage && pg<=OIBT.vues.length; pg++){
-    const cz=corps(pg);                            // on reste dans le corps : ni pied, ni en-tête
-    const y0 = pg===p.page ? Math.max(cz.y0, p.y-MARGE) : cz.y0;
-    let  y1 = (suiv && suiv.page===pg) ? Math.max(y0+12, suiv.y-MARGE) : cz.y1;
-    y1 = Math.min(y1, cz.y1);
+    const H=hautDe(pg), basCorps=H*B.bas, hautCorps=H*B.haut;
+    // Sur la page du point on part TOUJOURS du point lui-même : jamais rogné par l'en-tête.
+    const y0 = pg===p.page ? Math.max(0, p.y-MARGE) : hautCorps;
+    let  y1 = (suiv && suiv.page===pg) ? Math.max(y0+12, suiv.y-MARGE) : H;
+    /* On évite le pied de page — mais JAMAIS au prix du contenu du point : si couper
+       laissait moins de 40 pt, c'est que le « pied » détecté tombe dans la zone utile,
+       donc on ne coupe pas. Un pied de page en trop vaut mieux qu'une photo perdue. */
+    if(y1 > basCorps && basCorps - y0 >= 40) y1 = basCorps;
     if(y1 > y0+2) tr.push({page:pg, y0, y1});
     if(suiv && suiv.page===pg) break;
   }
@@ -4831,7 +4848,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v77-arbre — OIBT : la zone d\'un point s\'arrête avant le pied / l\'en-tête de page';
+const APP_VERSION='v78-arbre — OIBT : correction du rognage (plus aucune zone perdue ni écrasée)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
