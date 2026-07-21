@@ -3886,18 +3886,25 @@ function oibtParseEF(lignes, joint){
     if(stop) return;
     const f0=l.frags.find(f=>!f.vide)||l.frags[0];
     const maxSize=Math.max.apply(null, l.frags.filter(f=>!f.vide).map(f=>f.size));
-    const m=OIBT_NUM.exec(f0.txt.trim());
-    /* Marqueur de défaut. Sur un rapport scanné, ni le corps de police ni le calage exact ne
-       sont fiables : l'OCR les invente. On s'appuie donc sur ce qui ne trompe pas — un numéro
-       SEUL dans la marge, du TEXTE À SA DROITE, et une numérotation CROISSANTE. Sans ça, un
-       « 10. » mal océrisé passait inaperçu et tout son texte venait grossir le défaut
-       précédent : deux défauts fondus en un seul. */
+    /* Marqueur de défaut. Ni le corps de police ni le calage exact ne sont fiables sur un
+       scan : l'OCR les invente. On s'appuie sur ce qui ne trompe pas — un numéro en tête de
+       ligne DANS LA MARGE, du texte derrière, et une numérotation CROISSANTE.
+       Deux formes possibles, et il FAUT les deux : pdf.js rend tantôt le numéro dans son
+       propre fragment (« 10. » | « Le raccordement… »), tantôt TOUTE la ligne d'un bloc
+       (« 10. Le raccordement… ») — cas fréquent sur les rapports océrisés. Ne traiter que la
+       première forme laissait des défauts entiers se fondre dans le précédent.
+       Le « \s+ » après le point est essentiel : il évite de prendre « 5.1.A.1.3 » pour un
+       marqueur n° 5, puisque le chiffre y est collé au point. */
+    const mFrag  = OIBT_NUM.exec(f0.txt.trim());
+    const mLigne = /^(\d{1,3})[.)]\s+(\S.*)$/.exec(whole);
+    const num    = mFrag ? +mFrag[1] : (mLigne ? +mLigne[1] : null);
     const texteADroite = l.frags.some(f=>!f.vide && f.x>=60 && f!==f0);
-    if(m && f0.x<=72 && texteADroite && (!cur || +m[1]>cur.n)){   // marqueur de point
-      cur={n:+m[1], page:l.page, x:Math.round(f0.x), y:Math.round(l.y), bottom:l.y+f0.size,
+    if(num!=null && f0.x<=72 && (!cur || num>cur.n) && (mFrag ? texteADroite : true)){
+      cur={n:num, page:l.page, x:Math.round(f0.x), y:Math.round(l.y), bottom:l.y+f0.size,
            titre:'', texte:[], rem:'', ok:false, sig:null};
       pts.push(cur);
-      const reste=joint(l.frags.filter(f=>f.x>=60 && f!==f0));   // le texte est sur la même ligne
+      // le texte du défaut : soit les fragments à droite, soit la fin de la ligne elle-même
+      const reste = mFrag ? joint(l.frags.filter(f=>f.x>=60 && f!==f0)) : mLigne[2];
       if(reste) cur.texte.push(reste);
       return;
     }
@@ -4898,7 +4905,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v80-arbre — OIBT : pincer pour zoomer (rapport + loupe), fini les boutons +/−';
+const APP_VERSION='v81-arbre — OIBT : marqueur de défaut reconnu même quand l\'OCR colle toute la ligne';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
