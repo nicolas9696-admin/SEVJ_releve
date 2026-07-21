@@ -4321,6 +4321,7 @@ async function oibtImport(file){
     catch(e){ pts=[]; }                                  // détection ratée : ce n'est pas bloquant
     OIBT_IMGS.clear();
     OIBT={ file:file.name, pdf:b64FromBuf(buf), vues, pts, modele };
+    oibtDBSauvePdf();                                    // le rapport survit à la fermeture de l'app
     await oibtCalcBandes();                        // repère l'en-tête / le pied de page
     msg.className='msg ok';
     msg.textContent = pts.length
@@ -4538,22 +4539,93 @@ function updateOibtReq(){
   if(c) c.classList.toggle('ok', OIBT.pts.length>0 && OIBT.pts.every(p=>p.ok));
   const b=$('#oibtGenBtn'); if(b) b.disabled = !(currentUser && OIBT.pts.length && some);
 }
-/* ---- Sauvegarde (brouillon léger : ni PDF ni pages rendues — le quota exploserait) ---- */
+/* ---- Persistance du rapport en cours ---------------------------------------------
+   localStorage plafonne à ~5 Mo et ne stocke que du texte : il garde le brouillon léger,
+   écrit à chaque frappe. Le PDF d'origine (~2 Mo) et les signatures (~8 Ko pièce) vont
+   dans IndexedDB, qui n'a pas cette limite. Sans ça, dès que le système fermait l'app en
+   cours de chantier, il fallait réimporter le rapport ET tout resigner.
+   Deux enregistrements séparés : le PDF n'est écrit qu'à l'import (2 Mo, une fois), l'état
+   des points l'est en différé (léger, souvent). ---- */
+const OIBT_DB='sevj-oibt', OIBT_STORE='rapport';
+function oibtDB(){
+  return new Promise((res,rej)=>{
+    if(!self.indexedDB) return rej(new Error('IndexedDB indisponible'));
+    const r=indexedDB.open(OIBT_DB, 1);
+    r.onupgradeneeded=()=>{ const d=r.result;
+      if(!d.objectStoreNames.contains(OIBT_STORE)) d.createObjectStore(OIBT_STORE); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+function oibtDBOp(mode, action){
+  return oibtDB().then(d=>new Promise((res,rej)=>{
+    const t=d.transaction(OIBT_STORE, mode), s=t.objectStore(OIBT_STORE);
+    let sortie=null;
+    try{ sortie=action(s); }catch(e){ d.close(); return rej(e); }
+    t.oncomplete=()=>{ d.close(); res(sortie && sortie.result!==undefined ? sortie.result : true); };
+    t.onerror=()=>{ d.close(); rej(t.error); };
+    t.onabort=()=>{ d.close(); rej(t.error); };
+  }));
+}
+const oibtDBPut=(cle,val)=>oibtDBOp('readwrite', s=>s.put(val, cle));
+const oibtDBGet=(cle)=>oibtDBOp('readonly',  s=>s.get(cle));
+const oibtDBDel=(cle)=>oibtDBOp('readwrite', s=>s.delete(cle));
+
+/* Le PDF : écrit une seule fois, en binaire (25 % plus léger que le base64). */
+function oibtDBSauvePdf(){
+  if(!OIBT.pdf) return oibtDBDel('pdf').catch(()=>{});
+  return oibtDBPut('pdf', {file:OIBT.file, modele:OIBT.modele, octets:bufFromB64(OIBT.pdf)})
+         .catch(()=>{ /* stockage plein ou refusé : le brouillon léger reste valable */ });
+}
+/* L'état des points, signatures comprises. Écriture différée : inutile d'écrire à chaque
+   caractère tapé dans une remarque. */
+let _oibtDbT=null;
+function oibtDBSauveEtat(){
+  clearTimeout(_oibtDbT);
+  _oibtDbT=setTimeout(()=>{ oibtDBPut('etat', {file:OIBT.file, pts:OIBT.pts, maj:Date.now()}).catch(()=>{}); }, 1200);
+}
 function oibtSave(){
   try{ localStorage.setItem(OIBT_DRAFT, JSON.stringify({
     file:OIBT.file, modele:OIBT.modele,
     pts:OIBT.pts.map(p=>({n:p.n, id:p.id, page:p.page, y:p.y, titre:p.titre, texte:p.texte, manuel:p.manuel,
                           rem:p.rem, ok:p.ok, vals:p.vals||[], by:p.by, byIni:p.byIni, byDate:p.byDate}))
   })); }catch(e){ warnQuota(); }
+  oibtDBSauveEtat();                                   // + signatures et PDF, hors quota
 }
-function oibtRestore(){
+/* Restauration : IndexedDB d'abord (rapport complet, signatures comprises), et à défaut
+   le brouillon léger — qui ne rend que les points, comme avant. */
+async function oibtRestore(){
+  let etat=null, pdf=null;
+  try{ etat=await oibtDBGet('etat'); pdf=await oibtDBGet('pdf'); }catch(e){}
+  const m=$('#oibtMsg');
+  if(etat && etat.pts && etat.pts.length){
+    OIBT_IMGS.clear();
+    OIBT={ file:(pdf&&pdf.file)||etat.file||'', pdf:null, vues:[],
+           modele:(pdf&&pdf.modele)||'', pts:etat.pts.map(p=>Object.assign({vals:[]}, p)) };
+    if(pdf && pdf.octets){
+      if(m){ m.className='msg'; m.textContent='Rapport en cours retrouvé — rendu des pages…'; }
+      try{
+        const oct=pdf.octets instanceof Uint8Array ? pdf.octets : new Uint8Array(pdf.octets);
+        OIBT.pdf=b64FromBuf(oct.buffer.slice(oct.byteOffset, oct.byteOffset+oct.byteLength));
+        OIBT.vues=await oibtRenderPages(bufFromB64(OIBT.pdf).buffer,
+          (i,n)=>{ if(m) m.textContent='Rapport en cours retrouvé — rendu de la page '+i+' / '+n+'…'; });
+        await oibtCalcBandes();                        // repère l'en-tête / le pied de page
+      }catch(e){ OIBT.pdf=null; }
+    }
+    oibtRender();
+    const signes=OIBT.pts.filter(p=>p.sig).length;
+    if(m){ m.className='msg ok';
+      m.textContent = OIBT.vues.length
+        ? 'Rapport en cours restauré ✓ — '+OIBT.pts.length+' point(s)'+(signes?', '+signes+' signature(s)':'')+', export disponible.'
+        : 'Points restaurés — réimporte le PDF pour revoir le rapport et exporter.'; }
+    return;
+  }
   let d; try{ d=JSON.parse(localStorage.getItem(OIBT_DRAFT)); }catch(e){}
   if(!d || !d.pts || !d.pts.length) return;
   OIBT_IMGS.clear();
   OIBT={ file:d.file||'', pdf:null, vues:[], modele:d.modele||'',
          pts:d.pts.map(p=>Object.assign({sig:null}, p)) };
   oibtRender();
-  const m=$('#oibtMsg'); if(m){ m.className='msg'; m.textContent='Points restaurés — réimporte le PDF (ou une sauvegarde .json) pour revoir le rapport et exporter.'; }
+  if(m){ m.className='msg'; m.textContent='Points restaurés — réimporte le PDF (ou une sauvegarde .json) pour revoir le rapport et exporter.'; }
 }
 /* ---- Sauvegarde .json autonome : PDF + signatures inclus. Les pages rendues n'y sont PAS :
        elles se refabriquent en une seconde à partir du PDF, et pèseraient dix fois plus. ---- */
@@ -4578,17 +4650,19 @@ function importOibtBackup(file){
              (i,n)=>{ m.textContent='Rendu de la page '+i+' / '+n+'…'; }); }catch(e){}
       await oibtCalcBandes();                      // repère l'en-tête / le pied de page
     }
-    oibtRender(); oibtSave();
+    oibtRender(); oibtSave(); oibtDBSauvePdf();          // la sauvegarde devient le rapport en cours
     m.className='msg ok';
     m.textContent='Sauvegarde restaurée ✓'+(OIBT.vues.length?' — rapport et export disponibles':' (sans PDF : réimporte-le pour exporter)');
   };
   reader.readAsText(file);
 }
 function resetOibt(){
-  if(!confirm('Réinitialiser le rapport OIBT en cours ?')) return;
+  if(!confirm('Réinitialiser le rapport OIBT en cours ?\n(Le rapport, les signatures et les points seront effacés de cet appareil.)')) return;
   OIBT_IMGS.clear();
   OIBT={ file:'', pdf:null, vues:[], pts:[], modele:'' };
   try{ localStorage.removeItem(OIBT_DRAFT); }catch(e){}
+  clearTimeout(_oibtDbT);                                // pas de réécriture après l'effacement
+  oibtDBDel('etat').catch(()=>{}); oibtDBDel('pdf').catch(()=>{});
   oibtRender(); $('#oibtMsg').textContent=''; $('#oibtInfo').hidden=true;
 }
 /* ---- Export : les pages du rapport d'origine ne sont PLUS annotées du tout. Écrire dans
@@ -4978,7 +5052,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v84-arbre — Annexe : vraies grecques (Δt, MΩ) et mise en page resserrée';
+const APP_VERSION='v85-arbre — Rapport et signatures conservés (IndexedDB) · hors-ligne renforcé';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -5065,7 +5139,7 @@ function init(){
   $('#oibtBackupExport').onclick=exportOibtBackup;
   $('#oibtBackupImportBtn').onclick=()=>$('#oibtBackupImport').click();
   $('#oibtBackupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importOibtBackup(f); e.target.value=''; });
-  oibtRestore();
+  oibtRestore().catch(()=>{});   // asynchrone : relit IndexedDB, ne bloque pas le démarrage
 
   /* ===== Rapport de mesures ===== */
   $('#addRMRow').onclick=()=>{ addRMRow(); rmSave(); };
@@ -5153,6 +5227,16 @@ function init(){
   updateMO();
   buildRef();     // recalcule la référence (vide si rien n'est saisi)
   showHome();   // démarre sur la page d'accueil (choix de la fonction)
+
+  /* Stockage PERSISTANT. Sans cette demande, le navigateur considère nos données comme
+     jetables : iOS Safari efface le stockage d'un site après ~7 jours sans visite, et
+     Android peut faire le ménage quand la mémoire manque. On perdrait alors l'app hors
+     ligne ET le rapport en cours. Accordé d'office quand l'app est installée sur l'écran
+     d'accueil ; sinon le navigateur décide, et un refus n'a aucune conséquence visible. */
+  if(navigator.storage && navigator.storage.persist){
+    navigator.storage.persisted().then(deja=>{ if(!deja) return navigator.storage.persist(); })
+      .catch(()=>{});
+  }
 
   // Service worker (mode hors-ligne) + mise à jour automatique
   if('serviceWorker' in navigator){

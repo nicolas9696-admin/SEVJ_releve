@@ -1,7 +1,8 @@
 /* SEVJ · Relevé chantier — service worker (mode hors-ligne)
    ⚠ Après chaque mise à jour de l'app, incrémente la version (CACHE) ci-dessous
    pour forcer le rafraîchissement du cache sur les téléphones. */
-const CACHE = 'sevj-v84-arbre';
+const CACHE = 'sevj-v85-arbre';
+const DELAI_RESEAU = 2500;   // ms d'attente du réseau avant de servir le cache (chantier mal couvert)
 const ASSETS = [
   './',
   './index.html',
@@ -42,15 +43,23 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
 
-  // Navigation (index.html) : réseau d'abord, cache en secours (pour recevoir les mises à jour en ligne)
+  /* Navigation (index.html) : réseau d'abord POUR RECEVOIR LES MISES À JOUR, mais avec un
+     délai maximum. Sans ce délai, une barre de réseau dans un sous-sol fait attendre le
+     navigateur plusieurs secondes avant d'abandonner — alors que l'app est entièrement en
+     cache. Passé le délai on sert le cache, et le réseau continue en arrière-plan pour
+     rafraîchir la version stockée (prête au prochain démarrage). */
   if (req.mode === 'navigate') {
-    e.respondWith(
-      fetch(req).then(r => {
-        const copy = r.clone();
-        caches.open(CACHE).then(c => c.put('./index.html', copy));
-        return r;
-      }).catch(() => caches.match('./index.html'))
-    );
+    e.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      const reseau = fetch(req)
+        .then(r => { if (r && r.ok) cache.put('./index.html', r.clone()); return r; })
+        .catch(() => null);
+      e.waitUntil(reseau);                         // le rafraîchissement survit à la réponse
+      const enCache = await cache.match('./index.html');
+      if (!enCache) return (await reseau) || Response.error();
+      const delai = new Promise(res => setTimeout(() => res(null), DELAI_RESEAU));
+      return (await Promise.race([reseau, delai])) || enCache;
+    })());
     return;
   }
 
