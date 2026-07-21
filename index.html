@@ -4224,15 +4224,22 @@ function oibtBlanks(texte){ return String(texte||'').match(/_{3,}/g) || []; }
 /* ---- Mesures d'un point : type choisi dans une liste + valeur. Remplace les « ____ » du
        texte, illisibles dès que l'OCR en avale un. ---- */
 const OIBT_MESURES=[
-  {k:'riso',   lbl:'Riso',     u:'MΩ'},
-  {k:'rlow',   lbl:'Rlow',     u:'Ω'},
-  {k:'icclpe', lbl:'ICC L-PE', u:'A'},
-  {k:'iccln',  lbl:'ICC L-N',  u:'A'},
-  {k:'idn',    lbl:'IΔN',      u:'mA'},
-  {k:'dt',     lbl:'Δt',       u:'ms'},
-  {k:'autre',  lbl:'Autre…',   u:''}
+  {k:'risonpe', lbl:'Riso (N-PE)', u:'MΩ'},
+  {k:'risolpe', lbl:'Riso (L-PE)', u:'MΩ'},
+  {k:'rlow',    lbl:'Rlow',        u:'Ω'},
+  {k:'icclpe',  lbl:'ICC L-PE',    u:'A'},
+  {k:'iccln',   lbl:'ICC L-N',     u:'A'},
+  {k:'idn',     lbl:'IΔN',         u:'mA'},
+  {k:'dt',      lbl:'Δt',          u:'ms'},
+  {k:'autre',   lbl:'Autre…',      u:''}
 ];
-function oibtMes(k){ return OIBT_MESURES.find(m=>m.k===k) || OIBT_MESURES[OIBT_MESURES.length-1]; }
+/* « Riso » simple a été remplacé par Riso (N-PE) / Riso (L-PE). On garde sa définition pour
+   que les mesures DÉJÀ saisies gardent leur libellé et leur unité — sans la reproposer. */
+const OIBT_MES_ANCIENS=[{k:'riso', lbl:'Riso', u:'MΩ'}];
+function oibtMes(k){
+  return OIBT_MESURES.find(m=>m.k===k) || OIBT_MES_ANCIENS.find(m=>m.k===k)
+      || OIBT_MESURES[OIBT_MESURES.length-1];
+}
 /* Ancien format (chaîne libre) → nouveau {k, v, lbl}. Les sauvegardes restent lisibles. */
 function oibtValNorm(v){
   if(v && typeof v==='object') return {k:v.k||'autre', v:v.v||'', lbl:v.lbl||''};
@@ -4286,10 +4293,25 @@ async function oibtImport(file){
 }
 /* Ajoute un point là où l'utilisateur a tapé sur le rapport. Son n° est celui que porte le
    défaut DANS le rapport, donc modifiable : on propose seulement le rang de lecture. */
+/* Un point inséré entre deux défauts prend le rang du suivant : on se retrouverait avec DEUX
+   « 13 » sur le rapport, impossibles à distinguer dans l'annexe. On suffixe donc (13b, 13c…),
+   ce qui le range visuellement au bon endroit — et le numéro reste modifiable à la main. */
+function oibtNumPropose(prec, rang, insere){
+  const pris=new Set(OIBT.pts.map(q=>String(q.n).trim()));
+  // on ajoute à la SUITE du dernier défaut : le rang de lecture convient
+  if(!insere && !pris.has(String(rang))) return String(rang);
+  // on insère ENTRE deux défauts : on dérive du précédent (12 → 12b → 12c), ce qui ne
+  // double aucun numéro et reste à sa place dans l'ordre de lecture.
+  const racine=(prec ? String(prec.n).trim() : String(rang)).replace(/[a-z]+$/i,'') || String(rang);
+  for(const s of 'bcdefghijklmnop'){ if(!pris.has(racine+s)) return racine+s; }
+  return String(rang);
+}
 function oibtAjoutePoint(page, y){
   const t=oibtOrdre();
-  let rang=t.filter(q=> q.page<page || (q.page===page && q.y<=y)).length + 1;
-  const p={ n:String(rang), page, y, texte:'', titre:'', rem:'', ok:false, sig:null, vals:[], manuel:true };
+  const avant=t.filter(q=> q.page<page || (q.page===page && q.y<=y));
+  const rang=avant.length + 1;
+  const n=oibtNumPropose(avant[avant.length-1], rang, avant.length<t.length);
+  const p={ n, page, y, texte:'', titre:'', rem:'', ok:false, sig:null, vals:[], manuel:true };
   OIBT.pts.push(p);
   // On NE bouge PAS la page : le doigt est sur le rapport, on doit pouvoir enchaîner les
   // points. Le re-rendu peut décaler le défilement, donc on le remet où il était.
@@ -4422,8 +4444,11 @@ function oibtRender(){
       p.vals.forEach((v,k)=>{
         const m=oibtMes(v.k);
         const r=el('div','oibt-val');
+        // une mesure d'un ancien type reste sélectionnable tant qu'elle existe (sinon elle
+        // basculerait en « Autre… » toute seule) — mais elle n'est pas proposée aux nouvelles
+        const liste = OIBT_MESURES.some(o=>o.k===v.k) ? OIBT_MESURES : [m].concat(OIBT_MESURES);
         r.innerHTML=`<select data-vk>`
-          + OIBT_MESURES.map(o=>`<option value="${o.k}"${o.k===v.k?' selected':''}>${esc(o.lbl)}${o.u?' ('+esc(o.u)+')':''}</option>`).join('')
+          + liste.map(o=>`<option value="${o.k}"${o.k===v.k?' selected':''}>${esc(o.lbl)}${o.u?' — '+esc(o.u):''}</option>`).join('')
           + `</select>`
           + (v.k==='autre'?`<input data-vl type="text" value="${esc(v.lbl||'')}" placeholder="nom de la mesure">`:'')
           + `<input data-vv type="text" inputmode="decimal" value="${esc(v.v||'')}" placeholder="valeur">`
@@ -4439,7 +4464,7 @@ function oibtRender(){
     };
     dessineVals();
     d.querySelector('[data-o="addval"]').onclick=()=>{
-      p.vals=(p.vals||[]).map(oibtValNorm); p.vals.push({k:'riso', v:'', lbl:''}); dessineVals(); oibtSave();
+      p.vals=(p.vals||[]).map(oibtValNorm); p.vals.push({k:'risolpe', v:'', lbl:''}); dessineVals(); oibtSave();
       const ins=boxVals.querySelectorAll('[data-vv]'); if(ins.length) ins[ins.length-1].focus(); };
     const refreshBy=()=>{ const b=d.querySelector('[data-o="by"]'); if(b) b.textContent=p.by?('✔ Validé par '+p.by+' le '+frDate(p.byDate||todayISO())):''; };
     // Estampille le point avec le collaborateur CONNECTÉ au moment où il le valide (coche
@@ -4905,7 +4930,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v81-arbre — OIBT : marqueur de défaut reconnu même quand l\'OCR colle toute la ligne';
+const APP_VERSION='v83-arbre — Mesures Riso (N-PE) / Riso (L-PE) · hors-ligne vérifié';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
