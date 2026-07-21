@@ -379,7 +379,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .lp-bar button:active{transform:scale(.94)}
 .lp-bar .lp-v{color:#fff; font-size:13px; font-weight:700; min-width:56px; text-align:center}
 .lp-bar .lp-x{margin-left:auto}
-.lp-img{flex:1; overflow:auto; -webkit-overflow-scrolling:touch}
+/* touch-action:none => c'est NOUS qui gérons le doigt : 1 doigt déplace, 2 doigts zooment */
+.lp-img{flex:1; overflow:auto; -webkit-overflow-scrolling:touch; touch-action:none}
 .lp-img img{display:block; width:100%; height:auto; background:#fff}
 .oibt-vg img{cursor:zoom-in}
 /* Zoom de la visionneuse du rapport */
@@ -388,8 +389,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   color:var(--navy); border-radius:10px; font-size:15px; font-weight:800; cursor:pointer}
 .oibt-zoom button:active{transform:scale(.94)}
 .oibt-zoom .zv{font-size:13px; color:var(--mut); font-weight:700; min-width:52px; text-align:center}
-#oibtVue{overflow-x:auto}
+/* pan-x pan-y : le défilement de la page reste natif à un doigt ; à deux doigts, c'est nous */
+#oibtVue{overflow-x:auto; touch-action:pan-x pan-y}
 .oibt-pg{flex:0 0 auto}
+.oibt-zoom .zi{font-size:12.5px; color:var(--mut); font-weight:600}
 .tile .tx{flex:1; min-width:0}
 .tile .tx .t{display:block; font-size:15.5px; font-weight:800; color:var(--navy); line-height:1.2}
 .tile .tx .d{display:block; font-size:11.5px; color:var(--mut); margin-top:4px; line-height:1.3}
@@ -979,9 +982,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <p class="hint" id="oibtVueAide" hidden><b>Tape sur un défaut</b> pour y poser un point.
         Un repère se déplace au doigt, la croix le supprime.</p>
         <div class="oibt-zoom" id="oibtZoom" hidden>
-          <button type="button" data-z="-" aria-label="Dézoomer">−</button>
+          <span class="zi">👌 Pince à deux doigts pour zoomer</span>
           <span class="zv" id="oibtZoomVal">100 %</span>
-          <button type="button" data-z="+" aria-label="Zoomer">+</button>
           <button type="button" data-z="0">Ajuster</button>
         </div>
         <div id="oibtVue" hidden></div>
@@ -1051,9 +1053,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 <!-- Loupe : la zone d'un point en grand, régénérée en haute résolution -->
 <div id="oibtLoupe" hidden>
   <div class="lp-bar">
-    <button type="button" data-lz="-" aria-label="Dézoomer">−</button>
     <span class="lp-v" id="oibtLoupeVal">100 %</span>
-    <button type="button" data-lz="+" aria-label="Zoomer">+</button>
+    <span class="lp-v" style="min-width:0; font-weight:400; opacity:.75">👌 pince pour zoomer · 1 doigt pour déplacer</span>
     <button type="button" data-lz="0">Ajuster</button>
     <button type="button" class="lp-x" id="oibtLoupeX" aria-label="Fermer">✕</button>
   </div>
@@ -3849,7 +3850,7 @@ function buildRMPDF(d){
      · bandeau d'en-tête de page : y < 90  -> ignoré
    ================================================================== */
 const OIBT_DRAFT='sevj_oibt_v1';
-const OIBT_NUM=/^(\d{1,3})\.$/;
+const OIBT_NUM=/^(\d{1,3})[.)]?$/;      // « 12. », « 12) » ou « 12 » : l'OCR perd souvent le point
 const OIBT_STOP=/Les .ventuels d.fauts|Mention de l'installateur|Imprim. avec le logiciel|Signature du porteur|Remarque importante/i;
 /* 2ᵉ modèle — Electrosuisse (rapport scanné) : les défauts portent un identifiant,
    il n'y a pas de « 1. » « 2. », et le texte vient d'une OCR (corps de police erratique). */
@@ -3885,9 +3886,14 @@ function oibtParseEF(lignes, joint){
     if(stop) return;
     const f0=l.frags.find(f=>!f.vide)||l.frags[0];
     const maxSize=Math.max.apply(null, l.frags.filter(f=>!f.vide).map(f=>f.size));
-    if(maxSize>=10.5){ cur=null; return; }                // titre de section : borne le point courant
     const m=OIBT_NUM.exec(f0.txt.trim());
-    if(m && f0.x>=45 && f0.x<=58 && f0.size<10){          // marqueur de point
+    /* Marqueur de défaut. Sur un rapport scanné, ni le corps de police ni le calage exact ne
+       sont fiables : l'OCR les invente. On s'appuie donc sur ce qui ne trompe pas — un numéro
+       SEUL dans la marge, du TEXTE À SA DROITE, et une numérotation CROISSANTE. Sans ça, un
+       « 10. » mal océrisé passait inaperçu et tout son texte venait grossir le défaut
+       précédent : deux défauts fondus en un seul. */
+    const texteADroite = l.frags.some(f=>!f.vide && f.x>=60 && f!==f0);
+    if(m && f0.x<=72 && texteADroite && (!cur || +m[1]>cur.n)){   // marqueur de point
       cur={n:+m[1], page:l.page, x:Math.round(f0.x), y:Math.round(l.y), bottom:l.y+f0.size,
            titre:'', texte:[], rem:'', ok:false, sig:null};
       pts.push(cur);
@@ -3895,6 +3901,10 @@ function oibtParseEF(lignes, joint){
       if(reste) cur.texte.push(reste);
       return;
     }
+    /* Titre de section : borne le point courant. Testé APRÈS le marqueur — sinon une ligne
+       de défaut dont l'OCR a gonflé le corps passerait pour un titre et le défaut serait
+       purement et simplement perdu. */
+    if(maxSize>=10.5){ cur=null; return; }
     if(cur && f0.x>=60 && f0.x<=100){ cur.texte.push(whole); cur.bottom=Math.max(cur.bottom, l.y+f0.size); }
   });
   return pts;
@@ -4035,6 +4045,44 @@ async function oibtLoupeOuvre(p, secours){
   try{ const net=await oibtVignette(p, 1800); if(net && !w.hidden) im.src=net; }catch(e){}
 }
 function oibtLoupeFerme(){ const w=$('#oibtLoupe'); if(w) w.hidden=true; }
+/* Gestes tactiles : DEUX doigts = zoom (on suit l'écart entre eux), UN doigt = déplacement.
+   Le navigateur ne zoome pas de lui-même (viewport user-scalable=no), les événements pointeur
+   sont donc entièrement à nous. `OIBT_PINCE_FIN` sert à ne pas poser un point sur le rapport
+   juste après un pincement (le doigt qui se lève déclencherait un clic). */
+let OIBT_PINCE_FIN=0;
+function oibtGestes(surface, opts){
+  if(!surface) return;
+  const pts=new Map(); let d0=0, z0=1, dernier=null;
+  const ecart=()=>{ const a=[...pts.values()]; return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y); };
+  surface.addEventListener('pointerdown', e=>{
+    if(e.pointerType==='mouse') return;
+    pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(pts.size===1) dernier={x:e.clientX, y:e.clientY};
+    if(pts.size===2){ d0=ecart(); z0=opts.get(); }
+  });
+  surface.addEventListener('pointermove', e=>{
+    if(!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(pts.size>=2 && d0>0){                       // deux doigts : écarter = agrandir
+      if(e.cancelable) e.preventDefault();
+      opts.set(z0*ecart()/d0);
+      OIBT_PINCE_FIN=Date.now();
+    }else if(pts.size===1 && opts.pan && dernier){ // un doigt : déplacer dans l'image
+      if(e.cancelable) e.preventDefault();
+      surface.scrollLeft -= e.clientX-dernier.x;
+      surface.scrollTop  -= e.clientY-dernier.y;
+      dernier={x:e.clientX, y:e.clientY};
+    }
+  }, {passive:false});
+  const fin=e=>{
+    if(pts.size>=2) OIBT_PINCE_FIN=Date.now();
+    pts.delete(e.pointerId);
+    if(pts.size<2) d0=0;
+    if(!pts.size) dernier=null;
+  };
+  surface.addEventListener('pointerup', fin);
+  surface.addEventListener('pointercancel', fin);
+}
 /* Bandeaux de page (en-tête et pied) : c'est ce qui se répète AU MÊME ENDROIT sur la plupart
    des pages — seul signal vraiment fiable, et valable pour n'importe quel rapport. Sert à ce
    que la zone d'un point ne déborde ni sur le pied de page, ni sur l'en-tête de la suivante. */
@@ -4274,6 +4322,7 @@ function oibtRenderVue(){
     // pose d'un point : on convertit la position du doigt en points PDF
     d.onclick=e=>{
       if(e.target.closest('.oibt-mk')) return;                  // clic sur un marqueur : géré ailleurs
+      if(Date.now()-OIBT_PINCE_FIN < 350) return;               // fin de pincement : pas un appui
       const r=d.getBoundingClientRect();
       oibtAjoutePoint(pg, Math.max(0, (e.clientY-r.top)/r.height*v.h));
     };
@@ -4309,7 +4358,8 @@ function oibtRender(){
   oibtRenderVue();
   oibtOrdre().forEach(p=>{
     const i=OIBT.pts.indexOf(p);
-    const d=el('div','oibt-pt'+(p.ok?' done':''));
+    // Repliés par défaut : la liste reste lisible même avec 15 défauts. On déplie au besoin.
+    const d=el('div','oibt-pt folded'+(p.ok?' done':''));
     d.dataset.i=i;
     d.innerHTML=`
       <div class="oibt-hd">
@@ -4318,7 +4368,7 @@ function oibtRender(){
           <div class="oibt-lieu">${esc(p.titre||('Page '+p.page))}</div>
           <div class="oibt-res">${esc(p.texte.slice(0,70))}${p.texte.length>70?'…':(p.texte?'':'Zone désignée sur le rapport')}</div>
         </div>
-        <span class="oibt-fold">▾</span>
+        <span class="oibt-fold">▸</span>
       </div>
       <div class="oibt-body">
         <div class="oibt-vg"><img data-o="vg" alt="Zone du point ${esc(String(p.n))} dans le rapport"></div>
@@ -4848,7 +4898,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v78-arbre — OIBT : correction du rognage (plus aucune zone perdue ni écrasée)';
+const APP_VERSION='v80-arbre — OIBT : pincer pour zoomer (rapport + loupe), fini les boutons +/−';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -4916,14 +4966,19 @@ function init(){
   $('#oibtPdf').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) oibtImport(f); e.target.value=''; });
   $('#oibtGenBtn').onclick=oibtExportPDF;
   $('#oibtResetBtn').onclick=resetOibt;
-  document.querySelectorAll('#oibtZoom button[data-z]').forEach(b=> b.onclick=()=>{
-    const z=b.dataset.z;
-    oibtSetZoom(z==='0' ? 1 : OIBT_Z + (z==='+' ? 0.25 : -0.25));
-  });
-  document.querySelectorAll('#oibtLoupe button[data-lz]').forEach(b=> b.onclick=()=>{
-    const z=b.dataset.lz;
-    oibtLoupeZoom(z==='0' ? 1 : OIBT_LZ + (z==='+' ? 0.5 : -0.5));
-  });
+  document.querySelectorAll('#oibtZoom button[data-z="0"]').forEach(b=> b.onclick=()=>oibtSetZoom(1));
+  document.querySelectorAll('#oibtLoupe button[data-lz="0"]').forEach(b=> b.onclick=()=>oibtLoupeZoom(1));
+  // Pincer pour zoomer : sur le rapport, et dans la loupe (où un doigt déplace aussi l'image)
+  oibtGestes($('#oibtVue'), { get:()=>OIBT_Z, set:oibtSetZoom, pan:false });
+  oibtGestes($('#oibtLoupeBox'), { pan:true, get:()=>OIBT_LZ, set:z=>{
+    const box=$('#oibtLoupeBox'), av=OIBT_LZ;
+    oibtLoupeZoom(z);
+    const f=OIBT_LZ/av;                        // garde le centre de l'écran stable au zoom
+    if(box && f!==1){
+      box.scrollLeft=(box.scrollLeft+box.clientWidth/2)*f - box.clientWidth/2;
+      box.scrollTop =(box.scrollTop +box.clientHeight/2)*f - box.clientHeight/2;
+    }
+  }});
   $('#oibtLoupeX').onclick=oibtLoupeFerme;
   $('#oibtLoupe').addEventListener('click', e=>{ if(e.target.id==='oibtLoupe') oibtLoupeFerme(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#oibtLoupe').hidden) oibtLoupeFerme(); });
