@@ -370,6 +370,18 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .oibt-val input{flex:1; min-width:80px}
 .oibt-val select{flex:0 0 auto; max-width:46%}
 .oibt-unit{flex:0 0 auto; font-size:12px; color:var(--mut); min-width:24px; font-weight:700}
+/* Loupe plein écran : agrandir la zone d'un point (image régénérée en haute résolution) */
+#oibtLoupe{position:fixed; inset:0; z-index:9999; background:rgba(12,18,28,.97); display:flex; flex-direction:column}
+#oibtLoupe[hidden]{display:none}
+.lp-bar{display:flex; align-items:center; gap:8px; padding:10px 12px; background:rgba(0,0,0,.35); flex:0 0 auto}
+.lp-bar button{padding:8px 14px; border:1px solid rgba(255,255,255,.35); background:rgba(255,255,255,.10);
+  color:#fff; border-radius:10px; font-size:16px; font-weight:800; cursor:pointer}
+.lp-bar button:active{transform:scale(.94)}
+.lp-bar .lp-v{color:#fff; font-size:13px; font-weight:700; min-width:56px; text-align:center}
+.lp-bar .lp-x{margin-left:auto}
+.lp-img{flex:1; overflow:auto; -webkit-overflow-scrolling:touch}
+.lp-img img{display:block; width:100%; height:auto; background:#fff}
+.oibt-vg img{cursor:zoom-in}
 /* Zoom de la visionneuse du rapport */
 .oibt-zoom{display:flex; align-items:center; gap:8px; margin:0 0 10px}
 .oibt-zoom button{padding:7px 13px; border:1px solid var(--line); background:var(--card);
@@ -1035,6 +1047,17 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 <div class="bar" id="barListing" hidden>
   <button class="btn-2" id="lstResetBtn">Réinitialiser</button>
   <button class="btn-main" id="lstGenBtn" disabled>Générer le PDF</button>
+</div>
+<!-- Loupe : la zone d'un point en grand, régénérée en haute résolution -->
+<div id="oibtLoupe" hidden>
+  <div class="lp-bar">
+    <button type="button" data-lz="-" aria-label="Dézoomer">−</button>
+    <span class="lp-v" id="oibtLoupeVal">100 %</span>
+    <button type="button" data-lz="+" aria-label="Zoomer">+</button>
+    <button type="button" data-lz="0">Ajuster</button>
+    <button type="button" class="lp-x" id="oibtLoupeX" aria-label="Fermer">✕</button>
+  </div>
+  <div class="lp-img" id="oibtLoupeBox"><img id="oibtLoupeImg" alt="Zone du point agrandie"></div>
 </div>
 
 <!-- Fenêtre de choix d'article -->
@@ -3996,19 +4019,70 @@ function oibtSetZoom(z){
   document.querySelectorAll('#oibtVue .oibt-pg').forEach(d=> d.style.width=(OIBT_Z*100)+'%');
   const v=$('#oibtZoomVal'); if(v) v.textContent=Math.round(OIBT_Z*100)+' %';
 }
+/* Loupe : la zone d'un point en plein écran. L'image est REFABRIQUÉE en haute résolution
+   (la vignette de la carte est volontairement légère), sinon zoomer ne ferait que flouter. */
+let OIBT_LZ=1;
+function oibtLoupeZoom(z){
+  OIBT_LZ=Math.min(6, Math.max(1, Math.round(z*100)/100));
+  const im=$('#oibtLoupeImg'); if(im) im.style.width=(OIBT_LZ*100)+'%';
+  const v=$('#oibtLoupeVal'); if(v) v.textContent=Math.round(OIBT_LZ*100)+' %';
+}
+async function oibtLoupeOuvre(p, secours){
+  const w=$('#oibtLoupe'), im=$('#oibtLoupeImg'); if(!w||!im) return;
+  im.src=secours||'';                                   // affichage immédiat, même flou
+  w.hidden=false; oibtLoupeZoom(1);
+  const box=$('#oibtLoupeBox'); if(box){ box.scrollTop=0; box.scrollLeft=0; }
+  try{ const net=await oibtVignette(p, 1800); if(net && !w.hidden) im.src=net; }catch(e){}
+}
+function oibtLoupeFerme(){ const w=$('#oibtLoupe'); if(w) w.hidden=true; }
+/* Bandeaux de page (en-tête et pied) : c'est ce qui se répète AU MÊME ENDROIT sur la plupart
+   des pages — seul signal vraiment fiable, et valable pour n'importe quel rapport. Sert à ce
+   que la zone d'un point ne déborde ni sur le pied de page, ni sur l'en-tête de la suivante. */
+async function oibtCalcBandes(){
+  OIBT.bandes={haut:0, bas:1};
+  const N=OIBT.vues.length;
+  if(N<2) return OIBT.bandes;                      // une seule page : rien à comparer
+  const AW=140, AH=160, profils=[];
+  for(let pg=1; pg<=Math.min(N,8); pg++){          // 8 pages suffisent à repérer un bandeau
+    try{
+      const im=await oibtImg(pg); if(!im) continue;
+      const c=document.createElement('canvas'); c.width=AW; c.height=AH;
+      const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,AW,AH);
+      x.drawImage(im, 0, 0, AW, AH);
+      profils.push(oibtContentRows(x.getImageData(0,0,AW,AH).data, AW, AH));
+    }catch(e){}
+  }
+  if(profils.length<2) return OIBT.bandes;
+  const seuil=Math.max(2, Math.ceil(profils.length*0.6));   // « la plupart des pages »
+  const commun=i=>profils.reduce((a,pr)=>a+(pr[i]?1:0),0)>=seuil;
+  let haut=0, trou=0;                              // en-tête : depuis le haut, 1er quart
+  for(let i=0;i<Math.round(AH*0.25);i++){
+    if(commun(i)){ haut=i+1; trou=0; } else if(haut && ++trou>5) break;
+  }
+  let bas=AH, trou2=0;                             // pied : depuis le bas, dernier quart
+  for(let i=AH-1;i>=Math.round(AH*0.75);i--){
+    if(commun(i)){ bas=i; trou2=0; } else if(bas<AH && ++trou2>5) break;
+  }
+  OIBT.bandes={ haut:Math.min(0.25,(haut+2)/AH), bas:Math.max(0.75,(bas-2)/AH) };
+  return OIBT.bandes;
+}
 function oibtZone(p){
   const t=oibtOrdre(), i=t.findIndex(q=>q===p);
   if(i<0 || !OIBT.vues.length) return [];
   const suiv=t[i+1], MARGE=8;
+  const B=OIBT.bandes||{haut:0, bas:1};
   const hautDe=pg=>(OIBT.vues[pg-1]||{h:842}).h;
+  const corps=pg=>({y0:hautDe(pg)*B.haut, y1:hautDe(pg)*B.bas});   // zone utile de la page
   // sans point suivant, on s'arrête à la fin de la page suivante : de quoi attraper une
   // page de photos, sans avaler tout le reste du document (annexes, mentions légales…)
   const finPage = suiv ? suiv.page : Math.min(OIBT.vues.length, p.page+1);
   const tr=[];
   for(let pg=p.page; pg<=finPage && pg<=OIBT.vues.length; pg++){
-    const y0 = pg===p.page ? Math.max(0, p.y-MARGE) : 0;
-    const y1 = (suiv && suiv.page===pg) ? Math.max(y0+12, suiv.y-MARGE) : hautDe(pg);
-    tr.push({page:pg, y0, y1});
+    const cz=corps(pg);                            // on reste dans le corps : ni pied, ni en-tête
+    const y0 = pg===p.page ? Math.max(cz.y0, p.y-MARGE) : cz.y0;
+    let  y1 = (suiv && suiv.page===pg) ? Math.max(y0+12, suiv.y-MARGE) : cz.y1;
+    y1 = Math.min(y1, cz.y1);
+    if(y1 > y0+2) tr.push({page:pg, y0, y1});
     if(suiv && suiv.page===pg) break;
   }
   return tr;
@@ -4128,6 +4202,7 @@ async function oibtImport(file){
     catch(e){ pts=[]; }                                  // détection ratée : ce n'est pas bloquant
     OIBT_IMGS.clear();
     OIBT={ file:file.name, pdf:b64FromBuf(buf), vues, pts, modele };
+    await oibtCalcBandes();                        // repère l'en-tête / le pied de page
     msg.className='msg ok';
     msg.textContent = pts.length
       ? vues.length+' page(s) · '+pts.length+' point(s) proposé(s) ✓  — vérifie-les sur le rapport ci-dessous.'
@@ -4230,7 +4305,7 @@ function oibtRender(){
       </div>
       <div class="oibt-body">
         <div class="oibt-vg"><img data-o="vg" alt="Zone du point ${esc(String(p.n))} dans le rapport"></div>
-        <div class="oibt-vg-h">Zone reprise du rapport (page ${p.page}). Déplace le repère sur le rapport pour l'ajuster.</div>
+        <div class="oibt-vg-h">Zone reprise du rapport (page ${p.page}). <b>Tape dessus pour l'agrandir.</b> Déplace le repère sur le rapport pour l'ajuster.</div>
         <div class="oibt-num-edit">
           <label class="fld" style="margin:0">N° du défaut</label>
           <input data-o="n" type="text" value="${esc(String(p.n))}" inputmode="text">
@@ -4257,7 +4332,8 @@ function oibtRender(){
     d.querySelector('.oibt-hd').onclick=()=>{ const f=d.classList.toggle('folded');
       d.querySelector('.oibt-fold').textContent=f?'▸':'▾'; };
     // vignette : découpée à la volée dans les pages rendues
-    oibtVignette(p, 700).then(src=>{ const im=d.querySelector('[data-o="vg"]'); if(im && src) im.src=src; });
+    oibtVignette(p, 700).then(src=>{ const im=d.querySelector('[data-o="vg"]'); if(im && src){
+      im.src=src; im.onclick=()=>oibtLoupeOuvre(p, src); } });
     d.querySelector('[data-o="n"]').addEventListener('input',e=>{ p.n=e.target.value; oibtSave(); });
     d.querySelector('[data-o="titre"]').addEventListener('input',e=>{
       p.titre=e.target.value; d.querySelector('.oibt-lieu').textContent=p.titre||('Page '+p.page); oibtSave(); });
@@ -4361,6 +4437,7 @@ function importOibtBackup(file){
     if(OIBT.pdf){                                        // on refabrique les pages du rapport
       try{ OIBT.vues=await oibtRenderPages(bufFromB64(OIBT.pdf).buffer,
              (i,n)=>{ m.textContent='Rendu de la page '+i+' / '+n+'…'; }); }catch(e){}
+      await oibtCalcBandes();                      // repère l'en-tête / le pied de page
     }
     oibtRender(); oibtSave();
     m.className='msg ok';
@@ -4754,7 +4831,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v75-arbre — OIBT : ordre export corrigé, plus de saut de page, zoom, mesures typées';
+const APP_VERSION='v77-arbre — OIBT : la zone d\'un point s\'arrête avant le pied / l\'en-tête de page';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -4826,6 +4903,13 @@ function init(){
     const z=b.dataset.z;
     oibtSetZoom(z==='0' ? 1 : OIBT_Z + (z==='+' ? 0.25 : -0.25));
   });
+  document.querySelectorAll('#oibtLoupe button[data-lz]').forEach(b=> b.onclick=()=>{
+    const z=b.dataset.lz;
+    oibtLoupeZoom(z==='0' ? 1 : OIBT_LZ + (z==='+' ? 0.5 : -0.5));
+  });
+  $('#oibtLoupeX').onclick=oibtLoupeFerme;
+  $('#oibtLoupe').addEventListener('click', e=>{ if(e.target.id==='oibtLoupe') oibtLoupeFerme(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#oibtLoupe').hidden) oibtLoupeFerme(); });
   $('#oibtBackupExport').onclick=exportOibtBackup;
   $('#oibtBackupImportBtn').onclick=()=>$('#oibtBackupImport').click();
   $('#oibtBackupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importOibtBackup(f); e.target.value=''; });
