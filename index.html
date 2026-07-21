@@ -365,9 +365,19 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer}
 .oibt-vals{background:#eef3f9; border-radius:10px; padding:8px 10px; margin:8px 0}
 :root[data-theme="dark"] .oibt-vals{background:#1c2732}
-.oibt-val{display:flex; align-items:center; gap:8px; margin-top:5px}
+.oibt-val{display:flex; align-items:center; gap:8px; margin-top:5px; flex-wrap:wrap}
 .oibt-val span{flex:0 0 auto; font-weight:800; color:var(--navy2); font-size:12px}
-.oibt-val input{flex:1}
+.oibt-val input{flex:1; min-width:80px}
+.oibt-val select{flex:0 0 auto; max-width:46%}
+.oibt-unit{flex:0 0 auto; font-size:12px; color:var(--mut); min-width:24px; font-weight:700}
+/* Zoom de la visionneuse du rapport */
+.oibt-zoom{display:flex; align-items:center; gap:8px; margin:0 0 10px}
+.oibt-zoom button{padding:7px 13px; border:1px solid var(--line); background:var(--card);
+  color:var(--navy); border-radius:10px; font-size:15px; font-weight:800; cursor:pointer}
+.oibt-zoom button:active{transform:scale(.94)}
+.oibt-zoom .zv{font-size:13px; color:var(--mut); font-weight:700; min-width:52px; text-align:center}
+#oibtVue{overflow-x:auto}
+.oibt-pg{flex:0 0 auto}
 .tile .tx{flex:1; min-width:0}
 .tile .tx .t{display:block; font-size:15.5px; font-weight:800; color:var(--navy); line-height:1.2}
 .tile .tx .d{display:block; font-size:11.5px; color:var(--mut); margin-top:4px; line-height:1.3}
@@ -956,6 +966,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <div class="body">
         <p class="hint" id="oibtVueAide" hidden><b>Tape sur un défaut</b> pour y poser un point.
         Un repère se déplace au doigt, la croix le supprime.</p>
+        <div class="oibt-zoom" id="oibtZoom" hidden>
+          <button type="button" data-z="-" aria-label="Dézoomer">−</button>
+          <span class="zv" id="oibtZoomVal">100 %</span>
+          <button type="button" data-z="+" aria-label="Zoomer">+</button>
+          <button type="button" data-z="0">Ajuster</button>
+        </div>
         <div id="oibtVue" hidden></div>
       </div>
     </section>
@@ -3928,7 +3944,7 @@ async function oibtParse(buf){
                                        : oibtParseEF(lignes, joint);
   pts.forEach(p=>{
     p.texte=p.texte.join(' ').replace(/\s+/g,' ').trim();
-    p.vals=oibtBlanks(p.texte).map(()=>'');      // un champ par « ____ » du texte
+    p.vals=[];                                   // les mesures s'ajoutent à la main (liste + type)
   });
   return {pages, pts, modele};
 }
@@ -3972,6 +3988,14 @@ async function oibtRenderPages(buf, onProg){
    et elle traverse les pages, ce qui couvre les rapports qui groupent leurs photos sur
    une page dédiée après la page du texte. Renvoie des tranches {page, y0, y1} en points. */
 function oibtOrdre(){ return OIBT.pts.slice().sort((a,b)=> a.page-b.page || a.y-b.y); }
+/* Zoom de la visionneuse : la pose d'un point se calcule sur le rectangle affiché, donc
+   elle reste juste quel que soit le grossissement. */
+let OIBT_Z=1;
+function oibtSetZoom(z){
+  OIBT_Z=Math.min(4, Math.max(1, Math.round(z*100)/100));
+  document.querySelectorAll('#oibtVue .oibt-pg').forEach(d=> d.style.width=(OIBT_Z*100)+'%');
+  const v=$('#oibtZoomVal'); if(v) v.textContent=Math.round(OIBT_Z*100)+' %';
+}
 function oibtZone(p){
   const t=oibtOrdre(), i=t.findIndex(q=>q===p);
   if(i<0 || !OIBT.vues.length) return [];
@@ -4051,6 +4075,30 @@ async function oibtVignette(p, maxW){
 }
 /* Repère les « ____ » à compléter dans le texte d'un point */
 function oibtBlanks(texte){ return String(texte||'').match(/_{3,}/g) || []; }
+/* ---- Mesures d'un point : type choisi dans une liste + valeur. Remplace les « ____ » du
+       texte, illisibles dès que l'OCR en avale un. ---- */
+const OIBT_MESURES=[
+  {k:'riso',   lbl:'Riso',     u:'MΩ'},
+  {k:'rlow',   lbl:'Rlow',     u:'Ω'},
+  {k:'icclpe', lbl:'ICC L-PE', u:'A'},
+  {k:'iccln',  lbl:'ICC L-N',  u:'A'},
+  {k:'idn',    lbl:'IΔN',      u:'mA'},
+  {k:'dt',     lbl:'Δt',       u:'ms'},
+  {k:'autre',  lbl:'Autre…',   u:''}
+];
+function oibtMes(k){ return OIBT_MESURES.find(m=>m.k===k) || OIBT_MESURES[OIBT_MESURES.length-1]; }
+/* Ancien format (chaîne libre) → nouveau {k, v, lbl}. Les sauvegardes restent lisibles. */
+function oibtValNorm(v){
+  if(v && typeof v==='object') return {k:v.k||'autre', v:v.v||'', lbl:v.lbl||''};
+  return {k:'autre', v:String(v||''), lbl:''};
+}
+/* Libellé lisible d'une mesure (app + export). Vide si aucune valeur saisie. */
+function oibtValTexte(v){
+  const o=oibtValNorm(v), m=oibtMes(o.k);
+  const val=String(o.v||'').trim(); if(!val) return '';
+  const nom = o.k==='autre' ? (String(o.lbl||'').trim()||'Valeur mesurée') : m.lbl;
+  return nom+' : '+val+(m.u?' '+m.u:'');
+}
 /* Texte du point avec les blancs remplis par les valeurs saisies */
 function oibtFilled(p){
   let i=0;
@@ -4096,9 +4144,12 @@ function oibtAjoutePoint(page, y){
   let rang=t.filter(q=> q.page<page || (q.page===page && q.y<=y)).length + 1;
   const p={ n:String(rang), page, y, texte:'', titre:'', rem:'', ok:false, sig:null, vals:[], manuel:true };
   OIBT.pts.push(p);
+  // On NE bouge PAS la page : le doigt est sur le rapport, on doit pouvoir enchaîner les
+  // points. Le re-rendu peut décaler le défilement, donc on le remet où il était.
+  const sy=window.scrollY;
   oibtRender(); oibtSave();
-  const c=document.querySelector('.oibt-pt[data-i="'+OIBT.pts.indexOf(p)+'"]');
-  if(c) c.scrollIntoView({behavior:'smooth', block:'center'});
+  window.scrollTo(0, sy);
+  requestAnimationFrame(()=>window.scrollTo(0, sy));
 }
 function oibtSupprimePoint(p){
   const i=OIBT.pts.indexOf(p); if(i<0) return;
@@ -4122,9 +4173,11 @@ function oibtRenderVue(){
   box.innerHTML='';
   box.hidden = !OIBT.vues.length;
   const aide=$('#oibtVueAide'); if(aide) aide.hidden = !OIBT.vues.length;
+  const zb=$('#oibtZoom'); if(zb) zb.hidden = !OIBT.vues.length;
   OIBT.vues.forEach((v,k)=>{
     const pg=k+1;
     const d=el('div','oibt-pg');
+    d.style.width=(OIBT_Z*100)+'%';
     d.innerHTML=`<img src="${v.src}" alt="Page ${pg}" draggable="false"><span class="oibt-pgn">Page ${pg} / ${OIBT.vues.length}</span>`;
     // pose d'un point : on convertit la position du doigt en points PDF
     d.onclick=e=>{
@@ -4185,9 +4238,9 @@ function oibtRender(){
         </div>
         ${p.texte?`<div class="oibt-txt">${esc(p.texte)}</div>`:''}
         <div class="oibt-vals">
-          <div class="fld" style="margin-bottom:4px">Valeurs mesurées à consigner</div>
+          <div class="fld" style="margin-bottom:4px">Mesures à consigner</div>
           <div data-o="vals"></div>
-          <button type="button" class="oibt-addval" data-o="addval">+ Ajouter une valeur</button>
+          <button type="button" class="oibt-addval" data-o="addval">+ Ajouter une mesure</button>
         </div>
         <div class="chk"><input type="checkbox" data-o="ok"${p.ok?' checked':''}><label><b>Corrigé</b></label></div>
         <label class="fld">Remarque / mesure</label>
@@ -4215,19 +4268,29 @@ function oibtRender(){
     const boxVals=d.querySelector('[data-o="vals"]');
     const dessineVals=()=>{
       boxVals.innerHTML='';
-      (p.vals||[]).forEach((v,k)=>{
+      p.vals=(p.vals||[]).map(oibtValNorm);
+      p.vals.forEach((v,k)=>{
+        const m=oibtMes(v.k);
         const r=el('div','oibt-val');
-        r.innerHTML=`<span>${k+1}.</span><input type="text" value="${esc(v||'')}" placeholder="valeur mesurée">`
-                   +`<button type="button" class="oibt-val-x" title="Retirer cette ligne">×</button>`;
-        r.querySelector('input').addEventListener('input',e=>{ p.vals[k]=e.target.value; oibtSave(); });
+        r.innerHTML=`<select data-vk>`
+          + OIBT_MESURES.map(o=>`<option value="${o.k}"${o.k===v.k?' selected':''}>${esc(o.lbl)}${o.u?' ('+esc(o.u)+')':''}</option>`).join('')
+          + `</select>`
+          + (v.k==='autre'?`<input data-vl type="text" value="${esc(v.lbl||'')}" placeholder="nom de la mesure">`:'')
+          + `<input data-vv type="text" inputmode="decimal" value="${esc(v.v||'')}" placeholder="valeur">`
+          + `<span class="oibt-unit">${esc(m.u||'')}</span>`
+          + `<button type="button" class="oibt-val-x" title="Retirer cette mesure">×</button>`;
+        r.querySelector('[data-vk]').onchange=e=>{ v.k=e.target.value; dessineVals(); oibtSave(); };
+        const iv=r.querySelector('[data-vv]'); if(iv) iv.addEventListener('input',e=>{ v.v=e.target.value; oibtSave(); });
+        const il=r.querySelector('[data-vl]'); if(il) il.addEventListener('input',e=>{ v.lbl=e.target.value; oibtSave(); });
         r.querySelector('.oibt-val-x').onclick=()=>{ p.vals.splice(k,1); dessineVals(); oibtSave(); };
         boxVals.appendChild(r);
       });
-      if(!(p.vals||[]).length) boxVals.innerHTML='<div class="oibt-vg-h" style="margin:0">Aucune valeur à consigner pour ce point.</div>';
+      if(!p.vals.length) boxVals.innerHTML='<div class="oibt-vg-h" style="margin:0">Aucune mesure pour ce point.</div>';
     };
     dessineVals();
-    d.querySelector('[data-o="addval"]').onclick=()=>{ p.vals=p.vals||[]; p.vals.push(''); dessineVals(); oibtSave();
-      const ins=boxVals.querySelectorAll('input'); if(ins.length) ins[ins.length-1].focus(); };
+    d.querySelector('[data-o="addval"]').onclick=()=>{
+      p.vals=(p.vals||[]).map(oibtValNorm); p.vals.push({k:'riso', v:'', lbl:''}); dessineVals(); oibtSave();
+      const ins=boxVals.querySelectorAll('[data-vv]'); if(ins.length) ins[ins.length-1].focus(); };
     const refreshBy=()=>{ const b=d.querySelector('[data-o="by"]'); if(b) b.textContent=p.by?('✔ Validé par '+p.by+' le '+frDate(p.byDate||todayISO())):''; };
     // Estampille le point avec le collaborateur CONNECTÉ au moment où il le valide (coche
     // « Corrigé » ou signe). Chaque point garde ainsi le nom de celui qui l'a réellement fait,
@@ -4331,7 +4394,9 @@ async function oibtExportPDF(){
     const nOrig=pages.length;
     const who=currentUser?currentUser.name:'';
     const today=frDate(todayISO());
-    const faits=OIBT.pts.filter(p=>p.ok);
+    // ORDRE DE LECTURE (page puis position), comme dans l'interface : un point ajouté après
+    // coup est rangé à sa place et non à la fin. Sans ça, l'annexe sort dans le désordre.
+    const faits=oibtOrdre().filter(p=>p.ok);
     if(!faits.length){ alert('Aucun point n\'est marqué corrigé.'); return; }
 
     const NAVY=rgb(0.12,0.23,0.36), GREEN=rgb(0.11,0.49,0.25), INK=rgb(0.20,0.20,0.20),
@@ -4404,17 +4469,8 @@ async function oibtExportPDF(){
       // le texte n'est repris QUE si la vignette manque : sinon on le lirait deux fois
       const txtL  = (!vg && p.texte) ? wrapText(winAnsi(p.texte), font, 9, COLI) : [];
       const lieuL = p.titre ? wrapText(winAnsi(p.titre), bold, 9, COLI) : [];
-      /* Toutes les valeurs saisies sont consignées. Quand le texte du défaut contient des
-         « ____ », on reprend la phrase où ils figurent (« Mesure : … 500 Mohm … ») ; sinon
-         on écrit la valeur seule. L'utilisateur reste maître du nombre de lignes. */
-      const segs  = oibtFilledSegments(p);
-      const nBl   = oibtBlanks(p.texte).length;
-      const vals  = (p.vals||[]).map(v=>String(v||'').trim());
-      // valeurs saisies au-delà des « ____ » retrouvés : elles ne doivent pas se perdre
-      const rab   = vals.slice(nBl).filter(Boolean);
-      const mes   = segs.map(s=>'Mesure : '+s)
-                        .concat(rab.map(v=>'Valeur mesurée : '+v));
-      const mesL  = (mes.length ? mes : vals.filter(Boolean).map(v=>'Valeur mesurée : '+v))
+      // Mesures : type choisi + valeur + unité (« Riso : 500 MΩ »). Plus de « ____ ».
+      const mesL  = (p.vals||[]).map(oibtValTexte).filter(Boolean)
                     .flatMap(s=>wrapText(winAnsi(s), font, 9, COLI-12));
       const remL  = p.rem ? wrapText(winAnsi('Remarque : '+p.rem), font, 9, COLI-12) : [];
       const sig   = p.sig ? sigs.get(p.sig) : null;
@@ -4698,7 +4754,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v74-arbre — OIBT : valeurs mesurées libres, titre saisi, plus de titre deviné';
+const APP_VERSION='v75-arbre — OIBT : ordre export corrigé, plus de saut de page, zoom, mesures typées';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -4766,6 +4822,10 @@ function init(){
   $('#oibtPdf').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) oibtImport(f); e.target.value=''; });
   $('#oibtGenBtn').onclick=oibtExportPDF;
   $('#oibtResetBtn').onclick=resetOibt;
+  document.querySelectorAll('#oibtZoom button[data-z]').forEach(b=> b.onclick=()=>{
+    const z=b.dataset.z;
+    oibtSetZoom(z==='0' ? 1 : OIBT_Z + (z==='+' ? 0.25 : -0.25));
+  });
   $('#oibtBackupExport').onclick=exportOibtBackup;
   $('#oibtBackupImportBtn').onclick=()=>$('#oibtBackupImport').click();
   $('#oibtBackupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importOibtBackup(f); e.target.value=''; });
