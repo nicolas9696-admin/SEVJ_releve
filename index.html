@@ -3861,12 +3861,48 @@ const OIBT_ES_LIEU=/^(Sous-sol|Rez-de-chauss.e|\d+\s*(er|ème|e)\s+étage|Comble
 let OIBT={ file:'', pdf:null, vues:[], pts:[], modele:'' };
 
 /* pdf-lib n'accepte que le WinAnsi avec les polices standard : on remplace le reste */
+/* Les lettres grecques SURVIVENT ici : elles ne sont pas dans le WinAnsi de l'Helvetica,
+   mais le PDF embarque aussi la police Symbol qui les contient. C'est oibtRich* (plus bas)
+   qui bascule de police au moment de dessiner. Écrire « d » pour Δ n'est pas acceptable
+   sur un protocole de mesure. */
+/* La police Symbole du PDF s'adresse par les vrais points de code grecs (vérifié :
+   « D » y est REFUSÉ, « Δ » accepté). On se contente donc d'unifier les doublons Unicode :
+   le signe ohm U+2126 et l'incrément U+2206 valent Ω et Δ. */
+const PDF_SYMBOLES={'Δ':'Δ','∆':'Δ','Ω':'Ω','Ω':'Ω','ω':'ω','µ':'μ','μ':'μ','π':'π'};
+const PDF_SYM_RE=/[Δ∆ΩΩωµμπ]/;
 function winAnsi(s){
   return String(s==null?'':s)
     .replace(/[’‘]/g,"'").replace(/[“”]/g,'"').replace(/[—–]/g,'-')
-    .replace(/≤/g,'<=').replace(/≥/g,'>=').replace(/[Ωω]/g,'Ohm').replace(/[Δ∆]/g,'d')
+    .replace(/≤/g,'<=').replace(/≥/g,'>=')
     .replace(/œ/g,'oe').replace(/Œ/g,'OE').replace(/²/g,'2').replace(/³/g,'3')
-    .replace(/[^\x00-\xFF]/g,'');            // tout ce qui reste hors latin-1
+    .replace(/[^\x00-\xFF Δ∆ΩΩωµμπ]/g,'');  // hors latin-1, sauf ce que Symbol sait écrire
+}
+/* Découpe un texte en segments « Helvetica » / « Symbol ». Fonction PURE → testable. */
+function oibtRichRuns(t){
+  const out=[];
+  for(const ch of String(t==null?'':t)){
+    const sym=PDF_SYM_RE.test(ch);
+    const c=sym ? PDF_SYMBOLES[ch] : ch;
+    const der=out[out.length-1];
+    if(der && der.sym===sym) der.s+=c; else out.push({s:c, sym});
+  }
+  return out;
+}
+/* Largeur d'un texte mixte, et tracé du même texte. `f` = Helvetica (ou gras), `fs` = Symbol. */
+function oibtRichW(t, f, fs, size){
+  return oibtRichRuns(t).reduce((a,r)=>{
+    const police=r.sym?fs:f;
+    try{ return a+police.widthOfTextAtSize(r.s, size); }catch(e){ return a+r.s.length*size*0.5; }
+  }, 0);
+}
+function oibtRichDraw(pg, t, o){
+  let x=o.x;
+  for(const r of oibtRichRuns(t)){
+    const police=r.sym?o.symFont:o.font;
+    pg.drawText(r.s, {x, y:o.y, size:o.size, font:police, color:o.color});
+    try{ x+=police.widthOfTextAtSize(r.s, o.size); }catch(e){ x+=r.s.length*o.size*0.5; }
+  }
+  return x-o.x;
 }
 /* ---- Extraction des points depuis le PDF (pdf.js) ---- */
 /* Rectangles des images d'une page : on suit la matrice courante (CTM) et, à chaque
@@ -4159,22 +4195,6 @@ function oibtZone(p){
   }
   return tr;
 }
-/* Rangées « avec contenu » d'une image basse résolution : le fond d'une page est quasi
-   blanc, tout le reste (texte, photo, trait) ne l'est pas. Sert uniquement à savoir où
-   s'arrête le contenu d'une vignette. Fonction PURE → testable. */
-function oibtContentRows(data, AW, AH){
-  const rows=new Array(AH).fill(false);
-  for(let ry=0; ry<AH; ry++){
-    let cnt=0;
-    for(let rx=0; rx<AW; rx++){
-      const i=(ry*AW+rx)*4, r=data[i], g=data[i+1], b=data[i+2];
-      const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
-      if(mx<232 || (mx-mn)>26) cnt++;                  // sombre OU coloré = contenu
-    }
-    rows[ry] = cnt > AW*0.02;
-  }
-  return rows;
-}
 /* Images de page mises en cache (une seule décompression par page) */
 const OIBT_IMGS=new Map();
 function oibtImg(pg){
@@ -4202,22 +4222,42 @@ async function oibtVignette(p, maxW){
   const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,W,c.height);
   let y=0;
   for(const q of parts){ x.drawImage(q.im, 0, q.sy, q.sw, q.sh, 0, y, W, q.sh); y+=q.sh; }
-  // rogne le blanc de fin (analyse basse résolution : on ne cherche qu'une frontière)
-  let bas=c.height;
-  try{
-    const AW=Math.min(200, W), AH=Math.max(1, Math.round(c.height*AW/W));
-    const a=document.createElement('canvas'); a.width=AW; a.height=AH;
-    const ax=a.getContext('2d'); ax.drawImage(c,0,0,AW,AH);
-    const rows=oibtContentRows(ax.getImageData(0,0,AW,AH).data, AW, AH);
-    let der=-1; for(let i=0;i<AH;i++) if(rows[i]) der=i;
-    if(der>=0) bas=Math.min(c.height, Math.round((der+2)*c.height/AH));
-  }catch(e){ /* rognage impossible : on garde la vignette entière */ }
-  const ech=Math.min(1, (maxW||1000)/W);
+  /* Rognage sur les QUATRE côtés. Une page A4 porte ~50 pt de marge à gauche et à droite,
+     plus du blanc en haut et en bas de la zone : gardées telles quelles, ces marges font
+     une vignette large et vide qu'il faut ensuite réduire pour tenir — donc un extrait
+     illisible et une annexe qui s'étale. On recadre sur le contenu réel. */
+  const b=oibtBoite(c);
+  const bx=b?b.x0:0, by=b?b.y0:0;
+  const bw=b?(b.x1-b.x0+1):W, bh=b?(b.y1-b.y0+1):c.height;
+  const ech=Math.min(1, (maxW||1000)/bw);
   const f=document.createElement('canvas');
-  f.width=Math.round(W*ech); f.height=Math.max(1, Math.round(bas*ech));
+  f.width=Math.max(1,Math.round(bw*ech)); f.height=Math.max(1,Math.round(bh*ech));
   const fx=f.getContext('2d'); fx.fillStyle='#fff'; fx.fillRect(0,0,f.width,f.height);
-  fx.drawImage(c, 0, 0, W, bas, 0, 0, f.width, f.height);
+  fx.drawImage(c, bx, by, bw, bh, 0, 0, f.width, f.height);
   return f.toDataURL('image/jpeg', 0.78);
+}
+/* Boîte englobante du contenu d'un canvas (le reste est du blanc de page). Analyse basse
+   résolution : on ne cherche que des frontières, pas du détail. Marge de 2 % conservée. */
+function oibtBoite(cv){
+  try{
+    const AW=Math.min(240, cv.width), AH=Math.max(1, Math.round(cv.height*AW/cv.width));
+    const a=document.createElement('canvas'); a.width=AW; a.height=AH;
+    a.getContext('2d').drawImage(cv,0,0,AW,AH);
+    const d=a.getContext('2d').getImageData(0,0,AW,AH).data;
+    let x0=AW, x1=-1, y0=AH, y1=-1;
+    for(let ry=0; ry<AH; ry++) for(let rx=0; rx<AW; rx++){
+      const i=(ry*AW+rx)*4, r=d[i], g=d[i+1], bl=d[i+2];
+      const mx=Math.max(r,g,bl), mn=Math.min(r,g,bl);
+      if(mx<232 || (mx-mn)>26){                            // sombre OU coloré = contenu
+        if(rx<x0)x0=rx; if(rx>x1)x1=rx; if(ry<y0)y0=ry; if(ry>y1)y1=ry;
+      }
+    }
+    if(x1<0) return null;                                  // vignette entièrement blanche
+    const mx=Math.max(2, Math.round(AW*0.02)), my=Math.max(2, Math.round(AH*0.02));
+    const kx=cv.width/AW, ky=cv.height/AH;
+    return { x0:Math.round(Math.max(0,x0-mx)*kx),          y0:Math.round(Math.max(0,y0-my)*ky),
+             x1:Math.round(Math.min(AW-1,x1+mx)*kx),       y1:Math.round(Math.min(AH-1,y1+my)*ky) };
+  }catch(e){ return null; }
 }
 /* Repère les « ____ » à compléter dans le texte d'un point */
 function oibtBlanks(texte){ return String(texte||'').match(/_{3,}/g) || []; }
@@ -4566,6 +4606,9 @@ async function oibtExportPDF(){
     const pdf=await PDFDocument.load(bufFromB64(OIBT.pdf));
     const font=await pdf.embedFont(StandardFonts.Helvetica);
     const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+    // Symbol : la seule des 14 polices standard qui porte les grecques (Δ, Ω, µ, π).
+    // Elle ne coûte rien au poids du fichier et évite d'embarquer une TTF Unicode.
+    const symb=await pdf.embedFont(StandardFonts.Symbol);
     const pages=pdf.getPages();
     const nOrig=pages.length;
     const who=currentUser?currentUser.name:'';
@@ -4603,7 +4646,10 @@ async function oibtExportPDF(){
     /* Vignette de chaque point : la zone du rapport que l'utilisateur a désignée, découpée
        dans les pages rendues. C'est elle qui porte le texte du défaut ET sa photo — sans
        qu'aucun code n'ait eu à les distinguer. */
-    const VG_W=COLI, VG_H=300;                             // cadre maximal de la vignette
+    /* Cadre maximal de la vignette. 250 pt (et non 300) : recadrée sur son contenu, elle
+       n'a plus de marges à afficher, donc elle reste lisible plus petite — et deux points
+       tiennent alors sur une page d'annexe au lieu d'un seul. */
+    const VG_W=COLI, VG_H=250;
     const vgs=new Map();
     for(const p of faits){
       try{
@@ -4650,45 +4696,47 @@ async function oibtExportPDF(){
                     .flatMap(s=>wrapText(winAnsi(s), font, 9, COLI-12));
       const remL  = p.rem ? wrapText(winAnsi('Remarque : '+p.rem), font, 9, COLI-12) : [];
       const sig   = p.sig ? sigs.get(p.sig) : null;
-      const sigH  = sig ? 24 : 0;
+      const IL    = 10.5;                                 // interligne du cartouche
 
-      // cartouche vert : « OK ! » + signature + mesures + remarque
-      const contenuH = 12 + (sig?sigH+4:0) + mesL.length*11 + remL.length*11;
-      const okH = contenuH + 14;                          // + marge haute et basse du cartouche
-      const besoin = 15 + lieuL.length*11 + txtL.length*11 + (vg?vg.h+8:0) + 8 + okH + 20;
+      // cartouche vert : ligne « OK ! » (la signature s'y loge à droite) + mesures + remarque
+      const contenuH = 13 + mesL.length*IL + remL.length*IL;
+      const okH = contenuH + 11;                          // + marge haute et basse du cartouche
+      const besoin = 14 + lieuL.length*11 + txtL.length*11 + (vg?vg.h+6:0) + 5 + okH + 14;
       // un bloc plus haut qu'une page entière ne gagne rien à être déplacé
       if(y-besoin < BAS && y < HAUT-2) nouvellePage();
 
       // en-tête du bloc : numéro à gauche, renvoi vers la page du rapport à droite
       pg.drawText(winAnsi(ident), {x:M, y, size:12, font:bold, color:NAVY});
       droite(winAnsi('rapport, page '+p.page+' / '+nOrig), y+1, 8, font, GREY);
-      y-=15;
-      lieuL.forEach(ln=>{ pg.drawText(ln, {x:IND, y, size:9, font:bold, color:INK}); y-=11; });
-      txtL .forEach(ln=>{ pg.drawText(ln, {x:IND, y, size:9, font,       color:GREY}); y-=11; });
+      y-=14;
+      lieuL.forEach(ln=>{ oibtRichDraw(pg, ln, {x:IND, y, size:9, font:bold, symFont:symb, color:INK}); y-=11; });
+      txtL .forEach(ln=>{ oibtRichDraw(pg, ln, {x:IND, y, size:9, font,      symFont:symb, color:GREY}); y-=11; });
       if(vg){
         pg.drawImage(vg.im, {x:IND, y:y-vg.h+4, width:vg.w, height:vg.h});
         pg.drawRectangle({x:IND, y:y-vg.h+4, width:vg.w, height:vg.h, borderColor:FILET, borderWidth:0.6});
-        y-=vg.h+8;
+        y-=vg.h+6;
       }
-      y-=8;
+      y-=5;
 
-      // cartouche : fond vert pâle + barre verte à gauche. Le haut du cartouche est 10 pt
-      // au-dessus de la 1ʳᵉ ligne de texte (« OK ! »), le bas 4 pt sous la dernière.
-      const cartTop=y+10, cartBas=cartTop-okH;
+      // cartouche : fond vert pâle + barre verte à gauche. Le haut du cartouche est 8 pt
+      // au-dessus de la 1ʳᵉ ligne de texte (« OK ! »), le bas 3 pt sous la dernière.
+      const cartTop=y+8, cartBas=cartTop-okH;
       pg.drawRectangle({x:IND, y:cartBas, width:R-IND, height:okH, color:VERTPALE});
       pg.drawRectangle({x:IND, y:cartBas, width:2.5,   height:okH, color:GREEN});
       let yc=y;
       const pby=p.by||who||'—', pdate=p.byDate?frDate(p.byDate):today;
       pg.drawText(winAnsi('OK !  Corrigé le '+pdate+' par '+pby), {x:IND+12, y:yc, size:10, font:bold, color:GREEN});
-      yc-=12;
+      // la signature se loge À DROITE du « OK ! » : elle ne coûte plus une ligne entière.
+      // Calée sous le bord haut du cartouche pour ne pas en déborder.
       if(sig){
-        const sc=Math.min(86/sig.width, sigH/sig.height);
-        pg.drawImage(sig, {x:IND+12, y:yc-sig.height*sc+3, width:sig.width*sc, height:sig.height*sc});
-        yc-=sigH+4;
+        const sc=Math.min(80/sig.width, 15/sig.height);
+        const sh=sig.height*sc;
+        pg.drawImage(sig, {x:R-16-sig.width*sc, y:cartTop-2-sh, width:sig.width*sc, height:sh});
       }
-      mesL.forEach(ln=>{ pg.drawText(ln, {x:IND+12, y:yc, size:9, font, color:rgb(0.11,0.35,0.2)}); yc-=11; });
-      remL.forEach(ln=>{ pg.drawText(ln, {x:IND+12, y:yc, size:9, font, color:INK}); yc-=11; });
-      y=cartBas-20;                                       // respiration avant le point suivant
+      yc-=13;
+      mesL.forEach(ln=>{ oibtRichDraw(pg, ln, {x:IND+12, y:yc, size:9, font, symFont:symb, color:rgb(0.11,0.35,0.2)}); yc-=IL; });
+      remL.forEach(ln=>{ oibtRichDraw(pg, ln, {x:IND+12, y:yc, size:9, font, symFont:symb, color:INK}); yc-=IL; });
+      y=cartBas-14;                                       // respiration avant le point suivant
     }
 
     // --- Pied de page des feuilles d'annexe
@@ -4930,7 +4978,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v83-arbre — Mesures Riso (N-PE) / Riso (L-PE) · hors-ligne vérifié';
+const APP_VERSION='v84-arbre — Annexe : vraies grecques (Δt, MΩ) et mise en page resserrée';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
