@@ -1,15 +1,21 @@
 # SEVJ · Relevé chantier
 
-Application mobile (page web, PWA) qui s'ouvre sur une **page d'accueil** proposant **trois fonctions** :
+Application mobile (page web, PWA) qui s'ouvre sur une **page d'accueil** (hub en **grille**) proposant **six fonctions** :
 
 - **📋 Relevé chantier** — relever l'installation sur site et générer une **Fiche informative**
   pour la personne qui établit l'offre.
 - **🧾 Bon de régie** — établir un bon signé pour les **travaux hors offre à facturer**.
 - **📟 Protocole d'essai et de mesure** — le **procès-verbal de 1ʳᵉ vérification (OIBT)**,
   exporté en **PDF paysage** reproduisant le formulaire officiel.
+- **📄 Rapport de mesures** — contrôle d'appareils **SNR 462638 (VDE 0701-0702)**.
+- **✅ Rapport OIBT** — importer le **PDF d'un rapport de contrôle** reçu du contrôleur, désigner et
+  **signer les points corrigés**, puis exporter une **annexe « remise en conformité »**.
+- **🔖 Listing tableau** — générer une **étiquette d'armoire électrique** prête à imprimer
+  (titre + lignes N° / désignation, logo officiel SEVJ, pied « Fait par … le … »).
 
 Un bouton **🏠 Accueil** en haut de chaque fonction ramène au choix.
-Tout tient dans `index.html` (+ `materiel.js` et les images) — aucune installation, aucun serveur.
+Tout tient dans `index.html` (+ `materiel.js` et les images) — aucune installation, aucun serveur,
+**aucune dépendance externe** (tout est local, d'où un fonctionnement **hors-ligne complet**, cf. §5).
 
 ---
 
@@ -190,6 +196,66 @@ Le texte est sauvegardé automatiquement (la signature, non).
 
 ---
 
+## 4 bis. Rapport de mesures 📄
+
+Contrôle d'appareils selon **SNR 462638 (VDE 0701-0702)** : identité de l'appareil, mesures, verdict,
+signature du contrôleur connecté. Export **PDF paysage** au logo SEVJ. Le texte est sauvegardé
+automatiquement.
+
+---
+
+## 4 ter. Rapport OIBT ✅
+
+Reprendre un **rapport de contrôle** reçu du contrôleur et attester la **remise en conformité**, sans
+jamais toucher au PDF d'origine : on **ajoute une annexe** à la fin.
+
+### Importer & désigner les points
+- **📥 Importer le rapport (PDF)** : chaque page est rendue en image. Les points de défaut
+  numérotés (« 1. », « 2. »… ou identifiant « Défaut M… ») sont **proposés automatiquement** ;
+  on peut aussi **taper sur le rapport** pour poser un point là où il manque.
+- Chaque repère se **déplace au doigt** (c'est lui qui fixe la **zone** reprise dans l'annexe),
+  la croix le supprime. Un point inséré entre deux défauts est numéroté **12b, 12c…** (jamais de doublon).
+- **Zoom au doigt** : pince pour agrandir le rapport ; **tape sur la zone d'un point** pour l'ouvrir
+  en **plein écran** (image régénérée en haute résolution, un doigt pour se déplacer).
+- La **zone** d'un point reprend automatiquement **texte + photo** du défaut, en s'arrêtant proprement
+  avant l'en-tête / le pied de page (détectés par répétition d'une page à l'autre).
+
+### Corriger, mesurer, signer
+- **Titre** libre, **N° du défaut** modifiable.
+- **Mesures à consigner** : liste typée — **Riso (N-PE)**, **Riso (L-PE)**, **Rlow**, **ICC L-PE**,
+  **ICC L-N**, **IΔN**, **Δt**, **Autre…** (nom libre) — avec valeur et unité.
+- Case **Corrigé**, **remarque**, et **signature** du point.
+- Chaque point garde le **nom du collaborateur qui l'a validé** au moment où il coche/signe : si un
+  collègue reprend le rapport avec **son** compte, ses points portent **son** nom. (Passe la
+  **sauvegarde .json**, qui contient PDF + signatures, au collègue.)
+
+### Avis de suppression de défaut (personne du métier)
+Attestation **officielle** signée par la **personne du métier au sens de l'OIBT** (**André Meylan** ou
+**Gabriel Hodel**), en bas de l'annexe. On sélectionne la personne, on **entre son mot de passe**
+(compte protégé, distinct des monteurs) pour déverrouiller, puis on **signe** au doigt. Le PDF affiche
+le texte d'attestation, la signature, la date et le **cachet SEVJ** (coordonnées). **Facultatif** :
+l'annexe s'exporte aussi sans avis.
+
+### Exporter
+Un **PDF = rapport d'origine intact + annexe** « REMISE EN CONFORMITÉ » : en-tête du chantier recopié
+de la page 1, puis un bloc par point corrigé (vignette de la zone, « OK ! Corrigé le … par … »,
+mesures, remarque, signature), dans l'**ordre de lecture**.
+
+**Sauvegarde** : le rapport en cours (PDF + signatures compris) est conservé sur l'appareil
+(**IndexedDB**, hors quota localStorage) et restauré à la réouverture. La **sauvegarde .json** est
+autonome (PDF inclus) pour changer de téléphone ou passer le relais.
+
+---
+
+## 4 quater. Listing tableau 🔖
+
+Générer une **étiquette d'armoire électrique** prête à imprimer : un **titre** (facultatif), puis les
+lignes **N° + désignation** ajoutées une à une (**Entrée** crée la ligne suivante ; ▲▼ pour réordonner).
+Le PDF **tient toujours sur une page** (la police se réduit au besoin), avec le **logo officiel SEVJ**
+et un pied **« Fait par _(connecté)_ le _(date)_ »**. Brouillon sauvegardé automatiquement.
+
+---
+
 ## 5. Sauvegarde, hors-ligne, partage
 
 **Sauvegarde automatique** 💾 — le relevé en cours est enregistré en continu sur le téléphone et
@@ -197,9 +263,11 @@ Le texte est sauvegardé automatiquement (la signature, non).
 **à part** du texte : si la mémoire du navigateur est pleine, le texte du relevé passe quand même, et
 un **avertissement explicite** invite à faire une sauvegarde `.json`.
 
-**Sauvegarde / restauration `.json`** 📂 (section *Chantier*) — sauvegarde **complète**
-(données **+ photos**) dans un fichier, pour changer de téléphone ou en cas de perte.
-C'est le moyen recommandé de **reprendre un relevé**.
+**Sauvegarde / restauration `.SEVJ`** 📂 (section *Chantier*, et aussi Protocole / Rapport de mesures /
+Rapport OIBT) — sauvegarde **complète** (données **+ photos**, et pour l'OIBT **+ PDF et signatures**)
+dans un fichier **`.SEVJ`** (format propre à l'application ; c'est du JSON à l'intérieur). C'est le moyen
+recommandé de **reprendre un travail** ou de **passer le relais** à un collègue. Les anciennes sauvegardes
+**`.json`** restent importables.
 
 **Partage** 📤 — « Partager (PDF) » ouvre le menu du téléphone avec le **PDF en pièce jointe**.
 Si le navigateur ne le supporte pas (**Firefox** notamment), le PDF s'ouvre dans un **nouvel onglet** :
@@ -207,8 +275,11 @@ on l'enregistre depuis le menu du navigateur, et **le relevé reste intact dans 
 
 > ℹ️ Il n'y a **pas** de bouton « Envoyer par mail » : un lien `mailto:` ne peut pas joindre de fichier.
 
-**Hors-ligne** 📶 — l'app est mise en cache (service worker `sw.js`) et **fonctionne sans réseau**
-une fois ouverte une première fois.
+**Hors-ligne** 📶 — l'app **fonctionne entièrement sans réseau** une fois ouverte une première fois.
+Le service worker (`sw.js`) **pré-met en cache toutes les ressources** (HTML, catalogue, images,
+librairies PDF du dossier `vendor/`) et l'app **n'a aucune dépendance externe** : connexion, saisie,
+signatures, sauvegardes et **génération de PDF** marchent hors-ligne. Seuls la **toute première visite**
+(installation du cache) et le **partage** d'un PDF (mail / WhatsApp) demandent du réseau.
 
 ---
 
@@ -231,6 +302,13 @@ Les mots de passe ne sont **pas stockés en clair** : seul leur hash SHA-256 fig
 | Nicolas W. | `Nicolas.W2026` |
 | Nathan Y. | `Nathan.Y2026` |
 | Bastien Z. | `Bastien.Z2026` |
+
+**Personnes du métier** (liste `PERSONNES_METIER`, signent l'avis de suppression de défaut — §4 ter) :
+
+| Personne du métier | Mot de passe |
+|---|---|
+| André Meylan | `Andre.M2026` |
+| Gabriel Hodel | `Gabriel.H2026` |
 
 ### Changer un mot de passe
 1. Ouvrir le site, puis la **console** du navigateur (F12 → onglet *Console*).

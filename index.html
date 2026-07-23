@@ -670,9 +670,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <input id="ref" type="text" placeholder="INI_date_chantier" autocomplete="off">
       <div class="chk" style="margin-top:12px"><input id="tabAmiante" type="checkbox"><label for="tabAmiante">Tableau (TAB) en amiante</label></div>
       <div style="display:flex; gap:8px; margin-top:12px">
-        <button class="add" id="backupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.json)</button>
-        <input id="backupImport" type="file" accept="application/json,.json" style="display:none">
-        <button class="add" id="backupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.json)</button>
+        <button class="add" id="backupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.SEVJ)</button>
+        <input id="backupImport" type="file" accept=".sevj,application/json,.json" style="display:none">
+        <button class="add" id="backupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.SEVJ)</button>
       </div>
       <p class="hint" style="margin:6px 0 0">Sauvegarde complète (données <b>+ photos</b>) dans un fichier, pour changer de téléphone ou en cas de perte.</p>
     </div>
@@ -839,9 +839,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         </div>
         <p class="hint" style="margin-top:6px">Format : <b>INST-26-</b> + les 4 chiffres de l'affaire interne. La numérotation des pages est automatique.</p>
         <div style="display:flex; gap:8px; margin-top:12px">
-          <button class="add" id="protoBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.json)</button>
-          <input id="protoBackupImport" type="file" accept="application/json,.json" style="display:none">
-          <button class="add" id="protoBackupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.json)</button>
+          <button class="add" id="protoBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.SEVJ)</button>
+          <input id="protoBackupImport" type="file" accept=".sevj,application/json,.json" style="display:none">
+          <button class="add" id="protoBackupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.SEVJ)</button>
         </div>
         <p class="hint" style="margin:6px 0 0">Sauvegarde du protocole dans un fichier, pour changer de téléphone ou en cas de perte. <b>La signature n'est pas incluse</b> — elle est à refaire après restauration.</p>
       </div>
@@ -910,9 +910,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
           <div><label class="fld" for="rmVisa">Visa</label><input id="rmVisa" type="text" autocomplete="off"></div>
         </div>
         <div style="display:flex; gap:8px; margin-top:12px">
-          <button class="add" id="rmBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.json)</button>
-          <input id="rmBackupImport" type="file" accept="application/json,.json" style="display:none">
-          <button class="add" id="rmBackupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.json)</button>
+          <button class="add" id="rmBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.SEVJ)</button>
+          <input id="rmBackupImport" type="file" accept=".sevj,application/json,.json" style="display:none">
+          <button class="add" id="rmBackupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.SEVJ)</button>
         </div>
       </div>
     </section>
@@ -967,9 +967,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
           </table>
         </div>
         <div style="display:flex; gap:8px; margin-top:12px">
-          <button class="add" id="oibtBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.json)</button>
-          <input id="oibtBackupImport" type="file" accept="application/json,.json" style="display:none">
-          <button class="add" id="oibtBackupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.json)</button>
+          <button class="add" id="oibtBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.SEVJ)</button>
+          <input id="oibtBackupImport" type="file" accept=".sevj,application/json,.json" style="display:none">
+          <button class="add" id="oibtBackupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.SEVJ)</button>
         </div>
         <p class="hint" style="margin:6px 0 0">La sauvegarde <b>contient le PDF d'origine et les signatures</b> : tu peux
         reprendre un autre jour et exporter directement, sans rien réimporter.</p>
@@ -996,6 +996,44 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <div class="oibt-stat" id="oibtProgress" hidden></div>
         <div id="oibtPts"></div>
         <div class="oibt-empty" id="oibtNone">Aucun point pour l'instant — importe un rapport, puis tape sur les défauts.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 3l7 4v5c0 4-3 7-7 8-4-1-7-4-7-8V7z"/></svg></span> Avis de suppression de défaut</h2>
+      <div class="body">
+        <p class="hint">Attestation officielle signée par la <b>personne du métier au sens de l'OIBT</b>.
+        Facultative : l'annexe s'exporte aussi sans elle. Sélectionne la personne du métier, entre son
+        mot de passe pour déverrouiller, puis signe.</p>
+        <div class="grid">
+          <div>
+            <label class="fld" for="oibtAvisSel">Personne du métier</label>
+            <select id="oibtAvisSel"><option value="">— choisir —</option></select>
+          </div>
+          <div>
+            <label class="fld" for="oibtAvisPw">Mot de passe</label>
+            <div class="pw-wrap">
+              <input id="oibtAvisPw" type="password" autocomplete="off">
+              <button type="button" id="oibtAvisEye" class="pw-eye" aria-label="Afficher / masquer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <button class="add" id="oibtAvisBtn" style="border-style:solid; margin:10px 0 0">🔓 Déverrouiller la signature</button>
+        <div class="msg" id="oibtAvisMsg"></div>
+        <div id="oibtAvisSign" hidden style="margin-top:10px">
+          <div class="sig-box">
+            <div class="sig-lbl" id="oibtAvisLbl">Signature de la personne du métier</div>
+            <canvas class="sigpad" id="oibtAvisPad" width="600" height="150"></canvas>
+            <button type="button" class="sig-clear" data-avis-clear>Effacer</button>
+          </div>
+          <div class="oibt-vals" style="margin-top:10px">
+            <div class="fld" style="margin-bottom:4px">Cachet imprimé sur l'avis</div>
+            <div id="oibtAvisCachet" class="oibt-vg-h" style="margin:0; white-space:pre-line"></div>
+          </div>
+          <div class="oibt-stat" id="oibtAvisStat" style="margin-top:6px"></div>
+        </div>
       </div>
     </section>
 
@@ -1135,6 +1173,16 @@ const COLLABORATORS = [
   {name:"Nathan Y.",      ini:"NY",  appr:true,  hash:"567c8b707a4c234293761c90c5b659c16cf20bce209654ce4cbff354caaa0734"},
   {name:"Bastien Z.",     ini:"BZ",  appr:false, hash:"5ffae342642b80b86ab97eed3988259c791c53ab5855fe646183e8668e7af8b5"},
 ];
+
+/* Personnes du métier au sens de l'OIBT — seules autorisées à signer l'avis de suppression de
+   défaut. Compte protégé (mot de passe par défaut « Prénom.Initiale2026 », modifiable comme les
+   collaborateurs). Liste distincte des monteurs : elle ne sert QUE pour l'avis. */
+const PERSONNES_METIER = [
+  {name:"André Meylan",  ini:"AM", hash:"35d058e052b5fe032e3004eec5a16c648f2c6972e2233462915bde7d4227b56a"},
+  {name:"Gabriel Hodel", ini:"GH", hash:"0d5207b74905cefb268c7f3e666dfd3fe2c70ea37f0ae475db23231cd6372e0c"},
+];
+/* Cachet imprimé sur l'avis (coordonnées officielles SEVJ, reprises du letterhead). */
+const SEVJ_CACHET = ["SEVJ", "Rue du Pont-Neuf 24 · 1341 L'Orient", "021 845 13 13 · www.sevj.ch"];
 
 /* Option lists */
 const MM2      = ["1.5","2.5","4","6","10","16","25","autre…"];
@@ -3161,7 +3209,7 @@ function setTab(t){
   if(ACTIVE_TAB==='regie'){ $('#regDate').textContent=frDate(todayISO()); updateRegMonteur(); updateRegieReq(); }
   if(ACTIVE_TAB==='proto'){ updateProtoMonteur(); updateProtoReq(); }
   if(ACTIVE_TAB==='rm'){ updateRMMonteur(); updateRMReq(); }
-  if(ACTIVE_TAB==='oibt'){ updateOibtReq(); }
+  if(ACTIVE_TAB==='oibt'){ updateOibtReq(); oibtInitAvis(); oibtRenderAvis(); }
   if(ACTIVE_TAB==='listing'){ updateListingMonteur(); updateListingReq(); }
   window.scrollTo(0,0);
 }
@@ -3434,7 +3482,7 @@ function protoRestore(){
 function exportProtoBackup(){
   const d=collectProto(); delete d.sigProto; delete d.monteur;    // la signature n'est pas enregistrée
   const data={ app:'sevj-proto', v:1, proto:d };
-  const name=((d.noInstall||d.objet||'protocole').replace(/[^\wÀ-ſ.-]/g,'_'))+'.json';
+  const name=((d.noInstall||d.objet||'protocole').replace(/[^\wÀ-ſ.-]/g,'_'))+'.sevj';
   downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name);
 }
 function importProtoBackup(file){
@@ -3722,7 +3770,7 @@ function resetRM(){
 }
 function exportRMBackup(){
   const d=collectRM(); delete d.monteur; delete d.sigRM;   // la signature n'est pas incluse
-  const name=((d.no||d.proprio||'rapport_mesures').replace(/[^\wÀ-ſ.-]/g,'_'))+'.json';
+  const name=((d.no||d.proprio||'rapport_mesures').replace(/[^\wÀ-ſ.-]/g,'_'))+'.sevj';
   downloadBlob(new Blob([JSON.stringify({app:'sevj-rm', v:1, rm:d})],{type:'application/json'}), name);
 }
 function importRMBackup(file){
@@ -3858,7 +3906,7 @@ const OIBT_DEF=/D.?faut\s+M?\s*(\d{6,})/i;
 const OIBT_ES_SKIP=/^(Page\s*\d+\s*\/|Action n|ACCRED|NCCRED|CREDIT|electr|SUISSe|omin\.ch|Photo\s*\d+\s*:|Rez-de-chauss|Sous-sol|\d+(er|ème|e)\s+étage|\d+\.\d+(\.\d+)?$)/i;
 const OIBT_ES_LIEU=/^(Sous-sol|Rez-de-chauss.e|\d+\s*(er|ème|e)\s+étage|Combles?|Grenier|Ext.rieur|Atelier|Cave)\b/i;
 // vues = les pages du rapport rendues en images ; pdf = base64 de l'original (pour l'export)
-let OIBT={ file:'', pdf:null, vues:[], pts:[], modele:'' };
+let OIBT={ file:'', pdf:null, vues:[], pts:[], modele:'', avis:null };
 
 /* pdf-lib n'accepte que le WinAnsi avec les polices standard : on remplace le reste */
 /* Les lettres grecques SURVIVENT ici : elles ne sont pas dans le WinAnsi de l'Helvetica,
@@ -4320,7 +4368,7 @@ async function oibtImport(file){
     try{ const r=await oibtParse(buf.slice(0)); pts=r.pts; modele=r.modele; }
     catch(e){ pts=[]; }                                  // détection ratée : ce n'est pas bloquant
     OIBT_IMGS.clear();
-    OIBT={ file:file.name, pdf:b64FromBuf(buf), vues, pts, modele };
+    OIBT={ file:file.name, pdf:b64FromBuf(buf), vues, pts, modele, avis:null };
     oibtDBSauvePdf();                                    // le rapport survit à la fermeture de l'app
     await oibtCalcBandes();                        // repère l'en-tête / le pied de page
     msg.className='msg ok';
@@ -4520,11 +4568,55 @@ function oibtRender(){
     d.querySelector('.sig-clear').onclick=()=>{ if(pad._sig) pad._sig.clear(); p.sig=null; oibtSave(); };
     cont.appendChild(d);
   });
-  oibtProgress(); updateOibtReq();
+  oibtProgress(); updateOibtReq(); oibtRenderAvis();
 }
 function oibtDrawSig(canvas, dataUrl){
   const img=new Image(); img.onload=()=>{ try{ canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height); }catch(e){} };
   img.src=dataUrl;
+}
+/* ---- Avis de suppression de défaut : signé par une personne du métier (compte protégé) ---- */
+let _oibtAvisPad=null;
+function oibtInitAvis(){
+  const sel=$('#oibtAvisSel');
+  if(sel && sel.options.length<=1)
+    PERSONNES_METIER.forEach((p,i)=> sel.insertAdjacentHTML('beforeend', `<option value="${i}">${esc(p.name)}</option>`));
+  const cac=$('#oibtAvisCachet'); if(cac) cac.textContent=SEVJ_CACHET.join('\n');
+  const pad=$('#oibtAvisPad');
+  if(pad && !_oibtAvisPad){
+    setupSigPad(pad); _oibtAvisPad=pad;
+    pad.addEventListener('pointerup',()=>{ if(!OIBT.avis) return;
+      OIBT.avis.sig=pad._sig?pad._sig.data():null; oibtSave();
+      const st=$('#oibtAvisStat'); if(st) st.textContent=OIBT.avis.sig?('✔ Avis signé par '+OIBT.avis.name+' le '+frDate(OIBT.avis.date)):('⏳ À signer par '+OIBT.avis.name);
+    });
+  }
+}
+function oibtRenderAvis(){
+  const a=OIBT.avis, sign=$('#oibtAvisSign'), stat=$('#oibtAvisStat'), sel=$('#oibtAvisSel'), btn=$('#oibtAvisBtn');
+  if(!sign) return;
+  if(a){
+    sign.hidden=false;
+    if(sel){ const i=PERSONNES_METIER.findIndex(p=>p.ini===a.ini); if(i>=0) sel.value=String(i); }
+    const lbl=$('#oibtAvisLbl'); if(lbl) lbl.textContent='Signature — '+a.name;
+    const pad=$('#oibtAvisPad'); if(pad){ if(pad._sig) pad._sig.clear(); if(a.sig) oibtDrawSig(pad, a.sig); }
+    if(stat) stat.textContent=a.sig?('✔ Avis signé par '+a.name+' le '+frDate(a.date)):('⏳ À signer par '+a.name);
+    if(btn) btn.textContent='🔒 Verrouiller / changer de personne';
+  } else {
+    sign.hidden=true; if(stat) stat.textContent=''; if(btn) btn.textContent='🔓 Déverrouiller la signature';
+  }
+}
+async function oibtAvisUnlock(){
+  const msg=$('#oibtAvisMsg'), sel=$('#oibtAvisSel'), pw=$('#oibtAvisPw');
+  if(OIBT.avis){                                       // déjà déverrouillé → on verrouille (change de personne)
+    OIBT.avis=null; if(pw) pw.value=''; if(sel) sel.value=''; if(msg){ msg.className='msg'; msg.textContent=''; }
+    oibtSave(); oibtRenderAvis(); return;
+  }
+  if(!OIBT.pts.length){ if(msg){ msg.className='msg err'; msg.textContent="Importe d'abord un rapport."; } return; }
+  const idx=sel?sel.value:''; if(idx===''){ if(msg){ msg.className='msg err'; msg.textContent='Choisis la personne du métier.'; } return; }
+  const p=PERSONNES_METIER[+idx], h=await hashPw(pw?pw.value:'');
+  if(h!==p.hash){ if(msg){ msg.className='msg err'; msg.textContent='Mot de passe incorrect.'; } return; }
+  OIBT.avis={ name:p.name, ini:p.ini, date:todayISO(), sig:null };
+  if(pw) pw.value=''; if(msg){ msg.className='msg ok'; msg.textContent='Déverrouillé ✓ — signe ci-dessous.'; }
+  oibtSave(); oibtRenderAvis();
 }
 function oibtProgress(){
   const el2=$('#oibtProgress'); if(!el2) return;
@@ -4581,15 +4673,17 @@ function oibtDBSauvePdf(){
 let _oibtDbT=null;
 function oibtDBSauveEtat(){
   clearTimeout(_oibtDbT);
-  _oibtDbT=setTimeout(()=>{ oibtDBPut('etat', {file:OIBT.file, pts:OIBT.pts, maj:Date.now()}).catch(()=>{}); }, 1200);
+  _oibtDbT=setTimeout(()=>{ oibtDBPut('etat', {file:OIBT.file, pts:OIBT.pts, avis:OIBT.avis, maj:Date.now()}).catch(()=>{}); }, 1200);
 }
 function oibtSave(){
   try{ localStorage.setItem(OIBT_DRAFT, JSON.stringify({
     file:OIBT.file, modele:OIBT.modele,
+    // l'avis sans sa signature (le trait est lourd → il va dans IndexedDB, hors quota)
+    avis:OIBT.avis?{name:OIBT.avis.name, ini:OIBT.avis.ini, date:OIBT.avis.date}:null,
     pts:OIBT.pts.map(p=>({n:p.n, id:p.id, page:p.page, y:p.y, titre:p.titre, texte:p.texte, manuel:p.manuel,
                           rem:p.rem, ok:p.ok, vals:p.vals||[], by:p.by, byIni:p.byIni, byDate:p.byDate}))
   })); }catch(e){ warnQuota(); }
-  oibtDBSauveEtat();                                   // + signatures et PDF, hors quota
+  oibtDBSauveEtat();                                   // + signatures (points ET avis) et PDF, hors quota
 }
 /* Restauration : IndexedDB d'abord (rapport complet, signatures comprises), et à défaut
    le brouillon léger — qui ne rend que les points, comme avant. */
@@ -4599,7 +4693,7 @@ async function oibtRestore(){
   const m=$('#oibtMsg');
   if(etat && etat.pts && etat.pts.length){
     OIBT_IMGS.clear();
-    OIBT={ file:(pdf&&pdf.file)||etat.file||'', pdf:null, vues:[],
+    OIBT={ file:(pdf&&pdf.file)||etat.file||'', pdf:null, vues:[], avis:etat.avis||null,
            modele:(pdf&&pdf.modele)||'', pts:etat.pts.map(p=>Object.assign({vals:[]}, p)) };
     if(pdf && pdf.octets){
       if(m){ m.className='msg'; m.textContent='Rapport en cours retrouvé — rendu des pages…'; }
@@ -4623,6 +4717,7 @@ async function oibtRestore(){
   if(!d || !d.pts || !d.pts.length) return;
   OIBT_IMGS.clear();
   OIBT={ file:d.file||'', pdf:null, vues:[], modele:d.modele||'',
+         avis:d.avis?Object.assign({sig:null}, d.avis):null,
          pts:d.pts.map(p=>Object.assign({sig:null}, p)) };
   oibtRender();
   if(m){ m.className='msg'; m.textContent='Points restaurés — réimporte le PDF (ou une sauvegarde .json) pour revoir le rapport et exporter.'; }
@@ -4631,8 +4726,8 @@ async function oibtRestore(){
        elles se refabriquent en une seconde à partir du PDF, et pèseraient dix fois plus. ---- */
 function exportOibtBackup(){
   if(!OIBT.pts.length && !OIBT.vues.length){ alert("Importe d'abord un rapport."); return; }
-  const data={ app:'sevj-oibt', v:2, file:OIBT.file, pdf:OIBT.pdf, modele:OIBT.modele, pts:OIBT.pts };
-  const name=(OIBT.file||'rapport_oibt').replace(/\.pdf$/i,'').replace(/[^\wÀ-ſ.-]/g,'_')+'.json';
+  const data={ app:'sevj-oibt', v:2, file:OIBT.file, pdf:OIBT.pdf, modele:OIBT.modele, avis:OIBT.avis, pts:OIBT.pts };
+  const name=(OIBT.file||'rapport_oibt').replace(/\.pdf$/i,'').replace(/[^\wÀ-ſ.-]/g,'_')+'.sevj';
   downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name);
 }
 function importOibtBackup(file){
@@ -4644,7 +4739,7 @@ function importOibtBackup(file){
     const m=$('#oibtMsg'); m.className='msg'; m.textContent='Restauration…';
     OIBT_IMGS.clear();
     OIBT={ file:data.file||'', pdf:data.pdf||null, vues:[], modele:data.modele||'',
-           pts:data.pts.map(p=>Object.assign({vals:[]}, p)) };
+           avis:data.avis||null, pts:data.pts.map(p=>Object.assign({vals:[]}, p)) };
     if(OIBT.pdf){                                        // on refabrique les pages du rapport
       try{ OIBT.vues=await oibtRenderPages(bufFromB64(OIBT.pdf).buffer,
              (i,n)=>{ m.textContent='Rendu de la page '+i+' / '+n+'…'; }); }catch(e){}
@@ -4659,7 +4754,7 @@ function importOibtBackup(file){
 function resetOibt(){
   if(!confirm('Réinitialiser le rapport OIBT en cours ?\n(Le rapport, les signatures et les points seront effacés de cet appareil.)')) return;
   OIBT_IMGS.clear();
-  OIBT={ file:'', pdf:null, vues:[], pts:[], modele:'' };
+  OIBT={ file:'', pdf:null, vues:[], pts:[], modele:'', avis:null };
   try{ localStorage.removeItem(OIBT_DRAFT); }catch(e){}
   clearTimeout(_oibtDbT);                                // pas de réécriture après l'effacement
   oibtDBDel('etat').catch(()=>{}); oibtDBDel('pdf').catch(()=>{});
@@ -4813,6 +4908,36 @@ async function oibtExportPDF(){
       y=cartBas-14;                                       // respiration avant le point suivant
     }
 
+    // --- Avis de suppression de défaut (personne du métier), si signé
+    if(OIBT.avis && OIBT.avis.sig){
+      const a=OIBT.avis;
+      let avisSig=null; try{ avisSig=await pdf.embedPng(a.sig); }catch(e){}
+      const wording="Je soussigné(e) "+a.name+", personne du métier au sens de l'OIBT, atteste que les défauts "
+                   +"mentionnés dans le rapport de contrôle ci-joint ont été supprimés et l'installation remise en conformité.";
+      const wl=wrapText(winAnsi(wording), font, 9.5, COL-24);
+      const blocH=122 + wl.length*12;
+      if(y-blocH < BAS) nouvellePage(); else y-=8;
+      const top=y, bas=y-blocH;
+      pg.drawRectangle({x:M, y:bas, width:COL, height:blocH, borderColor:NAVY, borderWidth:1.2, color:rgb(0.975,0.985,0.995)});
+      let yy=top-16;
+      pg.drawText(winAnsi('AVIS DE SUPPRESSION DE DÉFAUT'), {x:M+12, y:yy, size:11, font:bold, color:NAVY}); yy-=16;
+      wl.forEach(ln=>{ pg.drawText(ln, {x:M+12, y:yy, size:9.5, font, color:INK}); yy-=12; });
+      yy-=4;
+      pg.drawText(winAnsi('Personne du métier : '+a.name), {x:M+12, y:yy, size:9, font:bold, color:INK}); yy-=12;
+      pg.drawText(winAnsi("L'Orient, le "+frDate(a.date)), {x:M+12, y:yy, size:9, font, color:GREY});
+      // signature (à gauche)
+      if(avisSig){ const sc=Math.min(130/avisSig.width, 40/avisSig.height);
+        pg.drawImage(avisSig, {x:M+14, y:yy-44, width:avisSig.width*sc, height:avisSig.height*sc}); }
+      pg.drawText(winAnsi('Signature'), {x:M+14, y:yy-50, size:7.5, font, color:GREY});
+      // cachet (à droite)
+      const cbW=182, cbX=R-cbW-2, cbTop=yy+6, cbH=48;
+      pg.drawRectangle({x:cbX, y:cbTop-cbH, width:cbW, height:cbH, borderColor:GREY, borderWidth:0.8});
+      let cy=cbTop-15;
+      pg.drawText(winAnsi(SEVJ_CACHET[0]), {x:cbX+10, y:cy, size:11, font:bold, color:NAVY}); cy-=13;
+      for(let i=1;i<SEVJ_CACHET.length;i++){ pg.drawText(winAnsi(SEVJ_CACHET[i]), {x:cbX+10, y:cy, size:7.5, font, color:INK}); cy-=10; }
+      y=bas-16;
+    }
+
     // --- Pied de page des feuilles d'annexe
     feuilles.forEach((f,i)=>{
       f.drawLine({start:{x:M,y:BAS-14}, end:{x:R,y:BAS-14}, thickness:0.5, color:FILET});
@@ -4906,7 +5031,7 @@ let _quotaWarned=false;
 function warnQuota(){
   if(_quotaWarned) return; _quotaWarned=true;
   alert("⚠ Mémoire du navigateur pleine : le relevé n'a pas pu être sauvegardé automatiquement.\n\n"
-      + "Fais tout de suite « 💾 Sauvegarder (.json) » pour ne rien perdre, puis retire quelques photos / images de schéma.");
+      + "Fais tout de suite « 💾 Sauvegarder (.SEVJ) » pour ne rien perdre, puis retire quelques photos / images de schéma.");
 }
 function saveDraft(){
   let ok=true;
@@ -5006,7 +5131,7 @@ function clearDraft(){ try{ Object.keys(localStorage)
 function exportBackup(){
   const data={ app:'sevj', v:1, draft:draftObject(),
     photos:[...document.querySelectorAll('#rooms .room')].map(r=>r._photos||[]) };
-  const name=(($('#ref').value||'sevj_releve').replace(/[^\wÀ-ſ.-]/g,'_'))+'.json';
+  const name=(($('#ref').value||'sevj_releve').replace(/[^\wÀ-ſ.-]/g,'_'))+'.sevj';
   downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name);
 }
 function importBackup(file){
@@ -5052,7 +5177,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v85-arbre — Rapport et signatures conservés (IndexedDB) · hors-ligne renforcé';
+const APP_VERSION='v86-arbre — OIBT : avis de suppression de défaut (personne du métier) · sauvegardes .SEVJ';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -5120,6 +5245,12 @@ function init(){
   $('#oibtPdf').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) oibtImport(f); e.target.value=''; });
   $('#oibtGenBtn').onclick=oibtExportPDF;
   $('#oibtResetBtn').onclick=resetOibt;
+  // Avis de suppression de défaut (personne du métier)
+  oibtInitAvis();
+  $('#oibtAvisBtn').onclick=oibtAvisUnlock;
+  $('#oibtAvisEye').onclick=()=>{ const i=$('#oibtAvisPw'); if(i) i.type=i.type==='password'?'text':'password'; };
+  document.querySelector('[data-avis-clear]').onclick=()=>{ const pad=$('#oibtAvisPad'); if(pad&&pad._sig) pad._sig.clear();
+    if(OIBT.avis){ OIBT.avis.sig=null; oibtSave(); } const st=$('#oibtAvisStat'); if(st&&OIBT.avis) st.textContent='⏳ À signer par '+OIBT.avis.name; };
   document.querySelectorAll('#oibtZoom button[data-z="0"]').forEach(b=> b.onclick=()=>oibtSetZoom(1));
   document.querySelectorAll('#oibtLoupe button[data-lz="0"]').forEach(b=> b.onclick=()=>oibtLoupeZoom(1));
   // Pincer pour zoomer : sur le rapport, et dans la loupe (où un doigt déplace aussi l'image)
