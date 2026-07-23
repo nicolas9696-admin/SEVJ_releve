@@ -235,10 +235,15 @@ jamais toucher au PDF d'origine : on **ajoute une annexe** à la fin.
 
 ### Avis de suppression de défaut (personne du métier)
 Attestation **officielle** signée par la **personne du métier au sens de l'OIBT** (**André Meylan** ou
-**Gabriel Hodel**), en bas de l'annexe. On sélectionne la personne, on **entre son mot de passe**
-(compte protégé, distinct des monteurs) pour déverrouiller, puis on **signe** au doigt. Le PDF affiche
-le texte d'attestation, la signature, la date et le **cachet SEVJ** (coordonnées + **n° d'autorisation
-d'installer OIBT** `I-01303-2`). **Facultatif** : l'annexe s'exporte aussi sans avis.
+**Gabriel Hodel**, ENBAT), en bas de l'annexe. On sélectionne la personne, on **entre son mot de passe**
+(compte protégé, distinct des monteurs) pour déverrouiller, puis on **signe** au doigt. **Facultatif** :
+l'annexe s'exporte aussi sans avis.
+
+Le PDF reprend la **mise en page officielle Electrosuisse** : la phrase de certification
+« *Les signataires certifient que les défauts consignés dans le rapport de contrôle selon OIBT, art. 3 + 4,
+ont été supprimés.* » puis un **tableau à 3 colonnes** — **Date de la suppression des défauts** ·
+**Cachet de l'entreprise** (coordonnées SEVJ + n° d'autorisation `I-01303-2`) · **Signature du porteur de
+l'autorisation générale d'installer et n° de l'autorisation**.
 
 ### Exporter
 Un **PDF = rapport d'origine intact + annexe** « REMISE EN CONFORMITÉ » : en-tête du chantier recopié

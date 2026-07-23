@@ -5031,34 +5031,47 @@ async function oibtExportPDF(){
       }
     }
 
-    // --- Avis de suppression de défaut (personne du métier), si signé
+    // --- Avis de suppression de défaut (personne du métier), si signé.
+    //     Mise en page officielle Electrosuisse : phrase de certification OIBT art. 3 + 4,
+    //     puis 3 colonnes (date · cachet de l'entreprise · signature du porteur d'autorisation).
     if(OIBT.avis && OIBT.avis.sig){
       const a=OIBT.avis;
       let avisSig=null; try{ avisSig=await pdf.embedPng(a.sig); }catch(e){}
-      const wording="Je soussigné(e) "+a.name+", personne du métier au sens de l'OIBT, atteste que les défauts "
-                   +"mentionnés dans le rapport de contrôle ci-joint ont été supprimés et l'installation remise en conformité.";
-      const wl=wrapText(winAnsi(wording), font, 9.5, COL-24);
-      const blocH=122 + wl.length*12;
-      if(y-blocH < BAS) nouvellePage(); else y-=8;
-      const top=y, bas=y-blocH;
-      pg.drawRectangle({x:M, y:bas, width:COL, height:blocH, borderColor:NAVY, borderWidth:1.2, color:rgb(0.975,0.985,0.995)});
-      let yy=top-16;
-      pg.drawText(winAnsi('AVIS DE SUPPRESSION DE DÉFAUT'), {x:M+12, y:yy, size:11, font:bold, color:NAVY}); yy-=16;
-      wl.forEach(ln=>{ pg.drawText(ln, {x:M+12, y:yy, size:9.5, font, color:INK}); yy-=12; });
-      yy-=4;
-      pg.drawText(winAnsi('Personne du métier : '+a.name), {x:M+12, y:yy, size:9, font:bold, color:INK}); yy-=12;
-      pg.drawText(winAnsi("L'Orient, le "+frDate(a.date)), {x:M+12, y:yy, size:9, font, color:GREY});
-      // signature (à gauche)
-      if(avisSig){ const sc=Math.min(130/avisSig.width, 40/avisSig.height);
-        pg.drawImage(avisSig, {x:M+14, y:yy-44, width:avisSig.width*sc, height:avisSig.height*sc}); }
-      pg.drawText(winAnsi('Signature'), {x:M+14, y:yy-50, size:7.5, font, color:GREY});
-      // cachet (à droite) : coordonnées SEVJ + n° d'autorisation d'installer (mention légale OIBT)
-      const cbW=200, cbX=R-cbW-2, cbTop=yy+8, cbH=62;
-      pg.drawRectangle({x:cbX, y:cbTop-cbH, width:cbW, height:cbH, borderColor:GREY, borderWidth:0.8});
-      let cy=cbTop-15;
-      pg.drawText(winAnsi(SEVJ_CACHET[0]), {x:cbX+10, y:cy, size:11, font:bold, color:NAVY}); cy-=12;
-      for(let i=1;i<SEVJ_CACHET.length;i++){ pg.drawText(winAnsi(SEVJ_CACHET[i]), {x:cbX+10, y:cy, size:7.5, font, color:INK}); cy-=9.5; }
-      pg.drawText(winAnsi("N° autorisation OIBT : "+SEVJ_OIBT_NO), {x:cbX+10, y:cy-1, size:7.5, font:bold, color:NAVY});
+      const c1=116, c2=170, c3=COL-c1-c2;               // Date | Cachet | Signature
+      const cert="Les signataires certifient que les défauts consignés dans le rapport de contrôle selon OIBT, art. 3 + 4, ont été supprimés.";
+      const cl=wrapText(winAnsi(cert), bold, 9, COL-16);
+      const hTitle=20, hCert=cl.length*11+8, hHead=42, hBody=60, blocH=hTitle+hCert+hHead+hBody;
+      if(y-blocH < BAS) nouvellePage(); else y-=10;
+      const top=y, bas=top-blocH, x0=M;
+      pg.drawRectangle({x:x0, y:bas, width:COL, height:blocH, borderColor:NAVY, borderWidth:1.1});
+      // bandeau titre
+      pg.drawRectangle({x:x0, y:top-hTitle, width:COL, height:hTitle, color:NAVY});
+      pg.drawText(winAnsi('AVIS DE SUPPRESSION DE DÉFAUT'), {x:x0+10, y:top-14, size:11, font:bold, color:rgb(1,1,1)});
+      // phrase de certification
+      let yc=top-hTitle-13; cl.forEach(ln=>{ pg.drawText(ln, {x:x0+8, y:yc, size:9, font:bold, color:INK}); yc-=11; });
+      const yHead=top-hTitle-hCert, yBody=yHead-hHead;
+      pg.drawLine({start:{x:x0,y:yHead}, end:{x:x0+COL,y:yHead}, thickness:0.8, color:NAVY});
+      pg.drawLine({start:{x:x0,y:yBody}, end:{x:x0+COL,y:yBody}, thickness:0.5, color:FILET});
+      pg.drawLine({start:{x:x0+c1,y:yHead}, end:{x:x0+c1,y:bas}, thickness:0.6, color:FILET});
+      pg.drawLine({start:{x:x0+c1+c2,y:yHead}, end:{x:x0+c1+c2,y:bas}, thickness:0.6, color:FILET});
+      // en-têtes de colonnes
+      const head=(x,w,txt)=>{ let yy=yHead-9; wrapText(winAnsi(txt), font, 7.5, w-12).forEach(l=>{ pg.drawText(l,{x:x+6,y:yy,size:7.5,font,color:GREY}); yy-=9; }); };
+      head(x0, c1, "Date de la suppression des défauts");
+      head(x0+c1, c2, "Cachet de l'entreprise");
+      head(x0+c1+c2, c3, "Signature du porteur de l'autorisation générale d'installer et n° de l'autorisation");
+      // colonne 1 — date
+      pg.drawText(winAnsi(frDate(a.date)), {x:x0+6, y:yBody-17, size:9.5, font:bold, color:INK});
+      // colonne 2 — cachet de l'entreprise
+      let cy=yBody-14, cx=x0+c1+6;
+      pg.drawText(winAnsi(SEVJ_CACHET[0]), {x:cx, y:cy, size:10, font:bold, color:NAVY}); cy-=11;
+      for(let i=1;i<SEVJ_CACHET.length;i++){ pg.drawText(winAnsi(SEVJ_CACHET[i]), {x:cx, y:cy, size:7, font, color:INK}); cy-=9; }
+      pg.drawText(winAnsi("N° "+SEVJ_OIBT_NO), {x:cx, y:cy, size:7.5, font:bold, color:NAVY});
+      // colonne 3 — signature + porteur + n° d'autorisation
+      const sx=x0+c1+c2+6;
+      if(avisSig){ const sc=Math.min((c3-14)/avisSig.width, 28/avisSig.height);
+        pg.drawImage(avisSig, {x:sx, y:yBody-32, width:avisSig.width*sc, height:avisSig.height*sc}); }
+      pg.drawText(winAnsi(a.name), {x:sx, y:yBody-43, size:8.5, font:bold, color:INK});
+      pg.drawText(winAnsi("N° d'autorisation : "+SEVJ_OIBT_NO), {x:sx, y:yBody-53, size:7.5, font, color:GREY});
       y=bas-16;
     }
 
@@ -5301,7 +5314,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v89-arbre — Verrou lisible + re-render à la connexion · Règles vitales 5+5 sur l\'accueil';
+const APP_VERSION='v90-arbre — Avis de suppression : mise en page officielle 3 colonnes (Electrosuisse)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
