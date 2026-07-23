@@ -432,6 +432,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #lightbox img{display:block; margin:auto; width:min(165vw,820px); max-width:none; padding:14px}
 #lightbox .lb-x{position:fixed; top:10px; right:12px; z-index:2; width:46px; height:46px; border-radius:50%;
   background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.45); font-size:20px; font-weight:800; cursor:pointer}
+/* Bouton « remonter en haut » (fixe, en bas à droite, au-dessus de la barre d'action) */
+#toTop{position:fixed; right:14px; bottom:84px; z-index:9998; width:46px; height:46px; border-radius:50%;
+  border:none; background:var(--navy); color:#fff; font-size:22px; font-weight:800; cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.32); opacity:.94}
+#toTop[hidden]{display:none}
+#toTop:active{transform:scale(.92)}
 /* ---------- Barre de navigation de fonction ---------- */
 .func-nav{display:flex; align-items:center; gap:12px; margin:0 0 14px}
 .func-nav .home-btn{display:inline-flex; align-items:center; gap:6px; padding:9px 15px;
@@ -646,6 +652,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     <button type="button" class="lb-x" id="lbX" aria-label="Fermer">✕</button>
     <img id="lbImg" alt="">
   </div>
+
+  <!-- Remonter en haut -->
+  <button type="button" id="toTop" aria-label="Remonter en haut de la page" hidden>↑</button>
 
   <!-- Barre de navigation de fonction (retour accueil) -->
   <div class="func-nav" id="funcNav" hidden>
@@ -3355,6 +3364,9 @@ function addProtoRow(){
   r.querySelector('.tag').onclick=()=>protoFold(r);
   r.querySelector('.row-name-sum').onclick=()=>protoFold(r);
   r.querySelectorAll('[data-pf]').forEach(e=>{ e.addEventListener('input',()=>{applyProtoCond(r); updateProtoReq(); protoSave();}); e.addEventListener('change',()=>{applyProtoCond(r); updateProtoReq(); protoSave();}); });
+  // champs de MESURE = chiffres uniquement (le champ PE « [Ω / ok] » reste texte, il accepte « ok »)
+  ['imagn','riso','idiff','iccpe','iccln','idn','test','tension'].forEach(k=>{
+    const e=r.querySelector('[data-pf="'+k+'"]'); if(e){ e.classList.add('num'); e.setAttribute('inputmode','decimal'); } });
   $('#protoRows').appendChild(r); applyProtoCond(r); renumberProto();
 }
 /* Champs conditionnels d'un groupe : « Autre… » (saisie libre) + modèle de fusible */
@@ -3700,7 +3712,7 @@ const RM_UNIT_HTML={'Ohm':'Ω','MOhm':'MΩ','V':'V','m':'m','mA':'mA'};
 function addRMRow(){
   const r=el('div','row proto-row');
   const champ=c=> (c.u||c.val)
-    ? `<div><label class="fld">${esc(c.t)}${c.u?' ['+(RM_UNIT_HTML[c.u]||c.u)+']':''}</label><input data-rm="${c.k}" type="text"${c.u?' inputmode="decimal"':''}></div>`
+    ? `<div><label class="fld">${esc(c.t)}${c.u?' ['+(RM_UNIT_HTML[c.u]||c.u)+']':''}</label><input data-rm="${c.k}" type="text"${c.u?' class="num" inputmode="decimal"':''}></div>`
     : `<div class="chk"><input type="checkbox" data-rm="${c.k}"><label>${esc(c.t)}</label></div>`;
   const bloc=(titre,cols)=> (titre?`<div class="liais-lbl" style="margin-top:10px">${esc(titre)}</div>`:'')
     + '<div class="grid" style="margin-top:4px">'+cols.map(champ).join('')+'</div>';
@@ -4442,13 +4454,25 @@ function oibtNumPropose(prec, rang, insere){
   for(const s of 'bcdefghijklmnop'){ if(!pris.has(racine+s)) return racine+s; }
   return String(rang);
 }
+/* Renumérotation : tant qu'AUCUN point n'est corrigé, les numéros suivent l'ordre de lecture
+   (1, 2, 3…). Un point ajouté entre deux décale donc toute la suite (9 → 10 → 11…). Dès qu'un
+   point est corrigé, les numéros se figent (on ne renumérote pas un point déjà attesté). Sur
+   le modèle Electrosuisse (identifiant « Défaut M… »), on ne renumérote jamais. */
+function oibtRenumerote(){
+  if(OIBT.pts.some(p=>p.ok || p.id)) return;
+  const t=oibtOrdre();
+  const base = parseInt(String((t[0]||{}).n||'1').replace(/\D/g,''),10) || 1;
+  t.forEach((p,i)=>{ p.n=String(base+i); });
+}
 function oibtAjoutePoint(page, y){
   const t=oibtOrdre();
   const avant=t.filter(q=> q.page<page || (q.page===page && q.y<=y));
   const rang=avant.length + 1;
-  const n=oibtNumPropose(avant[avant.length-1], rang, avant.length<t.length);
+  const fige=OIBT.pts.some(q=>q.ok);            // au moins un point corrigé → numéros figés (suffixe)
+  const n = fige ? oibtNumPropose(avant[avant.length-1], rang, avant.length<t.length) : String(rang);
   const p={ n, page, y, texte:'', titre:'', rem:'', ok:false, sig:null, vals:[], manuel:true };
   OIBT.pts.push(p);
+  if(!fige) oibtRenumerote();                   // rien de corrigé → renumérotation 1..N complète
   // On NE bouge PAS la page : le doigt est sur le rapport, on doit pouvoir enchaîner les
   // points. Le re-rendu peut décaler le défilement, donc on le remet où il était.
   const sy=window.scrollY;
@@ -4458,7 +4482,7 @@ function oibtAjoutePoint(page, y){
 }
 function oibtSupprimePoint(p){
   const i=OIBT.pts.indexOf(p); if(i<0) return;
-  OIBT.pts.splice(i,1); oibtRender(); oibtSave();
+  OIBT.pts.splice(i,1); oibtRenumerote(); oibtRender(); oibtSave();
 }
 function b64FromBuf(buf){
   const b=new Uint8Array(buf); let s='';
@@ -4508,7 +4532,7 @@ function oibtRenderVue(){
           p.y=y; m.style.top=(y/v.h*100)+'%'; };
         const up=()=>{ m.classList.remove('drag');
           m.removeEventListener('pointermove',move); m.removeEventListener('pointerup',up);
-          oibtRender(); oibtSave(); };
+          oibtRenumerote(); oibtRender(); oibtSave(); };   // l'ordre a changé → les numéros suivent
         m.addEventListener('pointermove',move); m.addEventListener('pointerup',up);
       };
       d.appendChild(m);
@@ -4597,7 +4621,7 @@ function oibtRender(){
           + liste.map(o=>`<option value="${o.k}"${o.k===v.k?' selected':''}>${esc(o.lbl)}${o.u?' — '+esc(o.u):''}</option>`).join('')
           + `</select>`
           + (v.k==='autre'?`<input data-vl type="text" value="${esc(v.lbl||'')}" placeholder="nom de la mesure">`:'')
-          + `<input data-vv type="text" inputmode="decimal" value="${esc(v.v||'')}" placeholder="valeur">`
+          + `<input data-vv class="num" type="text" inputmode="decimal" value="${esc(v.v||'')}" placeholder="valeur">`
           + `<span class="oibt-unit">${esc(m.u||'')}</span>`
           + `<button type="button" class="oibt-val-x" title="Retirer cette mesure">×</button>`;
         r.querySelector('[data-vk]').onchange=e=>{ if(oibtLocked(p)){ e.target.value=v.k; return; } v.k=e.target.value; dessineVals(); oibtSave(); };
@@ -5316,7 +5340,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v93-arbre — OIBT : verrou aussi au moment de l\'action (impossible d\'éditer le point d\'un autre)';
+const APP_VERSION='v95-arbre — Champs mesure numériques dans TOUTE l\'app (OIBT, protocole, rapport de mesures)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -5442,6 +5466,22 @@ function init(){
   /* ===== Accueil / navigation ===== */
   document.querySelectorAll('.tile[data-goto]').forEach(b=> b.onclick=()=>setTab(b.dataset.goto));
   $('#homeBtn').onclick=showHome;
+  // Bouton « remonter en haut » : apparaît dès qu'on a défilé
+  const toTop=$('#toTop');
+  if(toTop){
+    toTop.onclick=()=>window.scrollTo({top:0, behavior:'smooth'});
+    const majToTop=()=>{ toTop.hidden = window.scrollY < 300; };
+    window.addEventListener('scroll', majToTop, {passive:true}); majToTop();
+  }
+  // Champs « mesure » (classe .num) : chiffres uniquement. En capture pour filtrer AVANT que
+  // le champ ne lise sa valeur. Les remarques / « autre… » restent en texte libre.
+  document.addEventListener('input', e=>{
+    const t=e.target;
+    if(t && t.classList && t.classList.contains('num')){
+      const c=t.value.replace(/[^0-9.,\-]/g,'');
+      if(c!==t.value){ const p=t.selectionStart; t.value=c; try{ t.setSelectionRange(Math.max(0,p-1), Math.max(0,p-1)); }catch(_){} }
+    }
+  }, true);
   // Règles vitales 5+5 : agrandissement plein écran
   const lb=$('#lightbox'), lbImg=$('#lbImg');
   const ouvreLB=src=>{ lbImg.src=src; lb.classList.add('on'); lb.setAttribute('aria-hidden','false'); lb.scrollTop=0; };
