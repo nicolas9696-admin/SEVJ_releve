@@ -291,29 +291,8 @@ signatures, sauvegardes et **génération de PDF** marchent hors-ligne. Seuls la
 
 Les mots de passe ne sont **pas stockés en clair** : seul leur hash SHA-256 figure dans le code.
 
-**Mots de passe par défaut** (format `Prénom.<Initiale>2026`) :
-
-| Collaborateur | Mot de passe |
-|---|---|
-| Stefano C. | `Stefano.C2026` |
-| Lucas D. | `Lucas.D2026` |
-| Arnau E. | `Arnau.E2026` |
-| Jonathan L. | `Jonathan.L2026` |
-| Fabien P. | `Fabien.P2026` |
-| Jean-Pierre S. | `JeanPierre.S2026` |
-| Jocelyn T. | `Jocelyn.T2026` |
-| Hugo V. | `Hugo.V2026` |
-| Nicolas W. | `Nicolas.W2026` |
-| Nathan Y. | `Nathan.Y2026` |
-| Bastien Z. | `Bastien.Z2026` |
-| Isabelle Swynghedauw (Service Client) | `Isabelle.S2026` |
-
 **Personnes du métier** (liste `PERSONNES_METIER`, signent l'avis de suppression de défaut — §4 ter) :
 
-| Personne du métier | Mot de passe |
-|---|---|
-| André Meylan (ENBAT) | `Andre.M2026` |
-| Gabriel Hodel (ENBAT) | `Gabriel.H2026` |
 
 ### Changer un mot de passe
 1. Ouvrir le site, puis la **console** du navigateur (F12 → onglet *Console*).
