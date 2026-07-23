@@ -1213,6 +1213,8 @@ const COLLABORATORS = [
   {name:"Nathan Y.",      ini:"NY",  appr:true,  hash:"567c8b707a4c234293761c90c5b659c16cf20bce209654ce4cbff354caaa0734"},
   {name:"Bastien Z.",     ini:"BZ",  appr:false, hash:"5ffae342642b80b86ab97eed3988259c791c53ab5855fe646183e8668e7af8b5"},
   {name:"Isabelle Swynghedauw", ini:"IS", appr:false, role:"Service Client", hash:"53b549c4c575b11ba1bce04734a9ad4c96836b299cc707fda141efb73fb19629"},
+  {name:"André Meylan",  ini:"AM", appr:false, role:"ENBAT", hash:"35d058e052b5fe032e3004eec5a16c648f2c6972e2233462915bde7d4227b56a"},
+  {name:"Gabriel Hodel", ini:"GH", appr:false, role:"ENBAT", hash:"0d5207b74905cefb268c7f3e666dfd3fe2c70ea37f0ae475db23231cd6372e0c"},
 ];
 
 /* Personnes du métier au sens de l'OIBT — seules autorisées à signer l'avis de suppression de
@@ -2137,7 +2139,7 @@ let currentUser = null;
 function initCollab(){
   const s=$('#collab');
   COLLABORATORS.forEach((c,i)=> s.insertAdjacentHTML('beforeend',
-    `<option value="${i}">${c.name}${c.appr?' (apprenti)':''}</option>`));
+    `<option value="${i}">${c.name}${c.appr?' (apprenti)':''}${c.role?' ('+c.role+')':''}</option>`));
   // le gestionnaire de mots de passe a besoin d'un champ « username » : on le tient à jour depuis le nom choisi
   const sync=()=>{ const u=$('#collabUser'); const c=COLLABORATORS[+s.value]; if(u) u.value = c?c.name:''; };
   s.addEventListener('change', sync); sync();
@@ -4574,10 +4576,10 @@ function oibtRender(){
     // vignette : découpée à la volée dans les pages rendues
     oibtVignette(p, 700).then(src=>{ const im=d.querySelector('[data-o="vg"]'); if(im && src){
       im.src=src; im.onclick=()=>oibtLoupeOuvre(p, src); } });
-    d.querySelector('[data-o="n"]').addEventListener('input',e=>{ p.n=e.target.value; oibtSave(); });
-    d.querySelector('[data-o="titre"]').addEventListener('input',e=>{
+    d.querySelector('[data-o="n"]').addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=p.n; return; } p.n=e.target.value; oibtSave(); });
+    d.querySelector('[data-o="titre"]').addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=p.titre||''; return; }
       p.titre=e.target.value; d.querySelector('.oibt-lieu').textContent=p.titre||('Page '+p.page); oibtSave(); });
-    d.querySelector('[data-o="del"]').onclick=()=>{ if(confirm('Supprimer le point '+p.n+' ?')) oibtSupprimePoint(p); };
+    d.querySelector('[data-o="del"]').onclick=()=>{ if(oibtLocked(p)){ alert('Point validé par '+p.by+' — seule cette personne peut le modifier.'); return; } if(confirm('Supprimer le point '+p.n+' ?')) oibtSupprimePoint(p); };
     /* Les lignes de valeurs sont une LISTE, pas un calque sur les « ____ » du texte : sur un
        rapport scanné l'OCR en avale une partie (deux blancs à remplir, un seul détecté).
        On propose donc ce qu'on a trouvé, et on laisse ajouter ou retirer une ligne. */
@@ -4598,16 +4600,16 @@ function oibtRender(){
           + `<input data-vv type="text" inputmode="decimal" value="${esc(v.v||'')}" placeholder="valeur">`
           + `<span class="oibt-unit">${esc(m.u||'')}</span>`
           + `<button type="button" class="oibt-val-x" title="Retirer cette mesure">×</button>`;
-        r.querySelector('[data-vk]').onchange=e=>{ v.k=e.target.value; dessineVals(); oibtSave(); };
-        const iv=r.querySelector('[data-vv]'); if(iv) iv.addEventListener('input',e=>{ v.v=e.target.value; oibtSave(); });
-        const il=r.querySelector('[data-vl]'); if(il) il.addEventListener('input',e=>{ v.lbl=e.target.value; oibtSave(); });
-        r.querySelector('.oibt-val-x').onclick=()=>{ p.vals.splice(k,1); dessineVals(); oibtSave(); };
+        r.querySelector('[data-vk]').onchange=e=>{ if(oibtLocked(p)){ e.target.value=v.k; return; } v.k=e.target.value; dessineVals(); oibtSave(); };
+        const iv=r.querySelector('[data-vv]'); if(iv) iv.addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=v.v||''; return; } v.v=e.target.value; oibtSave(); });
+        const il=r.querySelector('[data-vl]'); if(il) il.addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=v.lbl||''; return; } v.lbl=e.target.value; oibtSave(); });
+        r.querySelector('.oibt-val-x').onclick=()=>{ if(oibtLocked(p)) return; p.vals.splice(k,1); dessineVals(); oibtSave(); };
         boxVals.appendChild(r);
       });
       if(!p.vals.length) boxVals.innerHTML='<div class="oibt-vg-h" style="margin:0">Aucune mesure pour ce point.</div>';
     };
     dessineVals();
-    d.querySelector('[data-o="addval"]').onclick=()=>{
+    d.querySelector('[data-o="addval"]').onclick=()=>{ if(oibtLocked(p)) return;
       p.vals=(p.vals||[]).map(oibtValNorm); p.vals.push({k:'risolpe', v:'', lbl:''}); dessineVals(); oibtSave();
       const ins=boxVals.querySelectorAll('[data-vv]'); if(ins.length) ins[ins.length-1].focus(); };
     const refreshBy=()=>{ const b=d.querySelector('[data-o="by"]'); if(b) b.textContent=p.by?('✔ Validé par '+p.by+' le '+frDate(p.byDate||todayISO())):''; };
@@ -4615,12 +4617,12 @@ function oibtRender(){
     // « Corrigé » ou signe). Chaque point garde ainsi le nom de celui qui l'a réellement fait,
     // même si un collègue reprend le rapport plus tard avec son propre compte.
     const stampBy=()=>{ if(currentUser){ p.by=currentUser.name; p.byIni=currentUser.ini; if(!p.byDate) p.byDate=todayISO(); refreshBy(); } };
-    d.querySelector('[data-o="ok"]').onchange=e=>{ p.ok=e.target.checked; if(p.ok) stampBy(); d.classList.toggle('done',p.ok); oibtProgress(); oibtSave(); updateOibtReq(); };
-    d.querySelector('[data-o="rem"]').addEventListener('input',e=>{ p.rem=e.target.value; oibtSave(); });
+    d.querySelector('[data-o="ok"]').onchange=e=>{ if(oibtLocked(p)){ e.target.checked=p.ok; return; } p.ok=e.target.checked; if(p.ok) stampBy(); d.classList.toggle('done',p.ok); oibtProgress(); oibtSave(); updateOibtReq(); };
+    d.querySelector('[data-o="rem"]').addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=p.rem||''; return; } p.rem=e.target.value; oibtSave(); });
     const pad=d.querySelector('.sigpad'); setupSigPad(pad);
     if(p.sig) oibtDrawSig(pad, p.sig);
-    pad.addEventListener('pointerup',()=>{ p.sig=pad._sig?pad._sig.data():null; if(p.sig) stampBy(); oibtSave(); });
-    d.querySelector('.sig-clear').onclick=()=>{ if(pad._sig) pad._sig.clear(); p.sig=null; oibtSave(); };
+    pad.addEventListener('pointerup',()=>{ if(oibtLocked(p)) return; p.sig=pad._sig?pad._sig.data():null; if(p.sig) stampBy(); oibtSave(); });
+    d.querySelector('.sig-clear').onclick=()=>{ if(oibtLocked(p)) return; if(pad._sig) pad._sig.clear(); p.sig=null; oibtSave(); };
 
     // --- Photos de la remise en conformité (appareil + galerie)
     p.userPhotos=p.userPhotos||[];
@@ -4637,6 +4639,7 @@ function oibtRender(){
     };
     dessinePhotos();
     const ajoutePhotos=async files=>{
+      if(oibtLocked(p)) return;
       for(const f of [...files]){ if(!f.type.startsWith('image/')) continue;
         try{ p.userPhotos.push(await compressImage(f)); }catch(e){} }
       dessinePhotos(); oibtSave();
@@ -5071,7 +5074,6 @@ async function oibtExportPDF(){
       if(avisSig){ const sc=Math.min((c3-14)/avisSig.width, 28/avisSig.height);
         pg.drawImage(avisSig, {x:sx, y:yBody-32, width:avisSig.width*sc, height:avisSig.height*sc}); }
       pg.drawText(winAnsi(a.name), {x:sx, y:yBody-43, size:8.5, font:bold, color:INK});
-      pg.drawText(winAnsi("N° d'autorisation : "+SEVJ_OIBT_NO), {x:sx, y:yBody-53, size:7.5, font, color:GREY});
       y=bas-16;
     }
 
@@ -5314,7 +5316,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v90-arbre — Avis de suppression : mise en page officielle 3 colonnes (Electrosuisse)';
+const APP_VERSION='v93-arbre — OIBT : verrou aussi au moment de l\'action (impossible d\'éditer le point d\'un autre)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
