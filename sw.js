@@ -1,7 +1,7 @@
 /* SEVJ · Relevé chantier — service worker (mode hors-ligne)
    ⚠ Après chaque mise à jour de l'app, incrémente la version (CACHE) ci-dessous
    pour forcer le rafraîchissement du cache sur les téléphones. */
-const CACHE = 'sevj-v88-arbre';
+const CACHE = 'sevj-v89-arbre';
 const DELAI_RESEAU = 2500;   // ms d'attente du réseau avant de servir le cache (chantier mal couvert)
 const ASSETS = [
   './',
@@ -16,6 +16,7 @@ const ASSETS = [
   './regie-logo.png',
   './regie-band.png',
   './regie-deco.png',
+  './regles-5plus5.png',            // roue 5+5 des règles vitales (accueil)
   './couleur-THFWG.png',
   './couleur-EDIZIOliv-AP.png',
   './couleur-EDIZIOliv-ENC.png',

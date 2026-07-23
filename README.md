@@ -329,6 +329,7 @@ Déposer **tous** les fichiers du dossier :
 `index.html`, `sw.js`, `manifest.webmanifest`, `materiel.js` (catalogue),
 `logo.png`, `icon-192.png`, `icon-512.png`, `icon-512-maskable.png`, `apple-touch-icon.png`,
 `regie-logo.png`, `regie-band.png`, `regie-deco.png` (letterhead du bon de régie),
+`regles-5plus5.png` (règles vitales 5+5 sur l'accueil),
 `couleur-*.png`, **et le dossier `vendor/`** (indispensable à la génération PDF).
 
 > ⚠️ Le service worker met en cache **toute** la liste `ASSETS` de `sw.js` : si un seul fichier

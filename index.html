@@ -420,6 +420,18 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .lst-mv{width:28px; height:34px; padding:0; border:1px solid var(--line); background:var(--card);
   color:var(--navy2); border-radius:8px; font-size:12px; line-height:1; cursor:pointer}
 .lst-mv:active{transform:scale(.9)}
+/* ---------- Règles vitales 5+5 sur l'accueil ---------- */
+.home-vital{display:block; width:100%; margin:18px 0 4px; padding:12px; cursor:pointer; text-align:center;
+  background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 4px 16px rgba(31,59,91,.08)}
+.home-vital:active{transform:scale(.99)}
+.home-vital .hv-t{font-size:14px; font-weight:800; color:var(--navy); margin-bottom:8px}
+.home-vital img{width:100%; max-width:420px; height:auto; display:block; margin:0 auto; border-radius:10px}
+.home-vital .hv-s{font-size:11.5px; color:var(--mut); margin-top:8px}
+#lightbox{position:fixed; inset:0; z-index:10000; background:rgba(10,15,22,.96); display:none; overflow:auto; -webkit-overflow-scrolling:touch}
+#lightbox.on{display:block}
+#lightbox img{display:block; margin:auto; width:min(165vw,820px); max-width:none; padding:14px}
+#lightbox .lb-x{position:fixed; top:10px; right:12px; z-index:2; width:46px; height:46px; border-radius:50%;
+  background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.45); font-size:20px; font-weight:800; cursor:pointer}
 /* ---------- Barre de navigation de fonction ---------- */
 .func-nav{display:flex; align-items:center; gap:12px; margin:0 0 14px}
 .func-nav .home-btn{display:inline-flex; align-items:center; gap:6px; padding:9px 15px;
@@ -620,6 +632,19 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <span class="arrow">→</span>
       </button>
     </div>
+
+    <!-- Règles vitales 5+5 (SUVA · Electrosuisse) -->
+    <button type="button" class="home-vital" id="homeVital" aria-label="Agrandir les règles vitales 5+5">
+      <div class="hv-t">🛟 5 + 5 — Règles vitales · Électricité</div>
+      <img src="regles-5plus5.png" alt="5+5 Règles vitales électricité — SUVA · Electrosuisse" loading="lazy">
+      <div class="hv-s">SUVA · Electrosuisse — tape pour agrandir</div>
+    </button>
+  </div>
+
+  <!-- Visionneuse plein écran (règles 5+5) -->
+  <div id="lightbox" aria-hidden="true">
+    <button type="button" class="lb-x" id="lbX" aria-label="Fermer">✕</button>
+    <img id="lbImg" alt="">
   </div>
 
   <!-- Barre de navigation de fonction (retour accueil) -->
@@ -2141,6 +2166,7 @@ function applyLogin(c){
   const s=$('#collab'); const idx=COLLABORATORS.indexOf(c); if(s && idx>=0) s.value=String(idx);
   const u=$('#collabUser'); if(u) u.value=c.name;
   buildRef(); updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq(); updateOibtReq(); updateListingMonteur(); updateListingReq();
+  if(OIBT && OIBT.pts && OIBT.pts.length) oibtRender();   // ré-applique le verrou des points selon le nouveau compte
 }
 async function doLogin(){
   const idx=$('#collab').value, pw=$('#pass').value, msg=$('#loginMsg');
@@ -2164,6 +2190,7 @@ function doLogout(){
   $('#whoName').textContent='— non connecté —';
   $('#loginBtn').style.display=''; $('#logoutBtn').style.display='none';
   $('#loginMsg').textContent=''; updateReq(); updateRegMonteur(); updateRegieReq(); updateProtoMonteur(); updateProtoReq(); updateRMMonteur(); updateRMReq(); updateOibtReq(); updateListingMonteur(); updateListingReq();
+  if(OIBT && OIBT.pts && OIBT.pts.length) oibtRender();   // re-verrouille tout : plus personne n'est le validateur
 }
 
 /* ================= Champs obligatoires (rouge / vert) ================= */
@@ -4618,14 +4645,18 @@ function oibtRender(){
     if(cam) cam.addEventListener('change',e=>{ ajoutePhotos(e.target.files); e.target.value=''; });
     if(gal) gal.addEventListener('change',e=>{ ajoutePhotos(e.target.files); e.target.value=''; });
 
-    // --- Verrou : un point validé par un AUTRE collaborateur n'est pas modifiable
+    // --- Verrou : un point validé par un AUTRE collaborateur est en LECTURE SEULE.
+    // readOnly (et non disabled) : le texte reste NET et lisible — on peut relire ce qui a été
+    // fait, déplier la carte et agrandir la vignette, mais rien n'est modifiable.
     if(oibtLocked(p)){
       d.classList.add('locked');
-      d.querySelectorAll('.oibt-body input, .oibt-body textarea, .oibt-body select, .oibt-body button').forEach(x=>{ x.disabled=true; });
-      d.querySelectorAll('.oibt-addph').forEach(l=>{ l.style.opacity=.5; l.style.pointerEvents='none'; });
+      d.querySelectorAll('.oibt-body input[type="text"], .oibt-body textarea').forEach(x=>{ x.readOnly=true; });
+      d.querySelectorAll('.oibt-body input[type="checkbox"], .oibt-body select, .oibt-body input[type="file"]').forEach(x=>{ x.disabled=true; });
+      d.querySelectorAll('.oibt-del, .oibt-addval, .oibt-val-x, .sig-clear').forEach(b=>{ b.style.display='none'; });
+      d.querySelectorAll('.oibt-addph').forEach(l=>{ l.style.display='none'; });
       if(pad) pad.style.pointerEvents='none';
       const body=d.querySelector('.oibt-body');
-      const lock=el('div','oibt-lock'); lock.textContent='🔒 Validé par '+p.by+' — modification réservée à cette personne.';
+      const lock=el('div','oibt-lock'); lock.textContent='🔒 Validé par '+p.by+' — lecture seule (déplie et agrandis pour relire).';
       body.insertBefore(lock, body.firstChild);
     }
     cont.appendChild(d);
@@ -5270,7 +5301,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v88-arbre — OIBT : photos sous un défaut, verrou des points d\'autrui, n° d\'autorisation OIBT';
+const APP_VERSION='v89-arbre — Verrou lisible + re-render à la connexion · Règles vitales 5+5 sur l\'accueil';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -5396,6 +5427,14 @@ function init(){
   /* ===== Accueil / navigation ===== */
   document.querySelectorAll('.tile[data-goto]').forEach(b=> b.onclick=()=>setTab(b.dataset.goto));
   $('#homeBtn').onclick=showHome;
+  // Règles vitales 5+5 : agrandissement plein écran
+  const lb=$('#lightbox'), lbImg=$('#lbImg');
+  const ouvreLB=src=>{ lbImg.src=src; lb.classList.add('on'); lb.setAttribute('aria-hidden','false'); lb.scrollTop=0; };
+  const fermeLB=()=>{ lb.classList.remove('on'); lb.setAttribute('aria-hidden','true'); };
+  $('#homeVital').onclick=()=>ouvreLB($('#homeVital img').src);
+  $('#lbX').onclick=fermeLB;
+  lb.addEventListener('click', e=>{ if(e.target===lb || e.target===lbImg) fermeLB(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && lb.classList.contains('on')) fermeLB(); });
 
   /* ===== Listing tableau ===== */
   preloadListingLogo();
