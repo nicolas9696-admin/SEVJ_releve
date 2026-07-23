@@ -225,16 +225,20 @@ jamais toucher au PDF d'origine : on **ajoute une annexe** à la fin.
 - **Mesures à consigner** : liste typée — **Riso (N-PE)**, **Riso (L-PE)**, **Rlow**, **ICC L-PE**,
   **ICC L-N**, **IΔN**, **Δt**, **Autre…** (nom libre) — avec valeur et unité.
 - Case **Corrigé**, **remarque**, et **signature** du point.
+- **Photos de la remise en conformité** 📷 — ajouter ses propres photos sous chaque défaut,
+  **appareil** ou **galerie** (compressées, 2 par ligne dans l'annexe).
 - Chaque point garde le **nom du collaborateur qui l'a validé** au moment où il coche/signe : si un
   collègue reprend le rapport avec **son** compte, ses points portent **son** nom. (Passe la
-  **sauvegarde .json**, qui contient PDF + signatures, au collègue.)
+  **sauvegarde .SEVJ**, qui contient PDF + signatures + photos, au collègue.)
+- 🔒 **Verrou** : un point validé par quelqu'un d'autre est en **lecture seule** — seule la personne
+  qui l'a validé peut le modifier, déplacer ou supprimer.
 
 ### Avis de suppression de défaut (personne du métier)
 Attestation **officielle** signée par la **personne du métier au sens de l'OIBT** (**André Meylan** ou
 **Gabriel Hodel**), en bas de l'annexe. On sélectionne la personne, on **entre son mot de passe**
 (compte protégé, distinct des monteurs) pour déverrouiller, puis on **signe** au doigt. Le PDF affiche
-le texte d'attestation, la signature, la date et le **cachet SEVJ** (coordonnées). **Facultatif** :
-l'annexe s'exporte aussi sans avis.
+le texte d'attestation, la signature, la date et le **cachet SEVJ** (coordonnées + **n° d'autorisation
+d'installer OIBT** `I-01303-2`). **Facultatif** : l'annexe s'exporte aussi sans avis.
 
 ### Exporter
 Un **PDF = rapport d'origine intact + annexe** « REMISE EN CONFORMITÉ » : en-tête du chantier recopié
@@ -302,13 +306,14 @@ Les mots de passe ne sont **pas stockés en clair** : seul leur hash SHA-256 fig
 | Nicolas W. | `Nicolas.W2026` |
 | Nathan Y. | `Nathan.Y2026` |
 | Bastien Z. | `Bastien.Z2026` |
+| Isabelle Swynghedauw (Service Client) | `Isabelle.S2026` |
 
 **Personnes du métier** (liste `PERSONNES_METIER`, signent l'avis de suppression de défaut — §4 ter) :
 
 | Personne du métier | Mot de passe |
 |---|---|
-| André Meylan | `Andre.M2026` |
-| Gabriel Hodel | `Gabriel.H2026` |
+| André Meylan (ENBAT) | `Andre.M2026` |
+| Gabriel Hodel (ENBAT) | `Gabriel.H2026` |
 
 ### Changer un mot de passe
 1. Ouvrir le site, puis la **console** du navigateur (F12 → onglet *Console*).

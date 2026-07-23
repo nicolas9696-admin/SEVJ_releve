@@ -361,6 +361,21 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   width:24px; height:24px; line-height:22px; font-size:13px; font-weight:800; cursor:pointer; padding:0}
 .oibt-addval{margin-top:6px; background:none; border:1px dashed var(--navy2); color:var(--navy2);
   border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer}
+/* Photos ajoutées sous un défaut (remise en conformité) */
+.oibt-uphbox{background:#eef3f9; border-radius:10px; padding:8px 10px; margin:8px 0}
+:root[data-theme="dark"] .oibt-uphbox{background:#1c2732}
+.oibt-uph{display:flex; flex-wrap:wrap; gap:8px}
+.oibt-uph .ph{position:relative}
+.oibt-uph img{width:78px; height:78px; object-fit:cover; border-radius:8px; border:1px solid var(--line); display:block}
+.oibt-uph .x{position:absolute; top:-7px; right:-7px; width:20px; height:20px; line-height:18px; text-align:center;
+  background:#fff; color:#b3261e; border:1px solid #b3261e; border-radius:50%; font-weight:800; cursor:pointer}
+.oibt-uph-btns{display:flex; gap:8px; margin-top:8px}
+.oibt-addph{flex:1; text-align:center; background:var(--card); border:1px solid var(--navy2); color:var(--navy);
+  border-radius:8px; padding:8px 10px; font-size:13px; font-weight:700; cursor:pointer}
+.oibt-addph:active{transform:scale(.97)}
+/* Point verrouillé (validé par un autre collaborateur) */
+.oibt-pt.locked{opacity:.96}
+.oibt-lock{color:#b3261e; font-weight:700; font-size:12px; margin:0 0 8px; display:flex; align-items:center; gap:6px}
 .oibt-del{margin-top:10px; background:none; border:1px solid #b3261e; color:#b3261e; border-radius:8px;
   padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer}
 .oibt-vals{background:#eef3f9; border-radius:10px; padding:8px 10px; margin:8px 0}
@@ -1172,17 +1187,20 @@ const COLLABORATORS = [
   {name:"Nicolas W.",     ini:"NW",  appr:false, hash:"322dceb11b30a169b6b092e34edd293fa8d2492940bf758aeff21cb6f27f1aa4"},
   {name:"Nathan Y.",      ini:"NY",  appr:true,  hash:"567c8b707a4c234293761c90c5b659c16cf20bce209654ce4cbff354caaa0734"},
   {name:"Bastien Z.",     ini:"BZ",  appr:false, hash:"5ffae342642b80b86ab97eed3988259c791c53ab5855fe646183e8668e7af8b5"},
+  {name:"Isabelle Swynghedauw", ini:"IS", appr:false, role:"Service Client", hash:"53b549c4c575b11ba1bce04734a9ad4c96836b299cc707fda141efb73fb19629"},
 ];
 
 /* Personnes du métier au sens de l'OIBT — seules autorisées à signer l'avis de suppression de
    défaut. Compte protégé (mot de passe par défaut « Prénom.Initiale2026 », modifiable comme les
    collaborateurs). Liste distincte des monteurs : elle ne sert QUE pour l'avis. */
 const PERSONNES_METIER = [
-  {name:"André Meylan",  ini:"AM", hash:"35d058e052b5fe032e3004eec5a16c648f2c6972e2233462915bde7d4227b56a"},
-  {name:"Gabriel Hodel", ini:"GH", hash:"0d5207b74905cefb268c7f3e666dfd3fe2c70ea37f0ae475db23231cd6372e0c"},
+  {name:"André Meylan (ENBAT)",  ini:"AM", hash:"35d058e052b5fe032e3004eec5a16c648f2c6972e2233462915bde7d4227b56a"},
+  {name:"Gabriel Hodel (ENBAT)", ini:"GH", hash:"0d5207b74905cefb268c7f3e666dfd3fe2c70ea37f0ae475db23231cd6372e0c"},
 ];
 /* Cachet imprimé sur l'avis (coordonnées officielles SEVJ, reprises du letterhead). */
 const SEVJ_CACHET = ["SEVJ", "Rue du Pont-Neuf 24 · 1341 L'Orient", "021 845 13 13 · www.sevj.ch"];
+/* N° d'autorisation d'installer accordée à l'entreprise (OIBT art. 9) — mention légale. */
+const SEVJ_OIBT_NO = "I-01303-2";
 
 /* Option lists */
 const MM2      = ["1.5","2.5","4","6","10","16","25","autre…"];
@@ -4445,13 +4463,15 @@ function oibtRenderVue(){
       oibtAjoutePoint(pg, Math.max(0, (e.clientY-r.top)/r.height*v.h));
     };
     OIBT.pts.filter(p=>p.page===pg).forEach(p=>{
-      const m=el('div','oibt-mk'+(p.ok?' ok':''));
+      const verrou=oibtLocked(p);                    // validé par un autre : ni déplacement ni suppression
+      const m=el('div','oibt-mk'+(p.ok?' ok':'')+(verrou?' lockmk':''));
       m.style.top=(p.y/v.h*100)+'%';
-      m.innerHTML=`<b>${esc(String(p.n))}</b><span class="oibt-mk-x" title="Supprimer ce point">×</span>`;
-      m.querySelector('.oibt-mk-x').onclick=ev=>{ ev.stopPropagation(); oibtSupprimePoint(p); };
+      m.innerHTML=`<b>${esc(String(p.n))}</b>`+(verrou?'<span class="oibt-mk-x" title="Verrouillé">🔒</span>':'<span class="oibt-mk-x" title="Supprimer ce point">×</span>');
+      m.querySelector('.oibt-mk-x').onclick=ev=>{ ev.stopPropagation(); if(verrou){ alert('Point validé par '+p.by+' — seule cette personne peut le modifier.'); return; } oibtSupprimePoint(p); };
       // déplacement au doigt
       m.onpointerdown=ev=>{
         if(ev.target.classList.contains('oibt-mk-x')) return;
+        if(verrou) return;                            // point verrouillé : pas de déplacement
         ev.preventDefault(); ev.stopPropagation();
         m.setPointerCapture(ev.pointerId); m.classList.add('drag');
         const r=d.getBoundingClientRect();
@@ -4505,6 +4525,14 @@ function oibtRender(){
         <div class="chk"><input type="checkbox" data-o="ok"${p.ok?' checked':''}><label><b>Corrigé</b></label></div>
         <label class="fld">Remarque / mesure</label>
         <textarea data-o="rem" placeholder="ex : câble remplacé, 500 MΩ mesuré">${esc(p.rem||'')}</textarea>
+        <div class="oibt-uphbox">
+          <div class="fld" style="margin-bottom:4px">Photos de la remise en conformité</div>
+          <div class="oibt-uph" data-o="uph"></div>
+          <div class="oibt-uph-btns">
+            <label class="oibt-addph">📷 Photo<input type="file" data-o="cam" accept="image/*" capture="environment" hidden></label>
+            <label class="oibt-addph">🖼️ Galerie<input type="file" data-o="gal" accept="image/*" multiple hidden></label>
+          </div>
+        </div>
         <div class="sig-box">
           <div class="sig-lbl">Signature du point ${esc(String(p.n))}</div>
           <canvas class="sigpad" data-osig="${i}" width="600" height="140"></canvas>
@@ -4566,9 +4594,52 @@ function oibtRender(){
     if(p.sig) oibtDrawSig(pad, p.sig);
     pad.addEventListener('pointerup',()=>{ p.sig=pad._sig?pad._sig.data():null; if(p.sig) stampBy(); oibtSave(); });
     d.querySelector('.sig-clear').onclick=()=>{ if(pad._sig) pad._sig.clear(); p.sig=null; oibtSave(); };
+
+    // --- Photos de la remise en conformité (appareil + galerie)
+    p.userPhotos=p.userPhotos||[];
+    const boxPh=d.querySelector('[data-o="uph"]');
+    const dessinePhotos=()=>{
+      boxPh.innerHTML='';
+      p.userPhotos.forEach((src,k)=>{
+        const ph=el('div','ph');
+        ph.innerHTML=`<img src="${src}" alt="Photo ${k+1}"><span class="x" title="Retirer">×</span>`;
+        ph.querySelector('img').onclick=()=>oibtLoupeImg(src);
+        ph.querySelector('.x').onclick=()=>{ if(oibtLocked(p)) return; p.userPhotos.splice(k,1); dessinePhotos(); oibtSave(); };
+        boxPh.appendChild(ph);
+      });
+    };
+    dessinePhotos();
+    const ajoutePhotos=async files=>{
+      for(const f of [...files]){ if(!f.type.startsWith('image/')) continue;
+        try{ p.userPhotos.push(await compressImage(f)); }catch(e){} }
+      dessinePhotos(); oibtSave();
+    };
+    const cam=d.querySelector('[data-o="cam"]'), gal=d.querySelector('[data-o="gal"]');
+    if(cam) cam.addEventListener('change',e=>{ ajoutePhotos(e.target.files); e.target.value=''; });
+    if(gal) gal.addEventListener('change',e=>{ ajoutePhotos(e.target.files); e.target.value=''; });
+
+    // --- Verrou : un point validé par un AUTRE collaborateur n'est pas modifiable
+    if(oibtLocked(p)){
+      d.classList.add('locked');
+      d.querySelectorAll('.oibt-body input, .oibt-body textarea, .oibt-body select, .oibt-body button').forEach(x=>{ x.disabled=true; });
+      d.querySelectorAll('.oibt-addph').forEach(l=>{ l.style.opacity=.5; l.style.pointerEvents='none'; });
+      if(pad) pad.style.pointerEvents='none';
+      const body=d.querySelector('.oibt-body');
+      const lock=el('div','oibt-lock'); lock.textContent='🔒 Validé par '+p.by+' — modification réservée à cette personne.';
+      body.insertBefore(lock, body.firstChild);
+    }
     cont.appendChild(d);
   });
   oibtProgress(); updateOibtReq(); oibtRenderAvis();
+}
+/* Un point validé par quelqu'un d'autre (ou par personne alors qu'on n'est pas connecté) est
+   en lecture seule : seule la personne qui l'a validé peut le modifier. */
+function oibtLocked(p){ return !!(p&&p.by) && (!currentUser || p.by!==currentUser.name); }
+/* Ouvre une image (photo ajoutée) en plein écran via la loupe existante */
+function oibtLoupeImg(src){
+  const w=$('#oibtLoupe'), im=$('#oibtLoupeImg'); if(!w||!im) return;
+  im.src=src; w.hidden=false; if(typeof oibtLoupeZoom==='function') oibtLoupeZoom(1);
+  const box=$('#oibtLoupeBox'); if(box){ box.scrollTop=0; box.scrollLeft=0; }
 }
 function oibtDrawSig(canvas, dataUrl){
   const img=new Image(); img.onload=()=>{ try{ canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height); }catch(e){} };
@@ -4580,7 +4651,7 @@ function oibtInitAvis(){
   const sel=$('#oibtAvisSel');
   if(sel && sel.options.length<=1)
     PERSONNES_METIER.forEach((p,i)=> sel.insertAdjacentHTML('beforeend', `<option value="${i}">${esc(p.name)}</option>`));
-  const cac=$('#oibtAvisCachet'); if(cac) cac.textContent=SEVJ_CACHET.join('\n');
+  const cac=$('#oibtAvisCachet'); if(cac) cac.textContent=SEVJ_CACHET.concat(["N° d'autorisation d'installer : "+SEVJ_OIBT_NO]).join('\n');
   const pad=$('#oibtAvisPad');
   if(pad && !_oibtAvisPad){
     setupSigPad(pad); _oibtAvisPad=pad;
@@ -4906,6 +4977,27 @@ async function oibtExportPDF(){
       mesL.forEach(ln=>{ oibtRichDraw(pg, ln, {x:IND+12, y:yc, size:9, font, symFont:symb, color:rgb(0.11,0.35,0.2)}); yc-=IL; });
       remL.forEach(ln=>{ oibtRichDraw(pg, ln, {x:IND+12, y:yc, size:9, font, symFont:symb, color:INK}); yc-=IL; });
       y=cartBas-14;                                       // respiration avant le point suivant
+
+      // photos ajoutées (remise en conformité) : 2 par ligne, sous le cartouche
+      const ups=p.userPhotos||[];
+      if(ups.length){
+        pg.drawText(winAnsi('Photos de la remise en conformité :'), {x:IND, y, size:8, font, color:GREY}); y-=12;
+        const gap=8, pw=(COLI-gap)/2;               // deux colonnes
+        for(let k=0;k<ups.length;k+=2){
+          let ims=[];
+          for(let j=k;j<Math.min(k+2,ups.length);j++){
+            try{ ims.push(await pdf.embedJpg(ups[j])); }catch(e){ try{ ims.push(await pdf.embedPng(ups[j])); }catch(_){ ims.push(null); } }
+          }
+          const hs=ims.map(im=> im ? pw*(im.height/im.width) : 0);
+          const rowH=Math.max(...hs, 0);
+          if(rowH>4 && y-rowH < BAS) nouvellePage();
+          ims.forEach((im,c)=>{ if(!im) return; const x=IND+c*(pw+gap), h=hs[c];
+            pg.drawImage(im, {x, y:y-h, width:pw, height:h});
+            pg.drawRectangle({x, y:y-h, width:pw, height:h, borderColor:FILET, borderWidth:0.5});
+          });
+          y-=rowH+gap;
+        }
+      }
     }
 
     // --- Avis de suppression de défaut (personne du métier), si signé
@@ -4929,12 +5021,13 @@ async function oibtExportPDF(){
       if(avisSig){ const sc=Math.min(130/avisSig.width, 40/avisSig.height);
         pg.drawImage(avisSig, {x:M+14, y:yy-44, width:avisSig.width*sc, height:avisSig.height*sc}); }
       pg.drawText(winAnsi('Signature'), {x:M+14, y:yy-50, size:7.5, font, color:GREY});
-      // cachet (à droite)
-      const cbW=182, cbX=R-cbW-2, cbTop=yy+6, cbH=48;
+      // cachet (à droite) : coordonnées SEVJ + n° d'autorisation d'installer (mention légale OIBT)
+      const cbW=200, cbX=R-cbW-2, cbTop=yy+8, cbH=62;
       pg.drawRectangle({x:cbX, y:cbTop-cbH, width:cbW, height:cbH, borderColor:GREY, borderWidth:0.8});
       let cy=cbTop-15;
-      pg.drawText(winAnsi(SEVJ_CACHET[0]), {x:cbX+10, y:cy, size:11, font:bold, color:NAVY}); cy-=13;
-      for(let i=1;i<SEVJ_CACHET.length;i++){ pg.drawText(winAnsi(SEVJ_CACHET[i]), {x:cbX+10, y:cy, size:7.5, font, color:INK}); cy-=10; }
+      pg.drawText(winAnsi(SEVJ_CACHET[0]), {x:cbX+10, y:cy, size:11, font:bold, color:NAVY}); cy-=12;
+      for(let i=1;i<SEVJ_CACHET.length;i++){ pg.drawText(winAnsi(SEVJ_CACHET[i]), {x:cbX+10, y:cy, size:7.5, font, color:INK}); cy-=9.5; }
+      pg.drawText(winAnsi("N° autorisation OIBT : "+SEVJ_OIBT_NO), {x:cbX+10, y:cy-1, size:7.5, font:bold, color:NAVY});
       y=bas-16;
     }
 
@@ -5177,7 +5270,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v86-arbre — OIBT : avis de suppression de défaut (personne du métier) · sauvegardes .SEVJ';
+const APP_VERSION='v88-arbre — OIBT : photos sous un défaut, verrou des points d\'autrui, n° d\'autorisation OIBT';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
