@@ -1045,6 +1045,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <div class="oibt-stat" id="oibtProgress" hidden></div>
         <div id="oibtPts"></div>
         <div class="oibt-empty" id="oibtNone">Aucun point pour l'instant — importe un rapport, puis tape sur les défauts.</div>
+        <label class="chk" style="margin-top:12px"><input type="checkbox" id="oibtAnnexeSeule"><span>À l'export, télécharger <b>l'annexe seule</b> (sans le rapport d'origine)</span></label>
       </div>
     </section>
 
@@ -4896,18 +4897,21 @@ function resetOibt(){
        À la place : le rapport reste intact, et une ANNEXE est ajoutée à la fin — un bloc
        par point corrigé (n° + renvoi de page + texte du défaut, puis « OK ! », signature,
        mesures, remarque). Même rendu pour les deux modèles, zéro superposition. ---- */
-async function oibtExportPDF(){
+async function oibtExportPDF(annexeSeule){
   if(!OIBT.pdf){ alert("Le PDF d'origine n'est pas chargé.\nRéimporte-le (ou restaure une sauvegarde .json qui le contient)."); return; }
   const btn=$('#oibtGenBtn'); const old=btn.textContent; btn.disabled=true; btn.textContent='Écriture du PDF…';
   try{
     const {PDFDocument, StandardFonts, rgb}=PDFLib;
-    const pdf=await PDFDocument.load(bufFromB64(OIBT.pdf));
+    // Le rapport d'origine sert toujours de source (en-tête recopié, n° de pages). Selon le
+    // choix, on écrit l'annexe DANS ce rapport (PDF complet) ou dans un document VIERGE (annexe seule).
+    const orig=await PDFDocument.load(bufFromB64(OIBT.pdf));
+    const pdf = annexeSeule ? await PDFDocument.create() : orig;
     const font=await pdf.embedFont(StandardFonts.Helvetica);
     const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
     // Symbol : la seule des 14 polices standard qui porte les grecques (Δ, Ω, µ, π).
     // Elle ne coûte rien au poids du fichier et évite d'embarquer une TTF Unicode.
     const symb=await pdf.embedFont(StandardFonts.Symbol);
-    const pages=pdf.getPages();
+    const pages=orig.getPages();                          // pages du rapport d'origine (source)
     const nOrig=pages.length;
     const who=currentUser?currentUser.name:'';
     const today=frDate(todayISO());
@@ -5109,7 +5113,7 @@ async function oibtExportPDF(){
       f.drawText(t, {x:R-wOf(t,font,7.5), y:BAS-26, size:7.5, font, color:GREY});
     });
     const out=await pdf.save();
-    const name=(OIBT.file||'rapport_oibt.pdf').replace(/\.pdf$/i,'')+'_signe.pdf';
+    const name=(OIBT.file||'rapport_oibt.pdf').replace(/\.pdf$/i,'')+(annexeSeule?'_annexe':'_signe')+'.pdf';
     downloadBlob(new Blob([out],{type:'application/pdf'}), name.replace(/[^\wÀ-ſ.-]/g,'_'));
   }catch(e){
     alert("Échec de l'écriture du PDF : "+e.message);
@@ -5340,7 +5344,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v95-arbre — Champs mesure numériques dans TOUTE l\'app (OIBT, protocole, rapport de mesures)';
+const APP_VERSION='v96-arbre — OIBT : option « annexe seule » à l\'export (sans le rapport d\'origine)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -5406,7 +5410,7 @@ function init(){
   /* ===== Rapport OIBT ===== */
   $('#oibtImportBtn').onclick=()=>$('#oibtPdf').click();
   $('#oibtPdf').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) oibtImport(f); e.target.value=''; });
-  $('#oibtGenBtn').onclick=oibtExportPDF;
+  $('#oibtGenBtn').onclick=()=>oibtExportPDF($('#oibtAnnexeSeule') && $('#oibtAnnexeSeule').checked);
   $('#oibtResetBtn').onclick=resetOibt;
   // Avis de suppression de défaut (personne du métier)
   oibtInitAvis();
