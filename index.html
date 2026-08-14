@@ -361,6 +361,15 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   width:24px; height:24px; line-height:22px; font-size:13px; font-weight:800; cursor:pointer; padding:0}
 .oibt-addval{margin-top:6px; background:none; border:1px dashed var(--navy2); color:var(--navy2);
   border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer}
+/* Circuits d'un point (désignation + mesures) */
+.oibt-circ{border:1px solid var(--line); border-left:3px solid var(--navy2); border-radius:10px;
+  padding:8px 10px; margin:0 0 8px; background:var(--card)}
+.oibt-circ-hd{display:flex; gap:8px; align-items:center; margin-bottom:6px}
+.oibt-cdesig{flex:1; min-width:0; font-weight:600}
+.oibt-circ-x{flex:0 0 auto; background:#fff; color:#b3261e; border:1px solid #b3261e; border-radius:50%;
+  width:24px; height:24px; line-height:22px; font-size:13px; font-weight:800; cursor:pointer; padding:0}
+.oibt-addcirc{margin-top:2px; background:none; border:1px dashed var(--navy); color:var(--navy);
+  border-radius:8px; padding:7px 12px; font-size:12.5px; font-weight:800; cursor:pointer}
 /* Photos ajoutées sous un défaut (remise en conformité) */
 .oibt-uphbox{background:#eef3f9; border-radius:10px; padding:8px 10px; margin:8px 0}
 :root[data-theme="dark"] .oibt-uphbox{background:#1c2732}
@@ -4400,6 +4409,15 @@ function oibtValTexte(v){
   const nom = o.k==='autre' ? (String(o.lbl||'').trim()||'Valeur mesurée') : m.lbl;
   return nom+' : '+val+(m.u?' '+m.u:'');
 }
+/* Circuits d'un point : un défaut peut concerner PLUSIEURS circuits, chacun avec sa désignation
+   (facultative) et ses mesures (ICC L-N, L-PE…). On migre l'ancien format (liste plate de
+   mesures) vers un circuit unique sans désignation. */
+function oibtCircuits(p){
+  if(!Array.isArray(p.circuits)) p.circuits=[{ desig:'', vals:(p.vals||[]).map(oibtValNorm) }];
+  p.circuits.forEach(c=>{ if(typeof c.desig!=='string') c.desig=''; c.vals=(c.vals||[]).map(oibtValNorm); });
+  if(!p.circuits.length) p.circuits.push({desig:'', vals:[]});
+  return p.circuits;
+}
 /* Texte du point avec les blancs remplis par les valeurs saisies */
 function oibtFilled(p){
   let i=0;
@@ -4572,9 +4590,9 @@ function oibtRender(){
         </div>
         ${p.texte?`<div class="oibt-txt">${esc(p.texte)}</div>`:''}
         <div class="oibt-vals">
-          <div class="fld" style="margin-bottom:4px">Mesures à consigner</div>
-          <div data-o="vals"></div>
-          <button type="button" class="oibt-addval" data-o="addval">+ Ajouter une mesure</button>
+          <div class="fld" style="margin-bottom:4px">Circuits / mesures à consigner</div>
+          <div data-o="circuits"></div>
+          <button type="button" class="oibt-addcirc" data-o="addcirc">＋ Ajouter un circuit</button>
         </div>
         <div class="chk"><input type="checkbox" data-o="ok"${p.ok?' checked':''}><label><b>Corrigé</b></label></div>
         <label class="fld">Remarque / mesure</label>
@@ -4608,35 +4626,50 @@ function oibtRender(){
     /* Les lignes de valeurs sont une LISTE, pas un calque sur les « ____ » du texte : sur un
        rapport scanné l'OCR en avale une partie (deux blancs à remplir, un seul détecté).
        On propose donc ce qu'on a trouvé, et on laisse ajouter ou retirer une ligne. */
-    const boxVals=d.querySelector('[data-o="vals"]');
-    const dessineVals=()=>{
-      boxVals.innerHTML='';
-      p.vals=(p.vals||[]).map(oibtValNorm);
-      p.vals.forEach((v,k)=>{
-        const m=oibtMes(v.k);
-        const r=el('div','oibt-val');
-        // une mesure d'un ancien type reste sélectionnable tant qu'elle existe (sinon elle
-        // basculerait en « Autre… » toute seule) — mais elle n'est pas proposée aux nouvelles
-        const liste = OIBT_MESURES.some(o=>o.k===v.k) ? OIBT_MESURES : [m].concat(OIBT_MESURES);
-        r.innerHTML=`<select data-vk>`
-          + liste.map(o=>`<option value="${o.k}"${o.k===v.k?' selected':''}>${esc(o.lbl)}${o.u?' — '+esc(o.u):''}</option>`).join('')
-          + `</select>`
-          + (v.k==='autre'?`<input data-vl type="text" value="${esc(v.lbl||'')}" placeholder="nom de la mesure">`:'')
-          + `<input data-vv class="num" type="text" inputmode="decimal" value="${esc(v.v||'')}" placeholder="valeur">`
-          + `<span class="oibt-unit">${esc(m.u||'')}</span>`
-          + `<button type="button" class="oibt-val-x" title="Retirer cette mesure">×</button>`;
-        r.querySelector('[data-vk]').onchange=e=>{ if(oibtLocked(p)){ e.target.value=v.k; return; } v.k=e.target.value; dessineVals(); oibtSave(); };
-        const iv=r.querySelector('[data-vv]'); if(iv) iv.addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=v.v||''; return; } v.v=e.target.value; oibtSave(); });
-        const il=r.querySelector('[data-vl]'); if(il) il.addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=v.lbl||''; return; } v.lbl=e.target.value; oibtSave(); });
-        r.querySelector('.oibt-val-x').onclick=()=>{ if(oibtLocked(p)) return; p.vals.splice(k,1); dessineVals(); oibtSave(); };
-        boxVals.appendChild(r);
-      });
-      if(!p.vals.length) boxVals.innerHTML='<div class="oibt-vg-h" style="margin:0">Aucune mesure pour ce point.</div>';
+    // Une mesure (ligne type + valeur) rattachée à un tableau `vals` donné.
+    const ligneMesure=(vals, k, redraw)=>{
+      const v=vals[k], m=oibtMes(v.k), r=el('div','oibt-val');
+      const liste = OIBT_MESURES.some(o=>o.k===v.k) ? OIBT_MESURES : [m].concat(OIBT_MESURES);
+      r.innerHTML=`<select data-vk>`
+        + liste.map(o=>`<option value="${o.k}"${o.k===v.k?' selected':''}>${esc(o.lbl)}${o.u?' — '+esc(o.u):''}</option>`).join('')
+        + `</select>`
+        + (v.k==='autre'?`<input data-vl type="text" value="${esc(v.lbl||'')}" placeholder="nom de la mesure">`:'')
+        + `<input data-vv class="num" type="text" inputmode="decimal" value="${esc(v.v||'')}" placeholder="valeur">`
+        + `<span class="oibt-unit">${esc(m.u||'')}</span>`
+        + `<button type="button" class="oibt-val-x" title="Retirer cette mesure">×</button>`;
+      r.querySelector('[data-vk]').onchange=e=>{ if(oibtLocked(p)){ e.target.value=v.k; return; } v.k=e.target.value; redraw(); oibtSave(); };
+      const iv=r.querySelector('[data-vv]'); if(iv) iv.addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=v.v||''; return; } v.v=e.target.value; oibtSave(); });
+      const il=r.querySelector('[data-vl]'); if(il) il.addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=v.lbl||''; return; } v.lbl=e.target.value; oibtSave(); });
+      r.querySelector('.oibt-val-x').onclick=()=>{ if(oibtLocked(p)) return; vals.splice(k,1); redraw(); oibtSave(); };
+      return r;
     };
-    dessineVals();
-    d.querySelector('[data-o="addval"]').onclick=()=>{ if(oibtLocked(p)) return;
-      p.vals=(p.vals||[]).map(oibtValNorm); p.vals.push({k:'risolpe', v:'', lbl:''}); dessineVals(); oibtSave();
-      const ins=boxVals.querySelectorAll('[data-vv]'); if(ins.length) ins[ins.length-1].focus(); };
+    // Chaque CIRCUIT = une désignation (facultative) + ses mesures.
+    const boxCirc=d.querySelector('[data-o="circuits"]');
+    const dessineCircuits=()=>{
+      boxCirc.innerHTML='';
+      const circs=oibtCircuits(p);
+      circs.forEach((c,ci)=>{
+        const cb=el('div','oibt-circ');
+        const hd=el('div','oibt-circ-hd');
+        hd.innerHTML=`<input class="oibt-cdesig" type="text" value="${esc(c.desig||'')}" placeholder="Désignation du circuit (si différent)">`
+                   + (circs.length>1?`<button type="button" class="oibt-circ-x" title="Retirer ce circuit">×</button>`:'');
+        hd.querySelector('.oibt-cdesig').addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=c.desig||''; return; } c.desig=e.target.value; oibtSave(); });
+        const xb=hd.querySelector('.oibt-circ-x'); if(xb) xb.onclick=()=>{ if(oibtLocked(p)) return; circs.splice(ci,1); dessineCircuits(); oibtSave(); };
+        cb.appendChild(hd);
+        const vbox=el('div','oibt-cvals');
+        const redraw=()=>{ vbox.innerHTML=''; c.vals.forEach((v,k)=> vbox.appendChild(ligneMesure(c.vals, k, redraw)));
+          if(!c.vals.length) vbox.innerHTML='<div class="oibt-vg-h" style="margin:0">Aucune mesure.</div>'; };
+        redraw();
+        cb.appendChild(vbox);
+        const add=el('button','oibt-addval'); add.type='button'; add.textContent='＋ Ajouter une mesure';
+        add.onclick=()=>{ if(oibtLocked(p)) return; c.vals.push({k:'risolpe',v:'',lbl:''}); redraw(); oibtSave();
+          const ins=vbox.querySelectorAll('[data-vv]'); if(ins.length) ins[ins.length-1].focus(); };
+        cb.appendChild(add);
+        boxCirc.appendChild(cb);
+      });
+    };
+    dessineCircuits();
+    d.querySelector('[data-o="addcirc"]').onclick=()=>{ if(oibtLocked(p)) return; oibtCircuits(p).push({desig:'',vals:[]}); dessineCircuits(); oibtSave(); };
     const refreshBy=()=>{ const b=d.querySelector('[data-o="by"]'); if(b) b.textContent=p.by?('✔ Validé par '+p.by+' le '+frDate(p.byDate||todayISO())):''; };
     // Estampille le point avec le collaborateur CONNECTÉ au moment où il le valide (coche
     // « Corrigé » ou signe). Chaque point garde ainsi le nom de celui qui l'a réellement fait,
@@ -4811,7 +4844,7 @@ function oibtSave(){
     // l'avis sans sa signature (le trait est lourd → il va dans IndexedDB, hors quota)
     avis:OIBT.avis?{name:OIBT.avis.name, ini:OIBT.avis.ini, date:OIBT.avis.date}:null,
     pts:OIBT.pts.map(p=>({n:p.n, id:p.id, page:p.page, y:p.y, titre:p.titre, texte:p.texte, manuel:p.manuel,
-                          rem:p.rem, ok:p.ok, vals:p.vals||[], by:p.by, byIni:p.byIni, byDate:p.byDate}))
+                          rem:p.rem, ok:p.ok, vals:p.vals||[], circuits:p.circuits||null, by:p.by, byIni:p.byIni, byDate:p.byDate}))
   })); }catch(e){ warnQuota(); }
   oibtDBSauveEtat();                                   // + signatures (points ET avis) et PDF, hors quota
 }
@@ -4993,9 +5026,16 @@ async function oibtExportPDF(annexeSeule){
       // le texte n'est repris QUE si la vignette manque : sinon on le lirait deux fois
       const txtL  = (!vg && p.texte) ? wrapText(winAnsi(p.texte), font, 9, COLI) : [];
       const lieuL = p.titre ? wrapText(winAnsi(p.titre), bold, 9, COLI) : [];
-      // Mesures : type choisi + valeur + unité (« Riso : 500 MΩ »). Plus de « ____ ».
-      const mesL  = (p.vals||[]).map(oibtValTexte).filter(Boolean)
-                    .flatMap(s=>wrapText(winAnsi(s), font, 9, COLI-12));
+      // Circuits : chaque circuit → sa désignation (si renseignée) puis ses mesures (« Riso : 500 MΩ »).
+      const mes=[];
+      oibtCircuits(p).forEach(c=>{
+        const vls=(c.vals||[]).map(oibtValTexte).filter(Boolean);
+        const dsg=(c.desig||'').trim();
+        if(!dsg && !vls.length) return;
+        if(dsg) mes.push('Circuit : '+dsg);
+        vls.forEach(v=> mes.push(v));
+      });
+      const mesL = mes.flatMap(s=>wrapText(winAnsi(s), font, 9, COLI-12));
       const remL  = p.rem ? wrapText(winAnsi('Remarque : '+p.rem), font, 9, COLI-12) : [];
       const sig   = p.sig ? sigs.get(p.sig) : null;
       const IL    = 10.5;                                 // interligne du cartouche
@@ -5344,7 +5384,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v96-arbre — OIBT : option « annexe seule » à l\'export (sans le rapport d\'origine)';
+const APP_VERSION='v97-arbre — OIBT : plusieurs circuits par point (désignation + mesures chacun)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
