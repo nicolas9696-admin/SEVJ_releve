@@ -5278,8 +5278,9 @@ async function oibtExportPDF(annexeSeule){
       f.drawText(t, {x:R-wOf(t,font,7.5), y:BAS-26, size:7.5, font, color:GREY});
     });
     const out=await pdf.save();
-    const name=(OIBT.file||'rapport_oibt.pdf').replace(/\.pdf$/i,'')+(annexeSeule?'_annexe':'_signe')+'.pdf';
-    downloadBlob(new Blob([out],{type:'application/pdf'}), name.replace(/[^\wÀ-ſ.-]/g,'_'));
+    const base=(OIBT.file||'rapport_oibt.pdf').replace(/\.pdf$/i,'').replace(/[^\wÀ-ſ.-]/g,'_');
+    const name = annexeSeule ? ('ANNEXE_'+base+'.pdf') : (base+'_signe.pdf');
+    downloadBlob(new Blob([out],{type:'application/pdf'}), name);
   }catch(e){
     alert("Échec de l'écriture du PDF : "+e.message);
   }finally{ btn.disabled=false; btn.textContent=old; updateOibtReq(); }
@@ -5509,7 +5510,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v99-arbre — OIBT : annotation des photos (crayon, flèche, cercle)';
+const APP_VERSION='v100-arbre — OIBT : nom du fichier annexe préfixé ANNEXE_…';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
