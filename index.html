@@ -111,7 +111,7 @@ textarea{min-height:70px; resize:vertical}
 .chk{display:flex; align-items:center; gap:9px; font-size:14px; padding:8px 0}
 .chk-important{margin-top:6px; font-weight:700; color:var(--danger)}
 .chk-important input{accent-color:var(--danger)}
-.chk input{width:20px; height:20px; flex:0 0 auto}
+.chk input{width:24px; height:24px; flex:0 0 auto}
 /* ---------- Repeatable rows ---------- */
 .row{border:1px solid var(--line); border-left:5px solid var(--navy2); border-radius:12px;
   padding:12px; margin:0 0 18px; position:relative; background:#fbfdff;
@@ -299,6 +299,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .home-hero{text-align:center; margin:14px 0 22px}
 .home-hero h1{margin:0; font-size:24px; font-weight:800; color:var(--navy)}
 .home-hero p{margin:6px 0 0; color:var(--mut); font-size:14px}
+.backup-nudge{display:flex; gap:10px; align-items:flex-start; margin:0 0 16px; padding:11px 13px;
+  background:#fff5e6; border:1px solid #f0c877; border-radius:12px; color:#7a4e00; font-size:13px; line-height:1.4}
+:root[data-theme="dark"] .backup-nudge{background:#2a2213; border-color:#6b5320; color:#f0d9a6}
+.backup-nudge button{flex:0 0 auto; background:none; border:none; color:inherit; font-size:16px; font-weight:800; cursor:pointer; padding:0 2px; opacity:.7}
 .home-tiles{display:grid; grid-template-columns:1fr 1fr; gap:12px}
 @media(max-width:340px){ .home-tiles{grid-template-columns:1fr} }
 .tile{display:flex; flex-direction:column; align-items:flex-start; gap:11px; width:100%; height:100%; text-align:left; cursor:pointer;
@@ -326,11 +330,13 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .oibt-hc{flex:1; min-width:0}
 .oibt-lieu{font-size:11px; font-weight:800; color:var(--navy2); text-transform:uppercase; letter-spacing:.3px}
 .oibt-res{font-size:12px; color:var(--mut); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.oibt-sum{font-size:11px; font-weight:700; color:var(--mut); margin-top:3px}
+.oibt-pt.done .oibt-sum{color:var(--ok)}
 .oibt-fold{color:var(--mut); font-size:12px; flex:0 0 auto; padding:0 4px}
 .oibt-pt.folded .oibt-body{display:none}
 .oibt-txt{font-size:13px; line-height:1.45; margin:10px 0 8px; white-space:pre-wrap}
 .oibt-pt .sig-box{margin-top:8px}
-.oibt-pt .sigpad{height:110px}
+.oibt-pt .sigpad{height:140px}
 .oibt-stat{display:flex; gap:8px; align-items:center; font-size:12px; color:var(--mut); margin-top:6px}
 .oibt-empty{border:2px dashed var(--line); border-radius:12px; padding:22px 14px; text-align:center; color:var(--mut)}
 /* ---------- Rapport OIBT : la visionneuse ---------- */
@@ -378,6 +384,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .oibt-uph img{width:78px; height:78px; object-fit:cover; border-radius:8px; border:1px solid var(--line); display:block}
 .oibt-uph .x{position:absolute; top:-7px; right:-7px; width:20px; height:20px; line-height:18px; text-align:center;
   background:#fff; color:#b3261e; border:1px solid #b3261e; border-radius:50%; font-weight:800; cursor:pointer}
+.oibt-uph .an{position:absolute; bottom:-7px; right:-7px; width:22px; height:22px; line-height:20px; text-align:center;
+  background:#fff; border:1px solid var(--navy2); border-radius:50%; font-size:11px; cursor:pointer}
 .oibt-uph-btns{display:flex; gap:8px; margin-top:8px}
 .oibt-addph{flex:1; text-align:center; background:var(--card); border:1px solid var(--navy2); color:var(--navy);
   border-radius:8px; padding:8px 10px; font-size:13px; font-weight:700; cursor:pointer}
@@ -441,6 +449,20 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #lightbox img{display:block; margin:auto; width:min(165vw,820px); max-width:none; padding:14px}
 #lightbox .lb-x{position:fixed; top:10px; right:12px; z-index:2; width:46px; height:46px; border-radius:50%;
   background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.45); font-size:20px; font-weight:800; cursor:pointer}
+/* Éditeur d'annotation de photo */
+#annot{position:fixed; inset:0; z-index:10001; background:#0c1016; display:flex; flex-direction:column}
+#annot[hidden]{display:none}
+.an-bar{display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:8px 10px; background:rgba(0,0,0,.45)}
+.an-bar button{min-width:40px; height:40px; padding:0 10px; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08);
+  color:#fff; border-radius:9px; font-size:16px; font-weight:800; cursor:pointer}
+.an-bar button.on{background:#2E5C8A; border-color:#4a7fb5}
+.an-cols{display:flex; gap:5px; align-items:center; margin:0 4px}
+.an-col{width:26px!important; min-width:26px!important; height:26px!important; border-radius:50%!important; padding:0!important}
+.an-col.on{outline:3px solid #fff; outline-offset:1px}
+.an-bar .an-x{margin-left:auto}
+.an-bar .an-done{background:#1c9c6b; border-color:#25c489}
+.an-stage{flex:1; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:8px}
+#annotCanvas{max-width:100%; max-height:100%; background:#fff; touch-action:none; border-radius:4px; box-shadow:0 4px 18px rgba(0,0,0,.5)}
 /* Bouton « remonter en haut » (fixe, en bas à droite, au-dessus de la barre d'action) */
 #toTop{position:fixed; right:14px; bottom:84px; z-index:9998; width:46px; height:46px; border-radius:50%;
   border:none; background:var(--navy); color:#fff; font-size:22px; font-weight:800; cursor:pointer;
@@ -600,6 +622,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <h1>Que veux-tu faire&nbsp;?</h1>
       <p>Choisis une fonction pour commencer.</p>
     </div>
+    <div id="backupNudge" class="backup-nudge" hidden>
+      <span>💾 <b>Sauvegarde recommandée.</b> <span id="backupNudgeTxt"></span> Exporte un fichier <b>.SEVJ</b> (bouton « Sauvegarder » dans chaque fonction) pour ne rien perdre si tu changes ou perds ton téléphone.</span>
+      <button type="button" id="backupNudgeX" aria-label="Masquer pour aujourd'hui">✕</button>
+    </div>
     <div class="home-tiles">
       <button type="button" class="tile tile-releve" data-goto="releve">
         <span class="ic">📋</span>
@@ -664,6 +690,26 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 
   <!-- Remonter en haut -->
   <button type="button" id="toTop" aria-label="Remonter en haut de la page" hidden>↑</button>
+
+  <!-- Éditeur d'annotation de photo -->
+  <div id="annot" hidden>
+    <div class="an-bar">
+      <button type="button" data-atool="pen" class="on" title="Crayon">✏️</button>
+      <button type="button" data-atool="arrow" title="Flèche">↗</button>
+      <button type="button" data-atool="circle" title="Cercle">◯</button>
+      <span class="an-cols">
+        <button type="button" class="an-col on" data-acol="#e11d1d" style="background:#e11d1d" aria-label="Rouge"></button>
+        <button type="button" class="an-col" data-acol="#f5b301" style="background:#f5b301" aria-label="Jaune"></button>
+        <button type="button" class="an-col" data-acol="#111111" style="background:#111111" aria-label="Noir"></button>
+        <button type="button" class="an-col" data-acol="#ffffff" style="background:#ffffff" aria-label="Blanc"></button>
+      </span>
+      <button type="button" id="anUndo" title="Annuler le dernier tracé">↶</button>
+      <button type="button" id="anClear">Effacer</button>
+      <button type="button" id="anCancel" class="an-x">✕</button>
+      <button type="button" id="anDone" class="an-done">✓ Terminer</button>
+    </div>
+    <div class="an-stage"><canvas id="annotCanvas"></canvas></div>
+  </div>
 
   <!-- Barre de navigation de fonction (retour accueil) -->
   <div class="func-nav" id="funcNav" hidden>
@@ -3263,7 +3309,29 @@ function showHome(){
   $('#funcNav').hidden = true;
   $('#collabCard').hidden = true;
   TABS.forEach(t=>{ $(TAB_EL[t]).hidden = true; $(BAR_EL[t]).hidden = true; });
+  majBackupNudge();
   window.scrollTo(0,0);
+}
+/* Rappel de sauvegarde : tout vit sur le téléphone. On note l'heure de la dernière sauvegarde
+   .SEVJ (toutes fonctions confondues) et, s'il y a des données non sauvegardées depuis > 7 jours,
+   on affiche un rappel discret et masquable sur l'accueil. */
+const BACKUP_KEY='sevj_last_backup', BACKUP_SNOOZE='sevj_backup_dismiss';
+function markBackup(){ try{ localStorage.setItem(BACKUP_KEY, String(Date.now())); }catch(e){} majBackupNudge(); }
+function aDesDonnees(){
+  try{ return ['sevj_draft_arbre_v1','sevj_oibt_v1','sevj_proto_v1','sevj_rm_v1']
+    .some(k=>{ const v=localStorage.getItem(k); return v && v!=='null' && v.length>20; }); }catch(e){ return false; }
+}
+function majBackupNudge(){
+  const el=$('#backupNudge'); if(!el) return;
+  let last=0, dism=0; try{ last=+localStorage.getItem(BACKUP_KEY)||0; dism=+localStorage.getItem(BACKUP_SNOOZE)||0; }catch(e){}
+  const now=Date.now(), JOUR=86400000;
+  const vieux = !last || (now-last) > 7*JOUR;
+  const snooze = now-dism < JOUR;
+  if(aDesDonnees() && vieux && !snooze){
+    const t=$('#backupNudgeTxt');
+    if(t) t.textContent = last ? ('Dernière sauvegarde il y a '+Math.floor((now-last)/JOUR)+' jour(s).') : 'Aucune sauvegarde .SEVJ n\'a encore été faite.';
+    el.hidden=false;
+  } else el.hidden=true;
 }
 function setTab(t){
   ACTIVE_TAB = TABS.indexOf(t)>=0 ? t : 'releve';
@@ -3552,7 +3620,7 @@ function exportProtoBackup(){
   const d=collectProto(); delete d.sigProto; delete d.monteur;    // la signature n'est pas enregistrée
   const data={ app:'sevj-proto', v:1, proto:d };
   const name=((d.noInstall||d.objet||'protocole').replace(/[^\wÀ-ſ.-]/g,'_'))+'.sevj';
-  downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name);
+  downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name); markBackup();
 }
 function importProtoBackup(file){
   const reader=new FileReader();
@@ -3840,7 +3908,7 @@ function resetRM(){
 function exportRMBackup(){
   const d=collectRM(); delete d.monteur; delete d.sigRM;   // la signature n'est pas incluse
   const name=((d.no||d.proprio||'rapport_mesures').replace(/[^\wÀ-ſ.-]/g,'_'))+'.sevj';
-  downloadBlob(new Blob([JSON.stringify({app:'sevj-rm', v:1, rm:d})],{type:'application/json'}), name);
+  downloadBlob(new Blob([JSON.stringify({app:'sevj-rm', v:1, rm:d})],{type:'application/json'}), name); markBackup();
 }
 function importRMBackup(file){
   const reader=new FileReader();
@@ -4418,6 +4486,17 @@ function oibtCircuits(p){
   if(!p.circuits.length) p.circuits.push({desig:'', vals:[]});
   return p.circuits;
 }
+/* Résumé de statut d'un point, affiché dans l'en-tête (surtout quand la carte est repliée) :
+   on scanne les défauts d'un coup d'œil sans tout déplier. */
+function oibtResume(p){
+  const b=[ p.ok?'✓ Corrigé':'○ à faire' ];
+  if(p.sig) b.push('signé');
+  const nph=(p.userPhotos||[]).length; if(nph) b.push(nph+' photo'+(nph>1?'s':''));
+  const nm=oibtCircuits(p).reduce((a,c)=>a+(c.vals||[]).filter(v=>String(v.v||'').trim()).length,0);
+  if(nm) b.push(nm+' mesure'+(nm>1?'s':''));
+  if(p.by) b.push('par '+String(p.by).split(' ')[0]);
+  return esc(b.join('  ·  '));
+}
 /* Texte du point avec les blancs remplis par les valeurs saisies */
 function oibtFilled(p){
   let i=0;
@@ -4577,6 +4656,7 @@ function oibtRender(){
         <div class="oibt-hc">
           <div class="oibt-lieu">${esc(p.titre||('Page '+p.page))}</div>
           <div class="oibt-res">${esc(p.texte.slice(0,70))}${p.texte.length>70?'…':(p.texte?'':'Zone désignée sur le rapport')}</div>
+          <div class="oibt-sum" data-o="sum">${oibtResume(p)}</div>
         </div>
         <span class="oibt-fold">▸</span>
       </div>
@@ -4638,9 +4718,9 @@ function oibtRender(){
         + `<span class="oibt-unit">${esc(m.u||'')}</span>`
         + `<button type="button" class="oibt-val-x" title="Retirer cette mesure">×</button>`;
       r.querySelector('[data-vk]').onchange=e=>{ if(oibtLocked(p)){ e.target.value=v.k; return; } v.k=e.target.value; redraw(); oibtSave(); };
-      const iv=r.querySelector('[data-vv]'); if(iv) iv.addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=v.v||''; return; } v.v=e.target.value; oibtSave(); });
+      const iv=r.querySelector('[data-vv]'); if(iv) iv.addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=v.v||''; return; } v.v=e.target.value; oibtSave(); refreshSum(); });
       const il=r.querySelector('[data-vl]'); if(il) il.addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=v.lbl||''; return; } v.lbl=e.target.value; oibtSave(); });
-      r.querySelector('.oibt-val-x').onclick=()=>{ if(oibtLocked(p)) return; vals.splice(k,1); redraw(); oibtSave(); };
+      r.querySelector('.oibt-val-x').onclick=()=>{ if(oibtLocked(p)) return; vals.splice(k,1); redraw(); oibtSave(); refreshSum(); };
       return r;
     };
     // Chaque CIRCUIT = une désignation (facultative) + ses mesures.
@@ -4671,16 +4751,17 @@ function oibtRender(){
     dessineCircuits();
     d.querySelector('[data-o="addcirc"]').onclick=()=>{ if(oibtLocked(p)) return; oibtCircuits(p).push({desig:'',vals:[]}); dessineCircuits(); oibtSave(); };
     const refreshBy=()=>{ const b=d.querySelector('[data-o="by"]'); if(b) b.textContent=p.by?('✔ Validé par '+p.by+' le '+frDate(p.byDate||todayISO())):''; };
+    const refreshSum=()=>{ const s=d.querySelector('[data-o="sum"]'); if(s) s.innerHTML=oibtResume(p); };
     // Estampille le point avec le collaborateur CONNECTÉ au moment où il le valide (coche
     // « Corrigé » ou signe). Chaque point garde ainsi le nom de celui qui l'a réellement fait,
     // même si un collègue reprend le rapport plus tard avec son propre compte.
     const stampBy=()=>{ if(currentUser){ p.by=currentUser.name; p.byIni=currentUser.ini; if(!p.byDate) p.byDate=todayISO(); refreshBy(); } };
-    d.querySelector('[data-o="ok"]').onchange=e=>{ if(oibtLocked(p)){ e.target.checked=p.ok; return; } p.ok=e.target.checked; if(p.ok) stampBy(); d.classList.toggle('done',p.ok); oibtProgress(); oibtSave(); updateOibtReq(); };
+    d.querySelector('[data-o="ok"]').onchange=e=>{ if(oibtLocked(p)){ e.target.checked=p.ok; return; } p.ok=e.target.checked; if(p.ok) stampBy(); d.classList.toggle('done',p.ok); oibtProgress(); oibtSave(); updateOibtReq(); refreshSum(); };
     d.querySelector('[data-o="rem"]').addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=p.rem||''; return; } p.rem=e.target.value; oibtSave(); });
     const pad=d.querySelector('.sigpad'); setupSigPad(pad);
     if(p.sig) oibtDrawSig(pad, p.sig);
-    pad.addEventListener('pointerup',()=>{ if(oibtLocked(p)) return; p.sig=pad._sig?pad._sig.data():null; if(p.sig) stampBy(); oibtSave(); });
-    d.querySelector('.sig-clear').onclick=()=>{ if(oibtLocked(p)) return; if(pad._sig) pad._sig.clear(); p.sig=null; oibtSave(); };
+    pad.addEventListener('pointerup',()=>{ if(oibtLocked(p)) return; p.sig=pad._sig?pad._sig.data():null; if(p.sig) stampBy(); oibtSave(); refreshSum(); });
+    d.querySelector('.sig-clear').onclick=()=>{ if(oibtLocked(p)) return; if(pad._sig) pad._sig.clear(); p.sig=null; oibtSave(); refreshSum(); };
 
     // --- Photos de la remise en conformité (appareil + galerie)
     p.userPhotos=p.userPhotos||[];
@@ -4689,9 +4770,13 @@ function oibtRender(){
       boxPh.innerHTML='';
       p.userPhotos.forEach((src,k)=>{
         const ph=el('div','ph');
-        ph.innerHTML=`<img src="${src}" alt="Photo ${k+1}"><span class="x" title="Retirer">×</span>`;
-        ph.querySelector('img').onclick=()=>oibtLoupeImg(src);
-        ph.querySelector('.x').onclick=()=>{ if(oibtLocked(p)) return; p.userPhotos.splice(k,1); dessinePhotos(); oibtSave(); };
+        ph.innerHTML=`<img src="${src}" alt="Photo ${k+1}">`
+          + (oibtLocked(p)?'':`<span class="an" title="Annoter">✏️</span>`)
+          + `<span class="x" title="Retirer">×</span>`;
+        ph.querySelector('img').onclick=()=>oibtLoupeImg(p.userPhotos[k]);
+        const anb=ph.querySelector('.an'); if(anb) anb.onclick=()=>{ if(oibtLocked(p)) return;
+          oibtAnnoteOuvre(p.userPhotos[k], u=>{ p.userPhotos[k]=u; dessinePhotos(); oibtSave(); refreshSum(); }); };
+        ph.querySelector('.x').onclick=()=>{ if(oibtLocked(p)) return; p.userPhotos.splice(k,1); dessinePhotos(); oibtSave(); refreshSum(); };
         boxPh.appendChild(ph);
       });
     };
@@ -4700,7 +4785,7 @@ function oibtRender(){
       if(oibtLocked(p)) return;
       for(const f of [...files]){ if(!f.type.startsWith('image/')) continue;
         try{ p.userPhotos.push(await compressImage(f)); }catch(e){} }
-      dessinePhotos(); oibtSave();
+      dessinePhotos(); oibtSave(); refreshSum();
     };
     const cam=d.querySelector('[data-o="cam"]'), gal=d.querySelector('[data-o="gal"]');
     if(cam) cam.addEventListener('change',e=>{ ajoutePhotos(e.target.files); e.target.value=''; });
@@ -4733,6 +4818,46 @@ function oibtLoupeImg(src){
   im.src=src; w.hidden=false; if(typeof oibtLoupeZoom==='function') oibtLoupeZoom(1);
   const box=$('#oibtLoupeBox'); if(box){ box.scrollTop=0; box.scrollLeft=0; }
 }
+/* ---- Annotation d'une photo : crayon, flèche, cercle. Tracés en coordonnées 0-1 pour rester
+        justes à toute échelle. « Terminer » aplatit les tracés sur l'image (JPEG). ---- */
+let ANNOT={ img:null, strokes:[], cur:null, tool:'pen', color:'#e11d1d', onSave:null };
+function annotDrawStroke(ctx, s, W, H){
+  ctx.strokeStyle=s.color; ctx.fillStyle=s.color; ctx.lineWidth=Math.max(2.5, W*0.007); ctx.lineJoin='round'; ctx.lineCap='round';
+  if(s.tool==='pen'){
+    ctx.beginPath(); s.points.forEach((p,i)=>{ const x=p.x*W, y=p.y*H; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
+  } else if(s.tool==='circle'){
+    const w=Math.abs(s.x1-s.x0)*W, h=Math.abs(s.y1-s.y0)*H, cx=(s.x0+s.x1)/2*W, cy=(s.y0+s.y1)/2*H;
+    ctx.beginPath(); ctx.ellipse(cx, cy, Math.max(4,w/2), Math.max(4,h/2), 0, 0, 2*Math.PI); ctx.stroke();
+  } else if(s.tool==='arrow'){
+    const x0=s.x0*W,y0=s.y0*H,x1=s.x1*W,y1=s.y1*H, ang=Math.atan2(y1-y0,x1-x0), hl=Math.max(12,W*0.035);
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x1,y1);
+    ctx.lineTo(x1-hl*Math.cos(ang-0.42), y1-hl*Math.sin(ang-0.42));
+    ctx.lineTo(x1-hl*Math.cos(ang+0.42), y1-hl*Math.sin(ang+0.42));
+    ctx.closePath(); ctx.fill();
+  }
+}
+function annotRedraw(){
+  const c=$('#annotCanvas'); if(!c||!ANNOT.img) return; const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height); ctx.drawImage(ANNOT.img,0,0,c.width,c.height);
+  (ANNOT.cur?ANNOT.strokes.concat([ANNOT.cur]):ANNOT.strokes).forEach(s=>annotDrawStroke(ctx,s,c.width,c.height));
+}
+function oibtAnnoteOuvre(src, onSave){
+  const w=$('#annot'), c=$('#annotCanvas'); if(!w||!c) return;
+  ANNOT={ img:null, strokes:[], cur:null, tool:'pen', color:'#e11d1d', onSave };
+  const img=new Image();
+  img.onload=()=>{
+    const max=1400, sc=Math.min(1, max/Math.max(img.naturalWidth, img.naturalHeight));
+    c.width=Math.round(img.naturalWidth*sc); c.height=Math.round(img.naturalHeight*sc);
+    ANNOT.img=img; annotRedraw();
+  };
+  img.src=src;
+  // sélection outils / couleurs (état visuel)
+  document.querySelectorAll('#annot [data-atool]').forEach(b=> b.classList.toggle('on', b.dataset.atool===ANNOT.tool));
+  document.querySelectorAll('#annot [data-acol]').forEach(b=> b.classList.toggle('on', b.dataset.acol===ANNOT.color));
+  w.hidden=false;
+}
+function oibtAnnoteFerme(){ const w=$('#annot'); if(w) w.hidden=true; ANNOT.img=null; ANNOT.strokes=[]; ANNOT.cur=null; }
 function oibtDrawSig(canvas, dataUrl){
   const img=new Image(); img.onload=()=>{ try{ canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height); }catch(e){} };
   img.src=dataUrl;
@@ -4891,7 +5016,7 @@ function exportOibtBackup(){
   if(!OIBT.pts.length && !OIBT.vues.length){ alert("Importe d'abord un rapport."); return; }
   const data={ app:'sevj-oibt', v:2, file:OIBT.file, pdf:OIBT.pdf, modele:OIBT.modele, avis:OIBT.avis, pts:OIBT.pts };
   const name=(OIBT.file||'rapport_oibt').replace(/\.pdf$/i,'').replace(/[^\wÀ-ſ.-]/g,'_')+'.sevj';
-  downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name);
+  downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name); markBackup();
 }
 function importOibtBackup(file){
   const reader=new FileReader();
@@ -5339,7 +5464,7 @@ function exportBackup(){
   const data={ app:'sevj', v:1, draft:draftObject(),
     photos:[...document.querySelectorAll('#rooms .room')].map(r=>r._photos||[]) };
   const name=(($('#ref').value||'sevj_releve').replace(/[^\wÀ-ſ.-]/g,'_'))+'.sevj';
-  downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name);
+  downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name); markBackup();
 }
 function importBackup(file){
   const reader=new FileReader();
@@ -5384,7 +5509,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v97-arbre — OIBT : plusieurs circuits par point (désignation + mesures chacun)';
+const APP_VERSION='v99-arbre — OIBT : annotation des photos (crayon, flèche, cercle)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -5393,7 +5518,8 @@ function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttri
 try{ applyTheme(localStorage.getItem(THEME_KEY)||'light'); }catch(e){}
 function init(){
   $('#logoImg').src=LOGO;
-  const av=$('#appVer'); if(av) av.textContent=APP_VERSION;
+  const av=$('#appVer'); if(av){ av.textContent=(APP_VERSION.match(/^v[\d.]+/)||[APP_VERSION])[0];
+    av.title=APP_VERSION; av.style.cursor='pointer'; av.onclick=()=>alert(APP_VERSION); }
   applyTheme((function(){try{return localStorage.getItem(THEME_KEY)||'light';}catch(e){return 'light';}})());
   $('#themeBtn').onclick=()=>{ const nt=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'; applyTheme(nt); try{ localStorage.setItem(THEME_KEY,nt); }catch(e){} };
   $('#date').value=new Date().toISOString().slice(0,10);
@@ -5510,6 +5636,34 @@ function init(){
   /* ===== Accueil / navigation ===== */
   document.querySelectorAll('.tile[data-goto]').forEach(b=> b.onclick=()=>setTab(b.dataset.goto));
   $('#homeBtn').onclick=showHome;
+  // Rappel de sauvegarde : « masquer » = ne plus afficher pendant 24 h
+  const bnx=$('#backupNudgeX'); if(bnx) bnx.onclick=()=>{ try{ localStorage.setItem(BACKUP_SNOOZE, String(Date.now())); }catch(e){} $('#backupNudge').hidden=true; };
+  majBackupNudge();
+
+  // Éditeur d'annotation de photo
+  document.querySelectorAll('#annot [data-atool]').forEach(b=> b.onclick=()=>{ ANNOT.tool=b.dataset.atool;
+    document.querySelectorAll('#annot [data-atool]').forEach(x=>x.classList.toggle('on',x===b)); });
+  document.querySelectorAll('#annot [data-acol]').forEach(b=> b.onclick=()=>{ ANNOT.color=b.dataset.acol;
+    document.querySelectorAll('#annot [data-acol]').forEach(x=>x.classList.toggle('on',x===b)); });
+  $('#anUndo').onclick=()=>{ ANNOT.strokes.pop(); annotRedraw(); };
+  $('#anClear').onclick=()=>{ ANNOT.strokes=[]; ANNOT.cur=null; annotRedraw(); };
+  $('#anCancel').onclick=oibtAnnoteFerme;
+  $('#anDone').onclick=()=>{ const c=$('#annotCanvas'); let url=null; try{ url=c.toDataURL('image/jpeg',0.85); }catch(e){}
+    const save=ANNOT.onSave; oibtAnnoteFerme(); if(url && save) save(url); };
+  (function(){
+    const c=$('#annotCanvas'); if(!c) return;
+    const pt=e=>{ const r=c.getBoundingClientRect(); return {x:Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)), y:Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))}; };
+    c.addEventListener('pointerdown',e=>{ if(!ANNOT.img) return; e.preventDefault(); c.setPointerCapture(e.pointerId);
+      const q=pt(e);
+      ANNOT.cur = ANNOT.tool==='pen' ? {tool:'pen',color:ANNOT.color,points:[q]} : {tool:ANNOT.tool,color:ANNOT.color,x0:q.x,y0:q.y,x1:q.x,y1:q.y};
+      annotRedraw(); });
+    c.addEventListener('pointermove',e=>{ if(!ANNOT.cur) return; e.preventDefault(); const q=pt(e);
+      if(ANNOT.cur.tool==='pen') ANNOT.cur.points.push(q); else { ANNOT.cur.x1=q.x; ANNOT.cur.y1=q.y; } annotRedraw(); });
+    const fin=e=>{ if(!ANNOT.cur) return;
+      if(ANNOT.cur.tool!=='pen' || ANNOT.cur.points.length>1) ANNOT.strokes.push(ANNOT.cur);
+      ANNOT.cur=null; annotRedraw(); };
+    c.addEventListener('pointerup',fin); c.addEventListener('pointercancel',fin);
+  })();
   // Bouton « remonter en haut » : apparaît dès qu'on a défilé
   const toTop=$('#toTop');
   if(toTop){
