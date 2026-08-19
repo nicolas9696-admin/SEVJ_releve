@@ -1317,7 +1317,7 @@ const INTER_M  = ["sch3","sch6","sch3 + prise","sch3+3","spécifique…"];
 const AMP       = ["6","8","10","13","16","20","25","32","40","63","autre…"];
 const MARQUE   = ["Schneider","ABB","ABB smissline","Hager","À préciser…"];
 const BOITE_T  = ["AP9","AP10","À préciser…"];
-const STATUT_LIST = ["Neuf","Déjà sur place (démonté / remonté)","Neuf fourni par le client","Démontage (le client remettra plus tard)"];
+const STATUT_LIST = ["Neuf","Déjà sur place (démonté / remonté)","Neuf fourni par le client","Démontage seul (pas de repose)","Démontage (le client remettra plus tard)"];
 /* Tranches de longueur — relevé rapide : « ligne de 5 à 10 m » au lieu du mètre exact.
    La borne haute sert de quantité (modifiable à la main juste après). */
 const TRANCHES     = ["0 à 5 m","5 à 10 m","10 à 20 m","20 à 30 m","30 à 50 m","50 à 75 m","75 à 100 m","plus de 100 m"];
@@ -1969,10 +1969,22 @@ function makeNode(type){
     }
     cb.onclick=()=>{ addChem(); scheduleSave(); };
     addChem();                                           // un cheminement par défaut
-    // le câble de la liaison (une ligne, non supprimable, repliable)
-    const tc=el('div'); addCable(tc); const cableRow=tc.firstElementChild;
-    cableCont.appendChild(wrapItem('Câble', cableRow, null));
-    const linksBlk=cableRow.querySelector('[data-links-list]'); if(linksBlk){ const w=linksBlk.closest('div'); if(w) w.style.display='none'; }
+    // le câble de la liaison : une seule ligne, supprimable — un démontage seul
+    // n'a ni cheminement ni câble. Le bouton réapparaît quand il n'y en a plus.
+    const kb=el('button','add'); kb.type='button'; kb.style.fontSize='13px'; kb.textContent='＋ Câble / fil';
+    sec2.appendChild(kb);
+    function syncCableBtn(){ kb.hidden = !!cableCont.querySelector('.liais-item'); }
+    function addCableItem(state){
+      if(cableCont.querySelector('.liais-item')) return null;      // une seule ligne
+      const tc=el('div'); addCable(tc); const cableRow=tc.firstElementChild;
+      cableCont.appendChild(wrapItem('Câble', cableRow, syncCableBtn));
+      const linksBlk=cableRow.querySelector('[data-links-list]'); if(linksBlk){ const w=linksBlk.closest('div'); if(w) w.style.display='none'; }
+      if(state) fillRow(cableRow, state);
+      syncCableBtn(); recalcCableLen(); return cableRow;
+    }
+    kb.onclick=()=>{ addCableItem(); scheduleSave(); };
+    addCableItem();
+    li._addCable=addCableItem; li._syncCable=syncCableBtn; li._recalc=recalcCableLen;   // utilisés à la restauration
     chemCont.addEventListener('input', recalcCableLen);
     chemCont.addEventListener('change', recalcCableLen);
   }
@@ -2431,7 +2443,8 @@ function collect(){
     let cable=null; const chemins=[];
     li.querySelectorAll('.liais-item .row').forEach(row=>{
       if(row.querySelector('[data-f="etat"]')){ const c=parseChem(row); c.dest=dest; if(c.long||c.article){ chemins.push(c); if(!c.existant) out.chemins.push(c); } }   // existant : exclu de l'export
-      else if(row.querySelector('[data-f="mm2"]')){ const c=parseCable(row); c.dest=dest; if(c.long||c.mm2){ cable=c; if(!c.existant) out.cables.push(c); } }
+      else if(row.querySelector('[data-f="mm2"]')){ const c=parseCable(row); c.dest=dest;
+        if(c.long||c.name){ cable=c; if(!c.existant) out.cables.push(c); } }   // sans longueur ni nom : ligne vide, on n'exporte pas
     });
     return {cable, chemins};
   }
@@ -2658,6 +2671,9 @@ function isDue(a){ return /EDIZIO ?due/i.test(a.article||''); }
 /* Appareil « Déjà sur place (démonté / remonté) » : rien n'est fourni — pas de réf. ELDAS
    ni de mise en évidence commande ; le travail est chiffré via un forfait démontage/remontage. */
 function isAppExistant(a){ return (a.statut||'').indexOf('Déjà sur place')>=0; }
+/* Rien n'est fourni (dépose/repose ou démontage) -> pas de réf. ELDAS ni de mise en
+   évidence commande : il n'y a rien à commander pour ces lignes. */
+function isAppSansFourniture(a){ const st=a.statut||''; return isAppExistant(a) || st.indexOf('Démontage')>=0; }
 const FORFAIT_DEM = "Forfait démontage / remontage d'appareils existants";
 /* Agrège les articles d'un ensemble {chemins,cables,apps,boites,disj} */
 function aggregate(items){
@@ -2666,8 +2682,8 @@ function aggregate(items){
   return {
     chemins: groupItems(items.chemins.filter(c=>!c.existant), chemDesig, c=>c.long),
     cables:  groupItems(items.cables, cableLabel, c=>c.long),
-    apps:    groupItems(apps.map(a=> isAppExistant(a) ? Object.assign({}, a, {eldas:''}) : a),
-                        appLabel, a=>a.qte, a=>!isAppExistant(a) && isDue(a)),
+    apps:    groupItems(apps.map(a=> isAppSansFourniture(a) ? Object.assign({}, a, {eldas:''}) : a),
+                        appLabel, a=>a.qte, a=>!isAppSansFourniture(a) && isDue(a)),
     boites:  groupItems(items.boites, b=>b.article, b=>b.qte),
     disj:    groupItems(items.disj, x=>disjLabel(x), x=>x.qte),
     demontage: Math.round(demQty*100)/100,
@@ -2693,7 +2709,8 @@ function statutSuffix(st){
   if(st==='Neuf') return '';
   if(st.indexOf('fourni par le client')>=0) return ' — fourni par le client (pose seule)';
   if(st.indexOf('Déjà sur place')>=0)       return ' — dépose + repose (existant)';
-  if(st.indexOf('Démontage')>=0)            return ' — démontage seul';
+  if(st.indexOf('Démontage seul')>=0)       return ' — démontage seul (dépose, pas de repose)';
+  if(st.indexOf('Démontage')>=0)            return ' — démontage (le client remettra en place plus tard)';
   return '';
 }
 function appLabel(a){ return (a.article||'') + statutSuffix(a.statut); }
@@ -5548,10 +5565,15 @@ function rebuildNode(kids, brancher, ns){
     const secs=li.querySelectorAll('.liais-sec');
     const sec1=secs[0], addBtn=sec1.querySelector('button.add');
     const chemStates=ns.liais.chemins||[];
-    let items=sec1.querySelectorAll('.liais-item');
-    while(items.length < chemStates.length){ addBtn.click(); items=sec1.querySelectorAll('.liais-item'); }
+    let items=[...sec1.querySelectorAll('.liais-item')];
+    while(items.length < chemStates.length){ addBtn.click(); items=[...sec1.querySelectorAll('.liais-item')]; }
+    while(items.length > chemStates.length){ items.pop().remove(); }     // 0 cheminement : on retire celui d'origine
     items.forEach((it,i)=>{ if(chemStates[i]) fillRow(it.querySelector('.row'), chemStates[i]); });
-    if(ns.liais.cable){ const cableRow=secs[1].querySelector('.liais-item .row'); if(cableRow) fillRow(cableRow, ns.liais.cable); }
+    const cbox=secs[1].querySelector('.liais-item');
+    if(ns.liais.cable){ if(cbox) fillRow(cbox.querySelector('.row'), ns.liais.cable); }
+    else if(cbox) cbox.remove();                                         // câble supprimé (démontage seul)
+    if(li._syncCable) li._syncCable();
+    if(li._recalc)    li._recalc();
   }
   const nkids=node.querySelector(':scope > .tkids'), nbr=nkids.querySelector(':scope > .brancher');
   (ns.children||[]).forEach(cs=> rebuildNode(nkids, nbr, cs));
@@ -5625,7 +5647,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v102-arbre — Relevé : tranches de longueur, tirage PE seul, recherche de défaut ; « sans départ » au lieu de « à lier DispoSuite »';
+const APP_VERSION='v103-arbre — Appareil : statut « Démontage seul », câble de liaison supprimable (démontage sans câble)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
