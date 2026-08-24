@@ -346,6 +346,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .oibt-pg img{display:block; width:100%; height:auto; user-select:none; -webkit-user-drag:none}
 .oibt-pgn{position:absolute; top:6px; right:8px; background:rgba(31,59,91,.82); color:#fff;
   font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:20px; pointer-events:none}
+/* matériel hors arbre : les boutons d'ajout, deux par ligne sur téléphone */
+.mat-add{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
+.mat-add .add{flex:1 1 46%; margin:0; border-style:solid; font-size:13px}
 /* le repère d'un point : une barre sur toute la largeur, à la hauteur du défaut */
 .oibt-mk{position:absolute; left:0; right:0; height:0; display:flex; align-items:center; gap:5px;
   padding-left:6px; border-top:2px solid var(--navy); cursor:grab; touch-action:none}
@@ -812,6 +815,25 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     </div>
   </section>
 
+  <!-- Matériel supplémentaire (hors arbre) -->
+  <section class="card" id="materielCard">
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/><path d="M12 12v8"/></svg></span> Matériel supplémentaire</h2>
+    <div class="body">
+      <p class="hint">Pour le matériel qui n'a <b>pas besoin d'être placé dans l'arbre</b> d'une pièce :
+      fournitures diverses, réserve, matériel de tableau… Même choix d'articles que dans l'arbre
+      (couleurs, ELDAS, statuts), mais sans pièce ni départ. Il apparaît dans le descriptif sous
+      <b>« Matériel supplémentaire »</b>.</p>
+      <div id="materiel"></div>
+      <div class="mat-add">
+        <button type="button" class="add" data-addmat="app">＋ Appareil</button>
+        <button type="button" class="add" data-addmat="boite">＋ Dérivation / boîte</button>
+        <button type="button" class="add" data-addmat="chem">＋ Cheminement</button>
+        <button type="button" class="add" data-addmat="cable">＋ Câble / fil</button>
+        <button type="button" class="add" data-addmat="disj">＋ Disjoncteur</button>
+      </div>
+    </div>
+  </section>
+
   <!-- 5. Temps -->
   <section class="card req" data-req="temps">
     <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span> Temps &amp; main d'œuvre</h2>
@@ -839,6 +861,18 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <div id="defauts"></div>
       <button class="add" data-add="defaut" style="border-style:solid; margin-top:4px">＋ Ajouter une recherche de défaut</button>
       <div class="mo-total" style="margin-top:12px">→ Total temps de recherche : <b id="defTotal">—</b></div>
+    </div>
+  </section>
+
+  <!-- Recherche de circuit -->
+  <section class="card" id="circuitsCard">
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h5l3 10h8"/><circle cx="4" cy="7" r="1.6" fill="#fff"/><circle cx="20" cy="17" r="1.6" fill="#fff"/><path d="M14 4l3 3-3 3"/></svg></span> Recherche de circuit</h2>
+    <div class="body">
+      <p class="hint">Repérage : retrouver <b>quel départ alimente quoi</b>, identifier un disjoncteur,
+      étiqueter un tableau… Le <b>temps de recherche</b> apparaît à part dans l'export, comme la recherche de défaut.</p>
+      <div id="circuits"></div>
+      <button class="add" data-add="circuit" style="border-style:solid; margin-top:4px">＋ Ajouter une recherche de circuit</button>
+      <div class="mo-total" style="margin-top:12px">→ Total temps de repérage : <b id="circTotal">—</b></div>
     </div>
   </section>
 
@@ -1333,6 +1367,11 @@ const TRANCHE_MAX  = {"0 à 5 m":5,"5 à 10 m":10,"10 à 20 m":20,"20 à 30 m":3
 const DEFAUT_T   = ["Mauvais Riso (isolement)","Court-circuit","Coupure / conducteur interrompu",
   "Déclenchement DDR / FI","Défaut de terre","Panne d'appareil","Défaut intermittent","Autre…"];
 const DEFAUT_RES = ["Défaut localisé","Défaut localisé et réparé","Défaut non localisé — recherche à poursuivre"];
+/* Recherche de circuit (repérage) */
+const CIRCUIT_T   = ["Repérage d'un circuit","Identification d'un départ / disjoncteur",
+  "Recherche du départ d'une prise / d'un point lumineux","Vérification d'appartenance d'un circuit",
+  "Repérage complet du tableau","Autre…"];
+const CIRCUIT_RES = ["Circuit identifié","Circuit identifié et étiqueté","Circuit non identifié — recherche à poursuivre"];
 const ROOM_NAMES = ["Chambre 1","Chambre 2","Chambre 3","Chambre 4","Chambre 5","Cuisine","Salle à manger",
   "Salle de bain","WC","Chaufferie","Garage","Couloir","Buanderie","Entrée","Salon","Bureau","Cave","Extérieur","Autre…"];
 const ROOM_COLORS = ['#1F3B5B','#2E7D5B','#8A5A2B','#7A3B8A','#B5651D','#2B6CB0','#9B2C4A','#4A6B2E','#5A4F9E','#0E7C86'];
@@ -1685,6 +1724,63 @@ function addDefaut(){
     <div style="margin-top:10px"><label class="fld">Résultat</label><select data-f="dres">${opts(DEFAUT_RES)}</select></div>
     <div style="margin-top:10px"><label class="fld">Remarque / valeur mesurée (optionnel)</label><input data-f="dnote" type="text" placeholder="ex : Riso 0.02 MΩ entre L1 et PE"></div>`;
   wire(r); $('#defauts').appendChild(r); updateDef();
+}
+/* ===== Recherche de circuit (repérage) — jumelle de la recherche de défaut ===== */
+function addCircuit(){
+  const r = el('div','row');
+  r.innerHTML = `<button class="rm" title="Supprimer">×</button>
+    <div class="tag">Recherche de circuit</div>
+    <div class="grid">
+      <div><label class="fld">Objet de la recherche</label><select data-f="ctype">${opts(CIRCUIT_T)}</select></div>
+      <div><label class="fld">Temps de recherche (h)</label><input data-f="cch" type="number" min="0" step="0.25" placeholder="ex : 0.75"></div>
+    </div>
+    <div class="cond" data-c="ctype" style="margin-top:10px"><label class="fld">Préciser</label><input data-f="cautre" type="text" placeholder="ex : repérage des prises du 2e étage"></div>
+    <div style="margin-top:10px"><label class="fld">Local / circuit concerné</label><input data-f="cloc" type="text" placeholder="ex : Cuisine — prises plan de travail"></div>
+    <div style="margin-top:10px"><label class="fld">Résultat</label><select data-f="cres">${opts(CIRCUIT_RES)}</select></div>
+    <div style="margin-top:10px"><label class="fld">Remarque (optionnel)</label><input data-f="cnote" type="text" placeholder="ex : alimenté par le départ 12"></div>`;
+  wire(r); $('#circuits').appendChild(r); updateCirc();
+}
+function collectCircuits(){
+  return [...document.querySelectorAll('#circuits .row')].map(r=>{
+    let t=G(r,'ctype')||''; if(t==='Autre…') t=(G(r,'cautre')||'Autre repérage');
+    return {type:t, loc:G(r,'cloc'), h:G(r,'cch'), res:G(r,'cres')||CIRCUIT_RES[0], note:G(r,'cnote')};
+  }).filter(o=> o.type && (o.h || o.loc || o.note));
+}
+function updateCirc(){
+  const e=document.querySelector('#circTotal'); if(!e) return;
+  const t=totalDefaut(collectCircuits()); e.textContent = t? t+' h' : '—';
+}
+/* ===== Matériel supplémentaire : les mêmes lignes que dans l'arbre, mais à plat ===== */
+const MAT_ADDERS = {chem:addChemin, cable:addCable, app:addApp, boite:addBoite, disj:addDisj};
+function addMateriel(t, state){
+  const cont=$('#materiel'); const add=MAT_ADDERS[t]; if(!cont||!add) return null;
+  add(cont);
+  const r=cont.lastElementChild; if(!r) return null;
+  r.dataset.mt=t;
+  // hors arbre : un câble n'emprunte aucun cheminement de pièce, la liste n'a pas de sens
+  const lk=r.querySelector('[data-links-list]'); if(lk){ const w=lk.closest('div'); if(w) w.style.display='none'; }
+  if(state) fillRow(r, state);
+  syncChemLinks();
+  return r;
+}
+/* Disjoncteur saisi à la main (hors Tableau) — même libellé d'export qu'une protection */
+function parseDisjRow(r){
+  let a=G(r,'amp'); if(a==='autre…') a=G(r,'ampautre')||'?';
+  let mq=G(r,'marque'); if(mq==='À préciser…') mq=G(r,'marqueautre')||'À préciser';
+  return {name:G(r,'name'), ptype:'Disjoncteur', courbe:G(r,'courbe'), amp:a, qte:G(r,'qte')||'1',
+          ddr:G(r,'ddr'), phase:G(r,'phase'), marque:mq, um1:!!G(r,'um1')};
+}
+function collectMateriel(){
+  const out={chemins:[], cables:[], apps:[], boites:[], disj:[]};
+  [...document.querySelectorAll('#materiel > .row')].forEach(r=>{
+    const t=r.dataset.mt;
+    if(t==='chem'){ const c=parseChem(r); if((c.article||c.long) && !c.existant) out.chemins.push(c); }
+    else if(t==='cable'){ const c=parseCable(r); if((c.long||c.name) && !c.existant) out.cables.push(c); }
+    else if(t==='app'){ const a=parseApp(r); if(a.article) out.apps.push(a); }
+    else if(t==='boite'){ const b=parseBoite(r); if(b.article && !b.existant) out.boites.push(b); }
+    else if(t==='disj'){ const d=parseDisjRow(r); if(d.amp) out.disj.push(d); }
+  });
+  return out;
 }
 /* Lignes de recherche de défaut réellement remplies */
 function collectDefauts(){
@@ -2137,7 +2233,7 @@ function computeRoomNames(){
 
 /* conditional field logic + remove button */
 function wire(r){
-  r.querySelector('.rm').onclick = ()=>{ r.remove(); if(window.scheduleSave) scheduleSave(); syncChemLinks(); updateDef(); };
+  r.querySelector('.rm').onclick = ()=>{ r.remove(); if(window.scheduleSave) scheduleSave(); syncChemLinks(); updateDef(); updateCirc(); };
   // (Les outils dupliquer / réduire vivent désormais sur le nœud de l'arbre et sur la bande de liaison.)
   r.querySelectorAll('select[data-f], input[data-f]').forEach(inp=>{
     inp.addEventListener('change', ()=>{ applyCond(r); if(r.closest('[data-sub="chemins"]')) syncChemLinks(); });
@@ -2175,6 +2271,7 @@ function applyCond(r){
   const show = (sel,on)=>{ const e=r.querySelector(sel); if(e) e.classList.toggle('on',!!on); };
   show('[data-c="mm2"]',   val('mm2')==='autre…');
   show('[data-c="dtype"]', val('dtype')==='Autre…');       // recherche de défaut : préciser
+  show('[data-c="ctype"]', val('ctype')==='Autre…');       // recherche de circuit : préciser
   show('[data-c="amp"]',   val('amp')==='autre…');
   // câble : champ "Nombre" seulement pour un Fil ; "Phase" (mono/tri) pour un câble
   show('[data-c="filn"]',    val('type')==='Fil');
@@ -2235,7 +2332,7 @@ function applyCond(r){
 /* ===== Liaison câble <-> cheminements (par pièce) ===== */
 /* Numérote les articles au sein de chaque sous-section de chaque pièce (+ remarques). */
 function renumberRows(){
-  document.querySelectorAll('#rooms [data-sub], #remarques').forEach(cont=>{
+  document.querySelectorAll('#rooms [data-sub], #remarques, #materiel').forEach(cont=>{
     [...cont.children].filter(r=>r.classList.contains('row')).forEach((r,i)=>{
       const t=r.querySelector('.tag'); if(!t) return;
       const base = t.dataset.base || (t.dataset.base = t.textContent.replace(/\s*#\d+$/,''));
@@ -2484,6 +2581,15 @@ function collect(){
       departs, photos:(room._photos||[]).slice()};
   }).filter(rm=> rm.chemins.length||rm.cables.length||rm.apps.length||rm.boites.length||rm.disj.length||rm.photos.length);
 
+  // Matériel hors arbre : présenté comme une « pièce » de synthèse — tout l'export
+  // (détaillé, global, PDF) le traite alors sans une ligne de code en plus.
+  const mat=collectMateriel();
+  if(mat.chemins.length||mat.cables.length||mat.apps.length||mat.boites.length||mat.disj.length){
+    rooms.push({name:'Matériel supplémentaire', rid:'__mat', color:'#5A4F9E',
+      chemins:mat.chemins, cables:mat.cables, apps:mat.apps, boites:mat.boites, disj:mat.disj,
+      departs:[], photos:[]});
+  }
+
   const rem=[...document.querySelectorAll('#remarques .row')].map(r=>({txt:g(r,'txt'), important:!!g(r,'important')})).filter(o=>o.txt);
   return {
     ref:$('#ref').value, chantier:$('#chantier').value.trim(), objet:$('#objet').value.trim(),
@@ -2491,7 +2597,7 @@ function collect(){
     jours:$('#jours').value, monteurs:$('#monteurs').value, dureeH:$('#dureeH').value,
     vendredi:$('#vendredi').checked, apprenti:$('#apprenti').checked,
     tabAmiante:$('#tabAmiante').checked,
-    protections, rooms, rem, defauts:collectDefauts(), user:currentUser
+    protections, rooms, rem, defauts:collectDefauts(), circuits:collectCircuits(), user:currentUser
   };
 }
 /* AP / ENC sans parenthèses */
@@ -2623,26 +2729,35 @@ function groupCablesBySpec(cables){
 function pushTemps(L,d){
   L.push('<h3>Temps estimé</h3><table><tr><th>Désignation</th><th class="q">Qté</th><th class="u">Unité</th></tr>');
   L.push(itemRow(tempsDesc(d), totalHeures(d), 'h'));
-  const df=d.defauts||[];
+  const df=d.defauts||[], dc=d.circuits||[];
   if(df.length){
     L.push(secRow('Recherche de défaut'));
     df.forEach(o=> L.push(itemRow(defautDesc(o), o.h||'', 'h')));
-    L.push(totRowH("Total temps estimé (main d'œuvre + recherche)", grandTotalHeures(d), 'h'));
   }
+  if(dc.length){
+    L.push(secRow('Recherche de circuit'));
+    dc.forEach(o=> L.push(itemRow(circuitDesc(o), o.h||'', 'h')));
+  }
+  if(df.length||dc.length) L.push(totRowH("Total temps estimé (main d'œuvre + recherche)", grandTotalHeures(d), 'h'));
   L.push('</table>');
 }
 /* Mêmes lignes, version autoTable (PDF) */
 function tempsBody(d){
   const body=[[tempsDesc(d), String(totalHeures(d)), 'h']];
-  const df=d.defauts||[];
+  const df=d.defauts||[], dc=d.circuits||[];
+  const st={fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
   if(df.length){
-    const st={fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
     body.push([{content:'Recherche de défaut', colSpan:3, styles:st}]);
     df.forEach(o=> body.push([defautDesc(o), String(o.h||''), 'h']));
+  }
+  if(dc.length){
+    body.push([{content:'Recherche de circuit', colSpan:3, styles:st}]);
+    dc.forEach(o=> body.push([circuitDesc(o), String(o.h||''), 'h']));
+  }
+  if(df.length||dc.length)
     body.push([{content:"Total temps estimé (main d'oeuvre + recherche)", styles:st},
                {content:String(grandTotalHeures(d)), styles:Object.assign({}, st, {halign:'center'})},
                {content:'h', styles:Object.assign({}, st, {halign:'center'})}]);
-  }
   return body;
 }
 function row2(k,v){return `<tr><td>${k}</td><td>${v}</td></tr>`;}
@@ -2736,6 +2851,8 @@ function allRemarks(d){
   });
   (d.defauts||[]).forEach(o=>{ if(/non localisé/i.test(o.res||''))
     out.push({txt:"⚠ Recherche de défaut — "+o.type+(o.loc?" ("+o.loc+")":"")+" : défaut non localisé, recherche à poursuivre.", red:true}); });
+  (d.circuits||[]).forEach(o=>{ if(/non identifié/i.test(o.res||''))
+    out.push({txt:"⚠ Recherche de circuit — "+o.type+(o.loc?" ("+o.loc+")":"")+" : circuit non identifié, repérage à poursuivre.", red:true}); });
   (d.rem||[]).forEach(o=>{ const t=typeof o==='string'?{txt:o,important:false}:o;
     out.push({txt: t.important && !/^⚠/.test(t.txt) ? '⚠ '+t.txt : t.txt, red:!!t.important}); });
   return out;
@@ -2763,16 +2880,20 @@ function heuresParJour(d){return d.vendredi?7.75:8.5;}
 function onsiteHours(d){ return (parseFloat(d.jours)||0)*heuresParJour(d) + (parseFloat(d.dureeH)||0); }
 /* Total de main d'œuvre (heures-homme) = durée sur site × personnes */
 function totalHeures(d){ const t=onsiteHours(d)*(parseFloat(d.monteurs)||1); return t? Math.round(t*100)/100 : ''; }
-/* Main d'œuvre + temps de recherche de défaut */
-function grandTotalHeures(d){ return Math.round(((parseFloat(totalHeures(d))||0)+totalDefaut(d.defauts))*100)/100; }
-/* Ligne « Recherche de défaut » du descriptif */
-function defautDesc(o){
-  let s='Recherche de défaut — '+o.type;
+/* Main d'œuvre + temps de recherche (défaut et circuit) */
+function grandTotalHeures(d){
+  return Math.round(((parseFloat(totalHeures(d))||0)+totalDefaut(d.defauts)+totalDefaut(d.circuits))*100)/100;
+}
+/* Ligne « Recherche … » du descriptif */
+function rechercheDesc(titre, o){
+  let s=titre+' — '+o.type;
   if(o.loc)  s+=' · '+o.loc;
   if(o.res)  s+=' — '+o.res;
   if(o.note) s+=' ('+o.note+')';
   return s;
 }
+function defautDesc(o){  return rechercheDesc('Recherche de défaut', o); }
+function circuitDesc(o){ return rechercheDesc('Recherche de circuit', o); }
 function hasJours(d){ return d.jours && parseFloat(d.jours)>0; }
 function dureeSurSite(d){
   const b=[]; if(hasJours(d)) b.push(d.jours+' j'); if(d.dureeH && parseFloat(d.dureeH)>0) b.push(d.dureeH+' h');
@@ -5538,11 +5659,13 @@ function protState(p){
 }
 /* État complet du formulaire (hors photos) — sert au brouillon ET au marqueur PDF */
 function draftObject(){
-  const d={simple:{}, checks:{}, ref:$('#ref').value, refEdited, remarques:[], defauts:[], protections:[], rooms:[]};
+  const d={simple:{}, checks:{}, ref:$('#ref').value, refEdited, remarques:[], defauts:[], rechCircuits:[], materiel:[], protections:[], rooms:[]};
   D_SIMPLE.forEach(s=>d.simple[s]=$(s).value);
   D_CHECK.forEach(s=>d.checks[s]=$(s).checked);
   d.remarques=[...document.querySelectorAll('#remarques .row')].map(rowState);
   d.defauts=[...document.querySelectorAll('#defauts .row')].map(rowState);
+  d.rechCircuits=[...document.querySelectorAll('#circuits .row')].map(rowState);
+  d.materiel=[...document.querySelectorAll('#materiel > .row')].map(r=>({t:r.dataset.mt, s:rowState(r)}));
   d.protections=[...document.querySelectorAll('#protections .prot')].map(protState);
   d.rooms=[...document.querySelectorAll('#rooms .room')].map(roomState);
   return d;
@@ -5581,7 +5704,15 @@ function applyDraft(d){
     $('#defauts').innerHTML='';
     d.defauts.forEach(state=>{ addDefaut(); fillRow(document.querySelector('#defauts .row:last-child'), state); });
   }
-  updateDef();
+  if(Array.isArray(d.rechCircuits)){
+    $('#circuits').innerHTML='';
+    d.rechCircuits.forEach(state=>{ addCircuit(); fillRow(document.querySelector('#circuits .row:last-child'), state); });
+  }
+  if(Array.isArray(d.materiel)){
+    $('#materiel').innerHTML='';
+    d.materiel.forEach(o=> addMateriel(o.t, o.s));
+  }
+  updateDef(); updateCirc();
   // 1) pièces (rid conservé)
   if(Array.isArray(d.rooms)){
     $('#rooms').innerHTML='';
@@ -5714,7 +5845,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v107-arbre — OIBT : borne « fin des défauts », signatures plus grandes dans l\'annexe';
+const APP_VERSION='v108-arbre — Relevé : matériel hors arbre + temps de recherche de circuit';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -5741,7 +5872,7 @@ function init(){
   const apb=$('#addProtBtn'); if(apb) apb.onclick=()=>{ addProtection(); scheduleSave(); };
 
   document.querySelectorAll('.add[data-add]').forEach(b=>{
-    b.onclick=()=>{ ({cable:addCable,chemin:addChemin,app:addApp,boite:addBoite,disj:addDisj,remarque:addRemarque,defaut:addDefaut}[b.dataset.add])(); syncChemLinks(); scheduleSave(); };
+    b.onclick=()=>{ ({cable:addCable,chemin:addChemin,app:addApp,boite:addBoite,disj:addDisj,remarque:addRemarque,defaut:addDefaut,circuit:addCircuit}[b.dataset.add])(); syncChemLinks(); scheduleSave(); };
   });
   // submit du <form> (et pas onclick) : c'est ce que le navigateur guette pour proposer
   // d'enregistrer le mot de passe. preventDefault : pas de rechargement de page.
@@ -5937,8 +6068,14 @@ function init(){
   ['#monteurs','#jours','#dureeH'].forEach(s=>$(s).addEventListener('input',updateMO));
   $('#vendredi').addEventListener('change',updateMO);
 
-  // Recherche de défaut : total du temps de recherche recalculé à chaque saisie
+  // Recherche de défaut / de circuit : totaux recalculés à chaque saisie
   ['input','change'].forEach(ev=> $('#defauts').addEventListener(ev, updateDef));
+  ['input','change'].forEach(ev=> $('#circuits').addEventListener(ev, updateCirc));
+
+  // Matériel supplémentaire : un bouton par type d'article, ajouté à plat
+  document.querySelectorAll('[data-addmat]').forEach(b=>{
+    b.onclick=()=>{ const r=addMateriel(b.dataset.addmat); if(r) r.scrollIntoView({behavior:'smooth', block:'center'}); scheduleSave(); };
+  });
 
   // Auto-sauvegarde : toute saisie déclenche une sauvegarde différée
   document.querySelector('main').addEventListener('input', scheduleSave);
@@ -5950,7 +6087,7 @@ function init(){
   syncRoomDeparts();
   syncChemLinks();
   updateMO();
-  updateDef();
+  updateDef(); updateCirc();
   buildRef();     // recalcule la référence (vide si rien n'est saisi)
   showHome();   // démarre sur la page d'accueil (choix de la fonction)
 
