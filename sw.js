@@ -1,7 +1,7 @@
 /* SEVJ · Relevé chantier — service worker (mode hors-ligne)
    ⚠ Après chaque mise à jour de l'app, incrémente la version (CACHE) ci-dessous
    pour forcer le rafraîchissement du cache sur les téléphones. */
-const CACHE = 'sevj-v112-arbre';
+const CACHE = 'sevj-v113-arbre';
 const DELAI_RESEAU = 2500;   // ms d'attente du réseau avant de servir le cache (chantier mal couvert)
 const ASSETS = [
   './',
@@ -29,8 +29,19 @@ const ASSETS = [
   './vendor/pdf-lib.min.js',        // écriture sur le PDF d'origine
 ];
 
+/* addAll() passe par le cache HTTP du navigateur : après un redéploiement, un fichier
+   encore en cache (materiel.js, index.html…) était remis tel quel dans le cache du SW,
+   et le téléphone gardait l'ancienne version malgré le changement de CACHE.
+   cache:'reload' force chaque asset à repartir du réseau. Un asset injoignable ne fait
+   plus échouer toute l'installation : le reste est quand même mis en cache. */
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE).then(c => Promise.all(ASSETS.map(u =>
+      fetch(new Request(u, {cache: 'reload'}))
+        .then(r => r.ok ? c.put(u, r) : null)
+        .catch(() => null)
+    ))).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {

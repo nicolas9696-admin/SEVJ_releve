@@ -1494,7 +1494,7 @@ const FAMILY_COLORS = {
   'EDIZIO.liv':  {def:'blanc', list:['blanc','noir','anthracite','crème','beige','brun','gris']},
 };
 const FAM_ORDER = {
-  chem:['Tube ALU','Tube TIT','Tube KRFWG','Canal LF','Chemin de câble','Existant','Autre'],
+  chem:['Tube ALU','Tube TIT','Tube KRFWG','Canal LF','Profilé Cafix','Chemin de câble','Existant','Autre'],
   app:['EDIZIO.due ENC','EDIZIO.due AP','EDIZIO.liv ENC','EDIZIO.liv AP',
        'Point lumineux','Prise CEE / industrielle','NUP/NEVO (étanche)','Existant','Autre'],
   boite:['Dérivation','Borne','Existant','Autre'],
@@ -1508,6 +1508,7 @@ function familyOf(sec, name){
     if(/\bTIT\b/i.test(n)) return 'Tube TIT';
     if(/KRFWG/i.test(n)) return 'Tube KRFWG';
     if(/canal/i.test(n)) return 'Canal LF';
+    if(/cafix/i.test(n)) return 'Profilé Cafix';
     if(/chemin de c/i.test(n)) return 'Chemin de câble';
     return 'Autre';
   }
@@ -6399,7 +6400,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v112-arbre — Relevé/OIBT : matériel par défaut (câble, PE seul, tube, canal…) compté dans l\'export';
+const APP_VERSION='v113-arbre — Catalogue : profilés pour câble Cafix (16 réf.)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
