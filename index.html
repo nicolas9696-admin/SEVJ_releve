@@ -1496,7 +1496,7 @@ const FAMILY_COLORS = {
 const FAM_ORDER = {
   chem:['Tube ALU','Tube TIT','Tube KRFWG','Canal LF','Profilé Cafix','Chemin de câble','Existant','Autre'],
   app:['EDIZIO.due ENC','EDIZIO.due AP','EDIZIO.liv ENC','EDIZIO.liv AP',
-       'Point lumineux','Prise CEE / industrielle','NUP/NEVO (étanche)','Existant','Autre'],
+       'Point lumineux','Prise CEE / industrielle','NUP/NEVO (étanche)','Fusibles / calibrage','Existant','Autre'],
   boite:['Dérivation','Borne','Existant','Autre'],
 };
 function familyOf(sec, name){
@@ -1516,6 +1516,8 @@ function familyOf(sec, name){
     // ENC (encastré) et AP (apparent) forment des groupes séparés au sein d'une gamme.
     // Sans mention dans le nom (ex. « Plaque d'obturation EDIZIOdue 88×88mm ») -> ENC par défaut.
     const m = /\bENC\b/i.test(n) ? ' ENC' : (/\bAP\b/i.test(n) ? ' AP' : ' ENC');
+    // appareillage de fusibles : anneaux calibrés, têtes, vis de contact DII / DIII
+    if(/anneau calibr|t[êe]te pour fusible|vis de contact|bague de calibrage/i.test(n)) return 'Fusibles / calibrage';
     if(/edizio\s*due/i.test(n)) return 'EDIZIO.due'+m;
     if(/edizio\.?liv/i.test(n)) return 'EDIZIO.liv'+m;
     if(/point lumineux|luminaire|applique|spot|éclairage|\bDCL\b/i.test(n)) return 'Point lumineux';
@@ -6400,7 +6402,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v113-arbre — Catalogue : profilés pour câble Cafix (16 réf.)';
+const APP_VERSION='v114-arbre — Catalogue : appareillage de fusibles (anneaux, têtes, vis de contact — 15 réf.)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
