@@ -340,7 +340,17 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .oibt-stat{display:flex; gap:8px; align-items:center; font-size:12px; color:var(--mut); margin-top:6px}
 .oibt-empty{border:2px dashed var(--line); border-radius:12px; padding:22px 14px; text-align:center; color:var(--mut)}
 /* ---------- Rapport OIBT : la visionneuse ---------- */
-#oibtVue{display:flex; flex-direction:column; gap:14px}
+#oibtVue, #rlvOibtVue{display:flex; flex-direction:column; gap:14px}
+/* bloc dépliable (le rapport dans le relevé) : fermé par défaut, on ouvre au besoin */
+.fold-blk{border:1px solid var(--line); border-radius:12px; margin:12px 0 0; overflow:hidden; background:var(--rowbg)}
+.fold-hd{display:flex; align-items:center; gap:9px; padding:11px 13px; cursor:pointer; user-select:none;
+  font-size:13.5px; font-weight:800; color:var(--navy)}
+.fold-hd .fa{margin-left:auto; color:var(--mut); font-size:12px; font-weight:700}
+.fold-bd{padding:12px 13px; border-top:1px solid var(--line); background:var(--card)}
+.fold-blk:not(.open) .fold-bd{display:none}
+/* défaut écarté du chiffrage : la carte reste lisible mais s'efface */
+.oibt-pt.off{opacity:.55; border-left-color:var(--mut)}
+.oibt-pt.off .oibt-num{background:var(--mut)}
 .oibt-pg{position:relative; border:1px solid var(--line); border-radius:10px; overflow:hidden;
   background:#fff; box-shadow:0 1px 5px rgba(31,59,91,.10); cursor:crosshair; touch-action:manipulation}
 .oibt-pg img{display:block; width:100%; height:auto; user-select:none; -webkit-user-drag:none}
@@ -356,8 +366,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .oibt-mk{position:absolute; left:0; right:0; height:0; display:flex; align-items:center; gap:5px;
   padding-left:6px; border-top:2px solid var(--navy); cursor:grab; touch-action:none}
 .oibt-mk.ok{border-top-color:var(--ok)}
-.oibt-mk.fin{border-top:3px dashed #b3261e}
-.oibt-mk.fin b{background:#b3261e}
+.oibt-mk.mkoff{border-top-color:var(--mut); opacity:.7}
+.oibt-mk.mkoff b{background:var(--mut)}
+.oibt-mk.fin{border-top:3px dashed #b3261e !important; opacity:1}
+.oibt-mk.fin b{background:#b3261e !important}
 .oibt-mk.drag{cursor:grabbing; opacity:.85}
 .oibt-mk b{background:var(--navy); color:#fff; font-size:11px; font-weight:800; min-width:20px;
   text-align:center; padding:2px 6px; border-radius:6px; transform:translateY(-50%); box-shadow:0 1px 3px rgba(0,0,0,.3)}
@@ -430,7 +442,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .oibt-zoom button:active{transform:scale(.94)}
 .oibt-zoom .zv{font-size:13px; color:var(--mut); font-weight:700; min-width:52px; text-align:center}
 /* pan-x pan-y : le défilement de la page reste natif à un doigt ; à deux doigts, c'est nous */
-#oibtVue{overflow-x:auto; touch-action:pan-x pan-y}
+#oibtVue, #rlvOibtVue{overflow-x:auto; touch-action:pan-x pan-y}
 .oibt-pg{flex:0 0 auto}
 .oibt-zoom .zi{font-size:12.5px; color:var(--mut); font-weight:600}
 .tile .tx{flex:1; min-width:0}
@@ -804,11 +816,32 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       </div>
       <div class="msg" id="rlvOibtMsg" hidden></div>
       <div class="mo-total" id="rlvOibtInfo" hidden style="margin-top:12px"></div>
+
+      <!-- le rapport : bloc dépliable, fermé par défaut -->
+      <div class="fold-blk" id="rlvOibtVueBlk" hidden>
+        <div class="fold-hd" id="rlvOibtVueHd">📄 Voir le rapport &amp; désigner les défauts <span class="fa">▸</span></div>
+        <div class="fold-bd">
+          <p class="hint" style="margin-top:0"><b>Tape sur un défaut</b> pour y poser un repère. Un repère se déplace au doigt,
+          la croix le supprime. Après le dernier défaut, pose la borne <b>🏁 fin du rapport</b> : sans elle, l'extrait du dernier
+          défaut court jusqu'au bas de la page suivante.</p>
+          <button type="button" class="add" id="rlvOibtBorne" style="border-style:solid; margin:0 0 10px; font-size:13px">🏁 Poser la borne « fin du rapport »</button>
+          <div class="oibt-zoom">
+            <span class="zi">👌 Pince à deux doigts pour zoomer</span>
+            <span class="zv" id="rlvOibtZoomVal">100 %</span>
+            <button type="button" id="rlvOibtZoomFit">Ajuster</button>
+          </div>
+          <div id="rlvOibtVue"></div>
+        </div>
+      </div>
+
       <div class="chk" id="rlvOibtVgWrap" hidden><input id="rlvOibtVg" type="checkbox" checked><label>Joindre les extraits du rapport à la fiche</label></div>
-      <div id="rlvOibtPts" style="margin-top:6px"></div>
-      <button type="button" class="add" id="rlvOibtAdd" style="border-style:solid; margin-top:4px">＋ Ajouter un défaut à la main</button>
-      <p class="hint" style="margin:6px 0 0">La détection automatique peut rater un défaut selon la mise en page du rapport :
-      ajoute-le ici, ou corrige son n° / sa description directement dans la ligne.</p>
+      <div id="rlvOibtPts" style="margin-top:10px"></div>
+      <div style="display:flex; gap:8px; margin-top:4px">
+        <button type="button" class="add" id="rlvOibtAdd" style="border-style:solid; margin:0; flex:1">＋ Ajouter un défaut à la main</button>
+        <button type="button" class="add" id="rlvOibtFoldAll" hidden style="border-style:solid; margin:0; flex:0 0 auto; width:auto; padding:12px 14px" title="Tout replier / déployer">⇕</button>
+      </div>
+      <p class="hint" style="margin:6px 0 0">Les défauts sont <b>repliés</b> : tape sur une carte pour l'ouvrir. La détection
+      automatique peut en rater un selon la mise en page — pose-le sur le rapport, ou ajoute-le ici.</p>
     </div>
   </section>
 
@@ -1776,82 +1809,224 @@ function updateCirc(){
   const t=totalDefaut(collectCircuits()); e.textContent = t? t+' h' : '—';
 }
 /* ===== Rapport de contrôle OIBT importé dans le RELEVÉ (chiffrage d'une offre) =====
-   Indépendant de l'onglet « Rapport OIBT » : on emprunte seulement son moteur (rendu des
-   pages, détection des défauts, extrait d'image) le temps de l'import, puis on ne garde
-   que la liste des défauts et leurs extraits. Les pages rendues sont jetées : c'est ce qui
-   garde le brouillon et la fiche légers. */
-let RLVOIBT={ file:'', pages:0, defauts:[] };
-function rlvOibtTotal(){
-  const t=RLVOIBT.defauts.reduce((a,o)=>{ if(!o.chiffre) return a; const v=parseFloat(o.h); return a+(isNaN(v)?0:v); },0);
+   Même structure de document que l'onglet « Rapport OIBT » ({vues, pts, bandes}) : le
+   moteur de zones et d'extraits (oibtZone / oibtVignette / oibtCalcBandes) s'y applique
+   tel quel. On désigne les défauts sur le rapport, on pose la borne de fin, puis on
+   chiffre chacun (travaux + temps). Le PDF d'origine va dans IndexedDB, comme pour
+   l'onglet OIBT : les pages se refabriquent au démarrage. */
+let RLVOIBT={ file:'', pdf:null, pages:0, vues:[], pts:[], bandes:{haut:0, bas:1} };
+let RLV_Z=1;
+
+function rlvDefauts(){ return oibtOrdreD(RLVOIBT); }
+function rlvTotal(){
+  const t=rlvDefauts().reduce((a,o)=>{ if(o.chiffre===false) return a; const v=parseFloat(o.h); return a+(isNaN(v)?0:v); },0);
   return Math.round(t*100)/100;
 }
+/* Numéros : suivent l'ordre de lecture tant qu'aucun n'a été corrigé à la main.
+   On garde le décalage du rapport (12, 13, 14… et non 1, 2, 3). */
+function rlvRenumerote(){
+  if(RLVOIBT.pts.some(q=>q.nMan)) return;
+  const t=rlvDefauts();
+  const base=parseInt(String((t[0]||{}).n||'1').replace(/\D/g,''),10) || 1;
+  t.forEach((q,i)=>{ q.n=String(base+i); });
+}
+function rlvResume(o){
+  const b=[ o.chiffre===false ? '○ écarté du chiffrage' : '✓ à chiffrer' ];
+  if(o.h) b.push(o.h+' h');
+  if(o.travaux) b.push(o.travaux.length>38 ? o.travaux.slice(0,38)+'…' : o.travaux);
+  return esc(b.join('  ·  '));
+}
 function rlvOibtInfo(){
-  const info=$('#rlvOibtInfo'), cl=$('#rlvOibtClear'), vw=$('#rlvOibtVgWrap');
-  const n=RLVOIBT.defauts.length, has=!!(n || RLVOIBT.file);
+  const info=$('#rlvOibtInfo'), cl=$('#rlvOibtClear'), vw=$('#rlvOibtVgWrap'), fa=$('#rlvOibtFoldAll');
+  const D=rlvDefauts(), n=D.length, has=!!(n || RLVOIBT.file);
   if(cl) cl.hidden=!has;
-  if(vw) vw.hidden=!RLVOIBT.defauts.some(o=>o.vg);
+  if(fa) fa.hidden=n<2;
+  if(vw) vw.hidden=!D.some(o=>o.vg);
   if(!info) return;
   info.hidden=!has;
   if(!has) return;
-  const ch=RLVOIBT.defauts.filter(o=>o.chiffre).length, t=rlvOibtTotal();
-  info.innerHTML='Rapport : <b>'+esc(RLVOIBT.file||'—')+'</b> — <b>'+ch+' / '+n+'</b> défaut(s) à chiffrer'
-    + (t? ' · <b>'+t+' h</b> estimées' : '');
+  const ch=D.filter(o=>o.chiffre!==false).length, t=rlvTotal();
+  const pg=RLVOIBT.pages||RLVOIBT.vues.length;
+  const borne=RLVOIBT.pts.find(q=>q.fin);
+  info.innerHTML='Rapport : <b>'+esc(RLVOIBT.file||'—')+'</b>'
+    + (pg? ' · '+pg+' page'+(pg>1?'s':'') : '')
+    + ' — <b>'+ch+' / '+n+'</b> défaut(s) à chiffrer'
+    + (t? ' · <b>'+t+' h</b> estimées' : '')
+    + (borne? ' · 🏁 borne page '+borne.page : (RLVOIBT.vues.length? ' · <span style="color:var(--warn)">borne de fin non posée</span>' : ''));
 }
-/* Ordre du rapport : page, puis n° (14b se range juste après 14) */
-function rlvOibtTri(){
-  const num=x=>{ const m=String(x||'').match(/\d+/); return m? +m[0] : 99999; };
-  const suf=x=>String(x||'').replace(/^\D*\d+/,'');
-  RLVOIBT.defauts.sort((a,b)=> num(a.page)-num(b.page) || num(a.n)-num(b.n) || suf(a.n).localeCompare(suf(b.n)));
+
+/* ---- La visionneuse : le rapport page par page, les repères posés dessus ---- */
+function rlvSetZoom(z){
+  RLV_Z=Math.min(4, Math.max(1, Math.round(z*100)/100));
+  document.querySelectorAll('#rlvOibtVue .oibt-pg').forEach(d=> d.style.width=(RLV_Z*100)+'%');
+  const v=$('#rlvOibtZoomVal'); if(v) v.textContent=Math.round(RLV_Z*100)+' %';
 }
+function rlvOibtVue(){
+  const box=$('#rlvOibtVue'), blk=$('#rlvOibtVueBlk');
+  if(blk) blk.hidden=!RLVOIBT.vues.length;
+  if(!box) return;
+  box.innerHTML='';
+  RLVOIBT.vues.forEach((v,k)=>{
+    const pg=k+1;
+    const d=el('div','oibt-pg'); d.style.width=(RLV_Z*100)+'%';
+    d.innerHTML='<img src="'+v.src+'" alt="Page '+pg+'" draggable="false"><span class="oibt-pgn">Page '+pg+' / '+RLVOIBT.vues.length+'</span>';
+    d.onclick=e=>{
+      if(e.target.closest('.oibt-mk')) return;                  // clic sur un repère : géré ailleurs
+      if(Date.now()-OIBT_PINCE_FIN < 350) return;               // fin de pincement : pas un appui
+      const r=d.getBoundingClientRect();
+      rlvAjoutePoint(pg, Math.max(0, (e.clientY-r.top)/r.height*v.h));
+    };
+    RLVOIBT.pts.filter(q=>+q.page===pg).forEach(q=>{
+      if(!q._id) q._id=nextId('rd');
+      const m=el('div','oibt-mk'+(q.fin?' fin':(q.chiffre===false?' mkoff':'')));
+      if(q._id) m.dataset.pid=q._id;
+      m.style.top=((q.y||0)/v.h*100)+'%';
+      m.innerHTML='<b>'+(q.fin?'🏁 fin':esc(String(q.n||'?')))+'</b>'
+        + '<span class="oibt-mk-x" title="'+(q.fin?'Supprimer la borne':'Supprimer ce défaut')+'">×</span>';
+      m.querySelector('.oibt-mk-x').onclick=ev=>{ ev.stopPropagation(); rlvSupprime(q); };
+      m.onpointerdown=ev=>{
+        if(ev.target.classList.contains('oibt-mk-x')) return;
+        ev.preventDefault(); ev.stopPropagation();
+        m.setPointerCapture(ev.pointerId); m.classList.add('drag');
+        const r=d.getBoundingClientRect();
+        const move=e2=>{ const y=Math.min(v.h, Math.max(0, (e2.clientY-r.top)/r.height*v.h));
+          q.y=y; m.style.top=(y/v.h*100)+'%'; };
+        const up=()=>{ m.classList.remove('drag');
+          m.removeEventListener('pointermove',move); m.removeEventListener('pointerup',up);
+          rlvGeoChange(); };                                    // l'ordre a changé → n° et extraits suivent
+        m.addEventListener('pointermove',move); m.addEventListener('pointerup',up);
+      };
+      d.appendChild(m);
+    });
+    box.appendChild(d);
+  });
+}
+/* Une géométrie qui bouge (ajout, déplacement, suppression, borne) invalide TOUS les
+   extraits : la zone d'un défaut est bornée par le suivant. */
+function rlvGeoChange(){
+  RLVOIBT.pts.forEach(q=>{ q._vgSale=true; });
+  rlvOibtRender(); rlvMajVignettes(); scheduleSave();
+}
+function rlvAjoutePoint(page, y){
+  const q={ n:'', page, y, titre:'', texte:'', chiffre:true, travaux:'', h:'', vg:null, _vgSale:true, manuel:true };
+  RLVOIBT.pts.push(q);
+  if(RLVOIBT.pts.some(x=>x.nMan)) q.n=String(rlvDefauts().indexOf(q)+1);   // renumérotation figée
+  rlvGeoChange();
+}
+function rlvSupprime(q){
+  if(!confirm(q.fin ? 'Supprimer la borne « fin du rapport » ?' : 'Supprimer le défaut '+(q.n||'')+' ?')) return;
+  const i=RLVOIBT.pts.indexOf(q); if(i<0) return;
+  RLVOIBT.pts.splice(i,1); rlvGeoChange();
+}
+/* Borne « fin du rapport » : par défaut en bas de la page du dernier défaut, juste
+   au-dessus du pied de page. Se déplace ensuite au doigt. */
+function rlvPoseBorne(){
+  if(!RLVOIBT.vues.length){ alert("Importe d'abord le rapport."); return; }
+  if(RLVOIBT.pts.some(q=>q.fin)){ alert('Une borne « fin du rapport » existe déjà.\nDéplace-la sur le rapport pour l\'ajuster.'); return; }
+  const t=rlvDefauts(), der=t[t.length-1];
+  const page = der ? +der.page : RLVOIBT.vues.length;
+  const H=(RLVOIBT.vues[page-1]||{h:842}).h, B=RLVOIBT.bandes||{haut:0, bas:1};
+  let y=H*B.bas;
+  if(der && +der.page===page && y<=der.y+20) y=Math.min(H, der.y+40);
+  RLVOIBT.pts.push({ n:'', page, y, fin:true, titre:'', texte:'', chiffre:false, travaux:'', h:'', vg:null });
+  rlvGeoChange();
+}
+/* Extraits : recalculés uniquement pour ce qui a bougé, en tâche de fond. */
+async function rlvMajVignettes(){
+  if(!RLVOIBT.vues.length) return;
+  for(const q of rlvDefauts()){
+    if(!q._vgSale && q.vg) continue;
+    let vg=null; try{ vg=await oibtVignette(q, 620, RLVOIBT); }catch(e){}
+    q.vg=vg; q._vgSale=false;
+    const card=document.querySelector('#rlvOibtPts .oibt-pt[data-pid="'+q._id+'"]');
+    const box=card && card.querySelector('[data-vgbox]');
+    if(box){
+      box.innerHTML = vg ? '<div class="oibt-vg"><img src="'+vg+'" alt="Extrait du défaut '+esc(String(q.n||''))+'"></div>' : '';
+      const im=box.querySelector('img'); if(im) im.onclick=()=>oibtLoupeImg(vg);
+    }
+  }
+  rlvOibtInfo(); scheduleSave();
+}
+/* ---- Une carte par défaut, repliée par défaut ---- */
 function rlvOibtRender(){
+  rlvRenumerote();
+  rlvOibtVue();
   const cont=$('#rlvOibtPts'); if(!cont) return;
-  rlvOibtTri();
   cont.innerHTML='';
-  RLVOIBT.defauts.forEach(o=>{
-    const r=el('div','row'+(o.chiffre?'':' off'));
-    r.innerHTML=`
-      <button class="rm" title="Supprimer ce défaut">×</button>
-      <div class="tag">Défaut</div>
-      <div class="grid-3">
-        <div><label class="fld">N° au rapport</label><input data-rd="n" type="text" value="${esc(String(o.n||''))}" placeholder="ex : 14"></div>
-        <div><label class="fld">Page</label><input data-rd="page" type="text" value="${esc(String(o.page||''))}" placeholder="ex : 6"></div>
-        <div><label class="fld">Temps estimé (h)</label><input data-rd="h" type="number" min="0" step="0.25" value="${esc(o.h||'')}" placeholder="ex : 1"></div>
+  rlvDefauts().forEach(o=>{
+    if(!o._id) o._id=nextId('rd');
+    const c=el('div','oibt-pt folded'+(o.chiffre===false?' off':''));
+    c.dataset.pid=o._id;
+    const txt=(o.texte||'').replace(/\s+/g,' ').trim();
+    c.innerHTML=`
+      <div class="oibt-hd">
+        <span class="oibt-num" data-num>${esc(String(o.n||'?'))}</span>
+        <div class="oibt-hc">
+          <div class="oibt-lieu" data-lieu>${esc(o.titre||('Page '+(o.page||'?')))}</div>
+          <div class="oibt-res">${esc(txt.slice(0,70))}${txt.length>70?'…':(txt?'':'Zone désignée sur le rapport')}</div>
+          <div class="oibt-sum" data-sum>${rlvResume(o)}</div>
+        </div>
+        <span class="oibt-fold">▸</span>
       </div>
-      <div style="margin-top:10px"><label class="fld">Description / lieu</label>
-        <input data-rd="titre" type="text" value="${esc(o.titre||'')}" placeholder="ex : Plafonnier séjour — pas de conducteur de protection"></div>
-      ${o.texte?`<div class="oibt-txt">${esc(o.texte)}</div>`:''}
-      ${o.vg?`<div class="oibt-vg"><img src="${o.vg}" alt="Extrait du défaut ${esc(String(o.n))}"></div>`:''}
-      <div class="chk"><input type="checkbox" data-rd="chiffre"${o.chiffre?' checked':''}><label><b>À chiffrer</b></label></div>
-      <div style="margin-top:6px"><label class="fld">Travaux à prévoir</label>
-        <input data-rd="travaux" type="text" value="${esc(o.travaux||'')}" placeholder="ex : tirer un PE, remplacer le luminaire"></div>`;
-    r.querySelectorAll('[data-rd]').forEach(e=>{
-      const chk = e.type==='checkbox';
+      <div class="oibt-body">
+        <div data-vgbox>${o.vg?`<div class="oibt-vg"><img src="${o.vg}" alt="Extrait du défaut ${esc(String(o.n||''))}"></div>`:''}</div>
+        ${txt?`<div class="oibt-txt">${esc(txt)}</div>`:''}
+        <div class="grid-3">
+          <div><label class="fld">N° au rapport</label><input data-rd="n" type="text" value="${esc(String(o.n||''))}" placeholder="ex : 14"></div>
+          <div><label class="fld">Page</label><input data-rd="page" type="number" min="1" step="1" value="${esc(String(o.page||''))}"></div>
+          <div><label class="fld">Temps estimé (h)</label><input data-rd="h" type="number" min="0" step="0.25" value="${esc(o.h||'')}" placeholder="ex : 1"></div>
+        </div>
+        <div style="margin-top:10px"><label class="fld">Description / lieu</label>
+          <input data-rd="titre" type="text" value="${esc(o.titre||'')}" placeholder="ex : Plafonnier séjour — pas de conducteur de protection"></div>
+        <div style="margin-top:10px"><label class="fld">Travaux à prévoir</label>
+          <input data-rd="travaux" type="text" value="${esc(o.travaux||'')}" placeholder="ex : tirer un PE, remplacer le luminaire"></div>
+        <div class="chk"><input type="checkbox" data-rd="chiffre"${o.chiffre===false?'':' checked'}><label><b>À chiffrer</b></label></div>
+        <button type="button" class="oibt-del" data-del>Supprimer ce défaut</button>
+      </div>`;
+    c.querySelector('.oibt-hd').onclick=()=>{ const f=c.classList.toggle('folded');
+      c.querySelector('.oibt-fold').textContent=f?'▸':'▾'; };
+    c.querySelectorAll('[data-rd]').forEach(e=>{
+      const chk=e.type==='checkbox', f=e.dataset.rd;
       e.addEventListener(chk?'change':'input', ()=>{
-        o[e.dataset.rd] = chk ? e.checked : e.value;
-        if(chk) r.classList.toggle('off', !e.checked);
+        if(f==='page'){ return; }                              // la page se valide au « change »
+        o[f] = chk ? e.checked : e.value;
+        if(f==='n') { o.nMan=true; const b=c.querySelector('[data-num]'); if(b) b.textContent=e.value||'?'; }
+        if(f==='titre'){ const l=c.querySelector('[data-lieu]'); if(l) l.textContent=e.value||('Page '+(o.page||'?')); }
+        if(chk){ c.classList.toggle('off', !e.checked);
+          const mk=document.querySelector('#rlvOibtVue .oibt-mk[data-pid="'+o._id+'"]');
+          if(mk) mk.classList.toggle('mkoff', !e.checked); }
+        const sm=c.querySelector('[data-sum]'); if(sm) sm.innerHTML=rlvResume(o);
         rlvOibtInfo(); scheduleSave();
       });
     });
-    r.querySelector('.rm').onclick=()=>{
-      const i=RLVOIBT.defauts.indexOf(o); if(i<0) return;
-      RLVOIBT.defauts.splice(i,1); rlvOibtRender(); scheduleSave();
-    };
-    const im=r.querySelector('.oibt-vg img'); if(im) im.onclick=()=>oibtLoupeImg(o.vg);
-    cont.appendChild(r);
+    const pgIn=c.querySelector('[data-rd="page"]');
+    if(pgIn) pgIn.addEventListener('change', ()=>{                // changer de page = géométrie
+      const v=parseInt(pgIn.value,10); if(!v||v<1) { pgIn.value=o.page; return; }
+      o.page=v; rlvGeoChange();
+    });
+    const im=c.querySelector('[data-vgbox] img'); if(im) im.onclick=()=>oibtLoupeImg(o.vg);
+    c.querySelector('[data-del]').onclick=()=>rlvSupprime(o);
+    cont.appendChild(c);
   });
   rlvOibtInfo();
 }
-/* Défaut ajouté à la main (détection ratée, ou relevé sans PDF sous la main) */
+/* Défaut ajouté à la main (pas de PDF sous la main, ou détection ratée) */
 function rlvOibtAjoute(){
-  const der=RLVOIBT.defauts[RLVOIBT.defauts.length-1];
-  const suite=(parseInt(String((der&&der.n)||RLVOIBT.defauts.length).replace(/\D/g,''),10)||RLVOIBT.defauts.length)+1;
-  const neuf={ n:String(suite), page:(der&&der.page)||'', titre:'', texte:'', vg:null,
-               chiffre:true, travaux:'', h:'' };
-  RLVOIBT.defauts.push(neuf);
+  const t=rlvDefauts(), der=t[t.length-1];
+  const suite=(parseInt(String((der&&der.n)||t.length).replace(/\D/g,''),10)||t.length)+1;
+  const neuf={ n:String(suite), page:(der&&der.page)||1, y:(der?der.y+30:0), titre:'', texte:'',
+               chiffre:true, travaux:'', h:'', vg:null, manuel:true };
+  RLVOIBT.pts.push(neuf);
   rlvOibtRender(); scheduleSave();
-  // la liste est retriée : on retrouve la nouvelle ligne par sa position, pas par la fin
-  const r=document.querySelectorAll('#rlvOibtPts > .row')[RLVOIBT.defauts.indexOf(neuf)];
-  if(r){ r.scrollIntoView({behavior:'smooth', block:'center'}); const i=r.querySelector('[data-rd="titre"]'); if(i) i.focus(); }
+  const c=document.querySelector('#rlvOibtPts .oibt-pt[data-pid="'+neuf._id+'"]');
+  if(c){ c.classList.remove('folded'); c.querySelector('.oibt-fold').textContent='▾';
+    c.scrollIntoView({behavior:'smooth', block:'center'});
+    const i=c.querySelector('[data-rd="titre"]'); if(i) i.focus(); }
+}
+function rlvFoldAll(){
+  const cards=[...document.querySelectorAll('#rlvOibtPts .oibt-pt')];
+  const ouvert=cards.some(c=>!c.classList.contains('folded'));
+  cards.forEach(c=>{ c.classList.toggle('folded', ouvert); const f=c.querySelector('.oibt-fold'); if(f) f.textContent=ouvert?'▸':'▾'; });
 }
 async function rlvOibtImport(file){
   const msg=$('#rlvOibtMsg'); if(msg){ msg.hidden=false; msg.className='msg'; msg.textContent='Lecture du PDF…'; }
@@ -1860,39 +2035,69 @@ async function rlvOibtImport(file){
     const vues=await oibtRenderPages(buf.slice(0), (i,n)=>{ if(msg) msg.textContent='Rendu de la page '+i+' / '+n+'…'; });
     let pts=[];
     try{ pts=(await oibtParse(buf.slice(0))).pts||[]; }catch(e){ pts=[]; }   // détection ratée : pas bloquant
-    const doc={ vues, pts, bandes:{haut:0, bas:1} };                          // document de travail, hors onglet OIBT
-    await oibtCalcBandes(doc);
-    if(msg) msg.textContent='Extraction des défauts…';
-    const out=[];
-    for(const q of oibtOrdre(doc)){
-      let vg=null; try{ vg=await oibtVignette(q, 620, doc); }catch(e){}
-      out.push({ n:String(q.n), page:q.page, titre:q.titre||'', texte:q.texte||'', vg,
-                 chiffre:true, travaux:'', h:'' });
-    }
-    RLVOIBT={ file:file.name, pages:vues.length, defauts:out };               // les pages rendues sont jetées ici
+    pts.forEach(q=>{ q.chiffre=true; q.travaux=''; q.h=''; q.vg=null; q._vgSale=true; });
+    RLVOIBT={ file:file.name, pdf:b64FromBuf(buf), pages:vues.length, vues, pts, bandes:{haut:0, bas:1} };
+    await oibtCalcBandes(RLVOIBT);
+    rlvDBSauvePdf();                                   // le rapport survit à la fermeture de l'app
     if(msg){ msg.className='msg ok';
-      msg.textContent = out.length
-        ? vues.length+' page(s) · '+out.length+' défaut(s) repris ✓ — décoche ceux qui ne sont pas à chiffrer.'
-        : vues.length+' page(s) lue(s) ✓ — aucun défaut détecté automatiquement dans ce rapport.'; }
-    rlvOibtRender(); scheduleSave();
+      msg.textContent = pts.length
+        ? vues.length+' page(s) · '+pts.length+' défaut(s) proposé(s) ✓ — vérifie-les sur le rapport, puis chiffre-les.'
+        : vues.length+' page(s) chargée(s) ✓ — aucun défaut détecté : tape sur le rapport pour les désigner.'; }
+    rlvOibtRender(); await rlvMajVignettes(); scheduleSave();
   }catch(e){
     if(msg){ msg.hidden=false; msg.className='msg err'; msg.textContent='PDF illisible : '+e.message; }
   }
 }
 function rlvOibtReset(){
-  if(RLVOIBT.defauts.length && !confirm('Retirer le rapport de contrôle et ses défauts du relevé ?')) return;
-  RLVOIBT={ file:'', pages:0, defauts:[] };
+  if(RLVOIBT.pts.length && !confirm('Retirer le rapport de contrôle et ses défauts du relevé ?')) return;
+  RLVOIBT={ file:'', pdf:null, pages:0, vues:[], pts:[], bandes:{haut:0, bas:1} };
   const msg=$('#rlvOibtMsg'); if(msg){ msg.hidden=true; msg.textContent=''; }
-  rlvOibtRender(); scheduleSave();
+  rlvDBSauvePdf(); rlvOibtRender(); scheduleSave();
+}
+/* Le PDF d'origine : trop lourd pour localStorage, il vit dans IndexedDB (clé à part de
+   celle de l'onglet OIBT, les deux rapports coexistent). */
+function rlvDBSauvePdf(){
+  if(!RLVOIBT.pdf) return oibtDBPut('rlvpdf', null).catch(()=>{});
+  return oibtDBPut('rlvpdf', {file:RLVOIBT.file, octets:bufFromB64(RLVOIBT.pdf)}).catch(()=>{});
+}
+async function rlvRestorePdf(){
+  if(!RLVOIBT.pts.length) return;
+  try{
+    const r=await oibtDBGet('rlvpdf');
+    if(!r || !r.octets || (r.file && RLVOIBT.file && r.file!==RLVOIBT.file)) return;
+    const oct=r.octets instanceof Uint8Array ? r.octets : new Uint8Array(r.octets);
+    RLVOIBT.pdf=b64FromBuf(oct.buffer.slice(oct.byteOffset, oct.byteOffset+oct.byteLength));
+    RLVOIBT.vues=await oibtRenderPages(bufFromB64(RLVOIBT.pdf).buffer);
+    RLVOIBT.pages=RLVOIBT.vues.length;
+    await oibtCalcBandes(RLVOIBT);
+    rlvOibtRender(); rlvMajVignettes();
+  }catch(e){}
 }
 /* Ce qui part dans la fiche : uniquement les défauts cochés « à chiffrer » */
 function collectOibtRlv(){
-  const d=RLVOIBT.defauts.filter(o=>o.chiffre);
-  if(!d.length) return null;
+  const D=rlvDefauts().filter(o=>o.chiffre!==false);
+  if(!D.length) return null;
   const vg=$('#rlvOibtVg');
-  return { file:RLVOIBT.file, pages:RLVOIBT.pages, avecVg:!vg || vg.checked,
-           total:rlvOibtTotal(),
-           defauts:d.map(o=>({n:o.n, page:o.page, titre:o.titre, texte:o.texte, travaux:o.travaux, h:o.h, vg:o.vg})) };
+  return { file:RLVOIBT.file, pages:RLVOIBT.pages||RLVOIBT.vues.length, avecVg:!vg || vg.checked,
+           total:rlvTotal(),
+           defauts:D.map(o=>({n:o.n, page:o.page, titre:o.titre, texte:o.texte, travaux:o.travaux, h:o.h, vg:o.vg})) };
+}
+/* État sérialisable (sans les extraits : ils vont dans leur propre clé) */
+function rlvOibtState(){
+  return { file:RLVOIBT.file, pages:RLVOIBT.pages,
+           avecVg: !$('#rlvOibtVg') || $('#rlvOibtVg').checked,
+           pts:RLVOIBT.pts.map(o=>({ n:o.n, nMan:!!o.nMan, page:o.page, y:o.y, fin:!!o.fin, manuel:!!o.manuel,
+                                     titre:o.titre||'', texte:o.texte||'',
+                                     chiffre:o.chiffre!==false, travaux:o.travaux||'', h:o.h||'' })) };
+}
+function rlvOibtApply(st){
+  if(!st) return;
+  const memePdf = st.file && st.file===RLVOIBT.file && RLVOIBT.vues.length;
+  RLVOIBT={ file:st.file||'', pdf:memePdf?RLVOIBT.pdf:null, pages:st.pages||0,
+            vues:memePdf?RLVOIBT.vues:[], bandes:memePdf?RLVOIBT.bandes:{haut:0, bas:1},
+            pts:(st.pts||[]).map(o=>Object.assign({vg:null, chiffre:true, travaux:'', h:'', y:0, page:1}, o)) };
+  const vg=$('#rlvOibtVg'); if(vg) vg.checked = st.avecVg!==false;
+  rlvOibtRender();
 }
 
 /* ===== Matériel supplémentaire : les mêmes lignes que dans l'arbre, mais à plat ===== */
@@ -2883,9 +3088,9 @@ function pushOibtRlv(L,d){
     + o.defauts.length+' défaut(s) retenu(s) pour l\'offre.</p>');
   L.push('<table><tr><th>Défaut</th><th class="q">Qté</th><th class="u">Unité</th></tr>');
   o.defauts.forEach(x=>{
-    const t=[x.titre, x.texte].filter(Boolean).join(' — ');
     const des='<b>N° '+esc(String(x.n))+'</b> <span class="dest">rapport, page '+esc(String(x.page))+'</span>'
-      + (t?'<br>'+esc(t):'')
+      + (x.titre?'<br><b>'+esc(x.titre)+'</b>':'')
+      + (x.texte?'<br><span style="color:#666">'+esc(x.texte)+'</span>':'')
       + (x.travaux?'<br><b>Travaux :</b> '+esc(x.travaux):'');
     L.push(itemRowH(des, x.h||'', 'h', false));
   });
@@ -3301,11 +3506,11 @@ function buildPDFDoc(d, mode){
       +oiR.defauts.length+" défaut(s) retenu(s) pour l'offre."), CW);
     doc.text(it, M, y); y+=it.length*3.9+3;
     const stO={fontStyle:'bold', fillColor:CLR.sec, textColor:CLR.navy};
-    const corps=oiR.defauts.map(x=>{
-      const t=[x.titre, x.texte].filter(Boolean).join(' - ');
-      return ['N° '+x.n+'  (rapport, page '+x.page+')'+(t? '\n'+t : '')+(x.travaux? '\nTravaux : '+x.travaux : ''),
-              String(x.h||''), 'h'];
-    });
+    const corps=oiR.defauts.map(x=>['N° '+x.n+'  (rapport, page '+x.page+')'
+        + (x.titre?   '\n'+x.titre : '')
+        + (x.texte?   '\n'+x.texte : '')
+        + (x.travaux? '\nTravaux : '+x.travaux : ''),
+      String(x.h||''), 'h']);
     corps.push([{content:'Total remise en conformité', styles:stO},
                 {content:String(oiR.total||''), styles:Object.assign({}, stO, {halign:'center'})},
                 {content:'h', styles:Object.assign({}, stO, {halign:'center'})}]);
@@ -5897,10 +6102,7 @@ function draftObject(){
   d.rechCircuits=[...document.querySelectorAll('#circuits .row')].map(rowState);
   d.materiel=[...document.querySelectorAll('#materiel > .row')].map(r=>({t:r.dataset.mt, s:rowState(r)}));
   // sans les extraits (base64) : ils vont dans leur propre clé, et hors du marqueur PDF
-  d.oibtRlv={ file:RLVOIBT.file, pages:RLVOIBT.pages,
-              avecVg: !$('#rlvOibtVg') || $('#rlvOibtVg').checked,
-              defauts:RLVOIBT.defauts.map(o=>({n:o.n, page:o.page, titre:o.titre, texte:o.texte,
-                                               chiffre:!!o.chiffre, travaux:o.travaux, h:o.h})) };
+  d.oibtRlv=rlvOibtState();
   d.protections=[...document.querySelectorAll('#protections .prot')].map(protState);
   d.rooms=[...document.querySelectorAll('#rooms .room')].map(roomState);
   return d;
@@ -5924,7 +6126,7 @@ function saveDraft(){
   catch(e){ ok=false; warnQuota(); }                       // ne jamais échouer en silence : c'est la donnée critique
   try{ localStorage.setItem(DRAFT_PHOTOS, JSON.stringify([...document.querySelectorAll('#rooms .room')].map(r=>r._photos||[]))); }catch(e){ /* quota : photos non sauvées */ }
   try{ localStorage.setItem(DRAFT_PIMG, JSON.stringify([...document.querySelectorAll('#protections .prot')].map(p=>p._images||[]))); }catch(e){ /* quota : images non sauvées */ }
-  try{ localStorage.setItem(DRAFT_OIBTVG, JSON.stringify(RLVOIBT.defauts.map(o=>o.vg||null))); }catch(e){ /* quota : extraits non sauvés */ }
+  try{ localStorage.setItem(DRAFT_OIBTVG, JSON.stringify(RLVOIBT.pts.map(o=>o.vg||null))); }catch(e){ /* quota : extraits non sauvés */ }
   return ok;
 }
 /* Recharge le formulaire depuis un objet (brouillon local ou import PDF) */
@@ -5948,12 +6150,7 @@ function applyDraft(d){
     $('#materiel').innerHTML='';
     d.materiel.forEach(o=> addMateriel(o.t, o.s));
   }
-  if(d.oibtRlv){
-    RLVOIBT={ file:d.oibtRlv.file||'', pages:d.oibtRlv.pages||0,
-              defauts:(d.oibtRlv.defauts||[]).map(o=>Object.assign({vg:null, chiffre:true, travaux:'', h:''}, o)) };
-    const vg=$('#rlvOibtVg'); if(vg) vg.checked = d.oibtRlv.avecVg!==false;
-    rlvOibtRender();
-  }
+  if(d.oibtRlv) rlvOibtApply(d.oibtRlv);
   updateDef(); updateCirc();
   // 1) pièces (rid conservé)
   if(Array.isArray(d.rooms)){
@@ -6030,8 +6227,9 @@ function restoreDraft(){
     if(Array.isArray(pi)) [...document.querySelectorAll('#protections .prot')].forEach((p,i)=>{ if(Array.isArray(pi[i])){ p._images=pi[i]; renderProtImages(p); } });
   }catch(e){}
   try{ const og=JSON.parse(localStorage.getItem(DRAFT_OIBTVG));  // extraits du rapport OIBT
-    if(Array.isArray(og)){ RLVOIBT.defauts.forEach((o,i)=>{ if(og[i]) o.vg=og[i]; }); rlvOibtRender(); }
+    if(Array.isArray(og)){ RLVOIBT.pts.forEach((o,i)=>{ if(og[i]) o.vg=og[i]; }); rlvOibtRender(); }
   }catch(e){}
+  rlvRestorePdf().catch(()=>{});   // asynchrone : refabrique les pages du rapport importé
   return ok;
 }
 /* Vide le brouillon — mais PAS la session « rester connecté » : « Réinitialiser » sert à
@@ -6044,7 +6242,7 @@ function clearDraft(){ try{ Object.keys(localStorage)
 function exportBackup(){
   const data={ app:'sevj', v:1, draft:draftObject(),
     photos:[...document.querySelectorAll('#rooms .room')].map(r=>r._photos||[]),
-    oibtvg:RLVOIBT.defauts.map(o=>o.vg||null) };
+    oibtvg:RLVOIBT.pts.map(o=>o.vg||null) };
   const name=(($('#ref').value||'sevj_releve').replace(/[^\wÀ-ſ.-]/g,'_'))+'.sevj';
   downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}), name); markBackup();
 }
@@ -6056,7 +6254,7 @@ function importBackup(file){
     if(!confirm('Remplacer le relevé en cours par cette sauvegarde ?')) return;
     applyDraft(data.draft);
     if(Array.isArray(data.photos)) [...document.querySelectorAll('#rooms .room')].forEach((room,i)=>{ if(Array.isArray(data.photos[i])){ room._photos=data.photos[i]; renderRoomPhotos(room); } });
-    if(Array.isArray(data.oibtvg)){ RLVOIBT.defauts.forEach((o,i)=>{ if(data.oibtvg[i]) o.vg=data.oibtvg[i]; }); rlvOibtRender(); }
+    if(Array.isArray(data.oibtvg)){ RLVOIBT.pts.forEach((o,i)=>{ if(data.oibtvg[i]) o.vg=data.oibtvg[i]; }); rlvOibtRender(); }
     updateMO(); buildRef(); saveDraft();
     alert('Sauvegarde restaurée ✓');
   };
@@ -6092,7 +6290,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v109-arbre — Relevé : import d\'un rapport de contrôle OIBT à chiffrer';
+const APP_VERSION='v110-arbre — Relevé/OIBT : visionneuse du rapport, borne de fin, cartes repliées';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -6324,6 +6522,12 @@ function init(){
   $('#rlvOibtPdf').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) rlvOibtImport(f); e.target.value=''; });
   $('#rlvOibtClear').onclick=rlvOibtReset;
   $('#rlvOibtAdd').onclick=rlvOibtAjoute;
+  $('#rlvOibtBorne').onclick=rlvPoseBorne;
+  $('#rlvOibtFoldAll').onclick=rlvFoldAll;
+  $('#rlvOibtZoomFit').onclick=()=>rlvSetZoom(1);
+  $('#rlvOibtVueHd').onclick=()=>{ const b=$('#rlvOibtVueBlk'); const o=b.classList.toggle('open');
+    b.querySelector('.fa').textContent=o?'▾':'▸'; };
+  oibtGestes($('#rlvOibtVue'), { get:()=>RLV_Z, set:rlvSetZoom, pan:false });
   $('#rlvOibtVg').addEventListener('change', scheduleSave);
 
   // Matériel supplémentaire : un bouton par type d'article, ajouté à plat
