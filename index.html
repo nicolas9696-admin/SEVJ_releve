@@ -4591,9 +4591,17 @@ function oibtMes(k){
   return OIBT_MESURES.find(m=>m.k===k) || OIBT_MES_ANCIENS.find(m=>m.k===k)
       || OIBT_MESURES[OIBT_MESURES.length-1];
 }
-/* Ancien format (chaîne libre) → nouveau {k, v, lbl}. Les sauvegardes restent lisibles. */
+/* Ancien format (chaîne libre) → nouveau {k, v, lbl}. Les sauvegardes restent lisibles.
+   IMPORTANT : normalise EN PLACE et renvoie le MÊME objet. Les champs de saisie gardent une
+   référence sur l'objet mesure ; en renvoyer une copie les débrancherait du modèle dès le
+   premier réaffichage (on tapait « 0.78 », il ne restait que « 0 »). */
 function oibtValNorm(v){
-  if(v && typeof v==='object') return {k:v.k||'autre', v:v.v||'', lbl:v.lbl||''};
+  if(v && typeof v==='object'){
+    if(typeof v.k!=='string' || !v.k) v.k='autre';
+    if(typeof v.v!=='string')         v.v = v.v==null ? '' : String(v.v);
+    if(typeof v.lbl!=='string')       v.lbl='';
+    return v;
+  }
   return {k:'autre', v:String(v||''), lbl:''};
 }
 /* Libellé lisible d'une mesure (app + export). Vide si aucune valeur saisie. */
@@ -4608,7 +4616,12 @@ function oibtValTexte(v){
    mesures) vers un circuit unique sans désignation. */
 function oibtCircuits(p){
   if(!Array.isArray(p.circuits)) p.circuits=[{ desig:'', vals:(p.vals||[]).map(oibtValNorm) }];
-  p.circuits.forEach(c=>{ if(typeof c.desig!=='string') c.desig=''; c.vals=(c.vals||[]).map(oibtValNorm); });
+  p.circuits.forEach(c=>{
+    if(typeof c.desig!=='string') c.desig='';
+    if(!Array.isArray(c.vals)) c.vals=[];
+    // en place : le tableau ET les objets gardent leur identité (voir oibtValNorm)
+    for(let i=0;i<c.vals.length;i++) c.vals[i]=oibtValNorm(c.vals[i]);
+  });
   if(!p.circuits.length) p.circuits.push({desig:'', vals:[]});
   return p.circuits;
 }
@@ -5654,7 +5667,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v104-arbre — OIBT : coche « Fait par le client », case Avis toujours imprimée (vierge si non signée)';
+const APP_VERSION='v105-arbre — OIBT : correctif mesures (0.78 n\'était enregistré que « 0 »)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
