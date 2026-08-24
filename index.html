@@ -1301,10 +1301,12 @@ const PERSONNES_METIER = [
   {name:"André Meylan (ENBAT)",  ini:"AM", hash:"35d058e052b5fe032e3004eec5a16c648f2c6972e2233462915bde7d4227b56a"},
   {name:"Gabriel Hodel (ENBAT)", ini:"GH", hash:"0d5207b74905cefb268c7f3e666dfd3fe2c70ea37f0ae475db23231cd6372e0c"},
 ];
-/* Cachet imprimé sur l'avis (coordonnées officielles SEVJ, reprises du letterhead). */
-const SEVJ_CACHET = ["SEVJ", "Rue du Pont-Neuf 24 · 1341 L'Orient", "021 845 13 13 · www.sevj.ch"];
+/* Cachet imprimé sur l'avis. Source : registre officiel ESTI des autorisations d'installer
+   (recherche « 01303 ») — raison sociale, adresse et n° d'autorisation tels qu'ils y figurent. */
+const SEVJ_CACHET = ["SEVJ", "Société Electrique de la Vallée de Joux SA",
+                     "Rue du Pont Neuf 24 · CH-1341 L'Orient", "021 845 13 13 · www.sevj.ch"];
 /* N° d'autorisation d'installer accordée à l'entreprise (OIBT art. 9) — mention légale. */
-const SEVJ_OIBT_NO = "I-01303-2";
+const SEVJ_OIBT_NO = "I-01303-3";
 
 /* Option lists */
 const MM2      = ["1.5","2.5","4","6","10","16","25","autre…"];
@@ -5667,7 +5669,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v105-arbre — OIBT : correctif mesures (0.78 n\'était enregistré que « 0 »)';
+const APP_VERSION='v106-arbre — OIBT : cachet et n° d\'autorisation alignés sur le registre ESTI (I-01303-3)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
