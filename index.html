@@ -4616,6 +4616,7 @@ function oibtCircuits(p){
    on scanne les défauts d'un coup d'œil sans tout déplier. */
 function oibtResume(p){
   const b=[ p.ok?'✓ Corrigé':'○ à faire' ];
+  if(p.cli) b.push('fait par le client');
   if(p.sig) b.push('signé');
   const nph=(p.userPhotos||[]).length; if(nph) b.push(nph+' photo'+(nph>1?'s':''));
   const nm=oibtCircuits(p).reduce((a,c)=>a+(c.vals||[]).filter(v=>String(v.v||'').trim()).length,0);
@@ -4801,6 +4802,7 @@ function oibtRender(){
           <button type="button" class="oibt-addcirc" data-o="addcirc">＋ Ajouter un circuit</button>
         </div>
         <div class="chk"><input type="checkbox" data-o="ok"${p.ok?' checked':''}><label><b>Corrigé</b></label></div>
+        <div class="chk"><input type="checkbox" data-o="cli"${p.cli?' checked':''}><label>Fait par le client</label></div>
         <label class="fld">Remarque / mesure</label>
         <textarea data-o="rem" placeholder="ex : câble remplacé, 500 MΩ mesuré">${esc(p.rem||'')}</textarea>
         <div class="oibt-uphbox">
@@ -4883,6 +4885,7 @@ function oibtRender(){
     // même si un collègue reprend le rapport plus tard avec son propre compte.
     const stampBy=()=>{ if(currentUser){ p.by=currentUser.name; p.byIni=currentUser.ini; if(!p.byDate) p.byDate=todayISO(); refreshBy(); } };
     d.querySelector('[data-o="ok"]').onchange=e=>{ if(oibtLocked(p)){ e.target.checked=p.ok; return; } p.ok=e.target.checked; if(p.ok) stampBy(); d.classList.toggle('done',p.ok); oibtProgress(); oibtSave(); updateOibtReq(); refreshSum(); };
+    d.querySelector('[data-o="cli"]').onchange=e=>{ if(oibtLocked(p)){ e.target.checked=!!p.cli; return; } p.cli=e.target.checked; oibtSave(); refreshSum(); };
     d.querySelector('[data-o="rem"]').addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=p.rem||''; return; } p.rem=e.target.value; oibtSave(); });
     const pad=d.querySelector('.sigpad'); setupSigPad(pad);
     if(p.sig) oibtDrawSig(pad, p.sig);
@@ -5095,7 +5098,7 @@ function oibtSave(){
     // l'avis sans sa signature (le trait est lourd → il va dans IndexedDB, hors quota)
     avis:OIBT.avis?{name:OIBT.avis.name, ini:OIBT.avis.ini, date:OIBT.avis.date}:null,
     pts:OIBT.pts.map(p=>({n:p.n, id:p.id, page:p.page, y:p.y, titre:p.titre, texte:p.texte, manuel:p.manuel,
-                          rem:p.rem, ok:p.ok, vals:p.vals||[], circuits:p.circuits||null, by:p.by, byIni:p.byIni, byDate:p.byDate}))
+                          rem:p.rem, ok:p.ok, cli:!!p.cli, vals:p.vals||[], circuits:p.circuits||null, by:p.by, byIni:p.byIni, byDate:p.byDate}))
   })); }catch(e){ warnQuota(); }
   oibtDBSauveEtat();                                   // + signatures (points ET avis) et PDF, hors quota
 }
@@ -5292,7 +5295,7 @@ async function oibtExportPDF(annexeSeule){
       const IL    = 10.5;                                 // interligne du cartouche
 
       // cartouche vert : ligne « OK ! » (la signature s'y loge à droite) + mesures + remarque
-      const contenuH = 13 + mesL.length*IL + remL.length*IL;
+      const contenuH = 13 + (p.cli?IL:0) + mesL.length*IL + remL.length*IL;
       const okH = contenuH + 11;                          // + marge haute et basse du cartouche
       const besoin = 14 + lieuL.length*11 + txtL.length*11 + (vg?vg.h+6:0) + 5 + okH + 14;
       // un bloc plus haut qu'une page entière ne gagne rien à être déplacé
@@ -5318,7 +5321,7 @@ async function oibtExportPDF(annexeSeule){
       pg.drawRectangle({x:IND, y:cartBas, width:2.5,   height:okH, color:GREEN});
       let yc=y;
       const pby=p.by||who||'—', pdate=p.byDate?frDate(p.byDate):today;
-      pg.drawText(winAnsi('OK !  Corrigé le '+pdate+' par '+pby), {x:IND+12, y:yc, size:10, font:bold, color:GREEN});
+      pg.drawText(winAnsi('OK !  Corrigé le '+pdate+(p.cli?' par le client':' par '+pby)), {x:IND+12, y:yc, size:10, font:bold, color:GREEN});
       // la signature se loge À DROITE du « OK ! » : elle ne coûte plus une ligne entière.
       // Calée sous le bord haut du cartouche pour ne pas en déborder.
       if(sig){
@@ -5327,6 +5330,8 @@ async function oibtExportPDF(annexeSeule){
         pg.drawImage(sig, {x:R-16-sig.width*sc, y:cartTop-2-sh, width:sig.width*sc, height:sh});
       }
       yc-=13;
+      // travail fait par le client : on nomme quand même qui l'a constaté / attesté
+      if(p.cli){ pg.drawText(winAnsi('Constaté et attesté par '+pby), {x:IND+12, y:yc, size:8.5, font, color:GREY}); yc-=IL; }
       mesL.forEach(ln=>{ oibtRichDraw(pg, ln, {x:IND+12, y:yc, size:9, font, symFont:symb, color:rgb(0.11,0.35,0.2)}); yc-=IL; });
       remL.forEach(ln=>{ oibtRichDraw(pg, ln, {x:IND+12, y:yc, size:9, font, symFont:symb, color:INK}); yc-=IL; });
       y=cartBas-14;                                       // respiration avant le point suivant
@@ -5353,12 +5358,14 @@ async function oibtExportPDF(annexeSeule){
       }
     }
 
-    // --- Avis de suppression de défaut (personne du métier), si signé.
+    // --- Avis de suppression de défaut (personne du métier).
     //     Mise en page officielle Electrosuisse : phrase de certification OIBT art. 3 + 4,
     //     puis 3 colonnes (date · cachet de l'entreprise · signature du porteur d'autorisation).
-    if(OIBT.avis && OIBT.avis.sig){
-      const a=OIBT.avis;
-      let avisSig=null; try{ avisSig=await pdf.embedPng(a.sig); }catch(e){}
+    //     TOUJOURS imprimé : si aucune personne du métier n'a déverrouillé/signé, la case sort
+    //     VIERGE (date et signature à remplir à la main). Le cachet SEVJ, lui, est fixe.
+    {
+      const a=(OIBT.avis && OIBT.avis.sig) ? OIBT.avis : null;
+      let avisSig=null; if(a){ try{ avisSig=await pdf.embedPng(a.sig); }catch(e){} }
       const c1=116, c2=170, c3=COL-c1-c2;               // Date | Cachet | Signature
       const cert="Les signataires certifient que les défauts consignés dans le rapport de contrôle selon OIBT, art. 3 + 4, ont été supprimés.";
       const cl=wrapText(winAnsi(cert), bold, 9, COL-16);
@@ -5381,8 +5388,8 @@ async function oibtExportPDF(annexeSeule){
       head(x0, c1, "Date de la suppression des défauts");
       head(x0+c1, c2, "Cachet de l'entreprise");
       head(x0+c1+c2, c3, "Signature du porteur de l'autorisation générale d'installer et n° de l'autorisation");
-      // colonne 1 — date
-      pg.drawText(winAnsi(frDate(a.date)), {x:x0+6, y:yBody-17, size:9.5, font:bold, color:INK});
+      // colonne 1 — date (vide si non signé : à écrire à la main)
+      if(a) pg.drawText(winAnsi(frDate(a.date)), {x:x0+6, y:yBody-17, size:9.5, font:bold, color:INK});
       // colonne 2 — cachet de l'entreprise
       let cy=yBody-14, cx=x0+c1+6;
       pg.drawText(winAnsi(SEVJ_CACHET[0]), {x:cx, y:cy, size:10, font:bold, color:NAVY}); cy-=11;
@@ -5392,7 +5399,7 @@ async function oibtExportPDF(annexeSeule){
       const sx=x0+c1+c2+6;
       if(avisSig){ const sc=Math.min((c3-14)/avisSig.width, 28/avisSig.height);
         pg.drawImage(avisSig, {x:sx, y:yBody-32, width:avisSig.width*sc, height:avisSig.height*sc}); }
-      pg.drawText(winAnsi(a.name), {x:sx, y:yBody-43, size:8.5, font:bold, color:INK});
+      if(a) pg.drawText(winAnsi(a.name), {x:sx, y:yBody-43, size:8.5, font:bold, color:INK});
       y=bas-16;
     }
 
@@ -5647,7 +5654,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v103-arbre — Appareil : statut « Démontage seul », câble de liaison supprimable (démontage sans câble)';
+const APP_VERSION='v104-arbre — OIBT : coche « Fait par le client », case Avis toujours imprimée (vierge si non signée)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
