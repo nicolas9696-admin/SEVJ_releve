@@ -350,6 +350,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .oibt-mk{position:absolute; left:0; right:0; height:0; display:flex; align-items:center; gap:5px;
   padding-left:6px; border-top:2px solid var(--navy); cursor:grab; touch-action:none}
 .oibt-mk.ok{border-top-color:var(--ok)}
+.oibt-mk.fin{border-top:3px dashed #b3261e}
+.oibt-mk.fin b{background:#b3261e}
 .oibt-mk.drag{cursor:grabbing; opacity:.85}
 .oibt-mk b{background:var(--navy); color:#fff; font-size:11px; font-weight:800; min-width:20px;
   text-align:center; padding:2px 6px; border-radius:6px; transform:translateY(-50%); box-shadow:0 1px 3px rgba(0,0,0,.3)}
@@ -1096,12 +1098,15 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18v14H3z"/><path d="M3 10h18"/></svg></span> Le rapport</h2>
       <div class="body">
         <p class="hint" id="oibtVueAide" hidden><b>Tape sur un défaut</b> pour y poser un point.
-        Un repère se déplace au doigt, la croix le supprime.</p>
+        Un repère se déplace au doigt, la croix le supprime.
+        Après le dernier défaut, pose la borne <b>🏁 fin des défauts</b> : sans elle, l'extrait du dernier point
+        court jusqu'au bas de la page suivante et l'annexe emporte une page entière.</p>
         <div class="oibt-zoom" id="oibtZoom" hidden>
           <span class="zi">👌 Pince à deux doigts pour zoomer</span>
           <span class="zv" id="oibtZoomVal">100 %</span>
           <button type="button" data-z="0">Ajuster</button>
         </div>
+        <button type="button" class="add" id="oibtBorneBtn" hidden style="border-style:solid; margin:8px 0 0; font-size:13px">🏁 Poser la borne « fin des défauts »</button>
         <div id="oibtVue" hidden></div>
       </div>
     </section>
@@ -4377,6 +4382,9 @@ async function oibtRenderPages(buf, onProg){
    et elle traverse les pages, ce qui couvre les rapports qui groupent leurs photos sur
    une page dédiée après la page du texte. Renvoie des tranches {page, y0, y1} en points. */
 function oibtOrdre(){ return OIBT.pts.slice().sort((a,b)=> a.page-b.page || a.y-b.y); }
+/* Les vrais défauts, hors borne « fin des défauts » (celle-ci ne sert qu'à délimiter la
+   zone du dernier point : elle ne se numérote pas, ne se compte pas, ne s'exporte pas). */
+function oibtOrdreD(){ return oibtOrdre().filter(p=>!p.fin); }
 /* Zoom de la visionneuse : la pose d'un point se calcule sur le rectangle affiché, donc
    elle reste juste quel que soit le grossissement. */
 let OIBT_Z=1;
@@ -4700,12 +4708,12 @@ function oibtNumPropose(prec, rang, insere){
    le modèle Electrosuisse (identifiant « Défaut M… »), on ne renumérote jamais. */
 function oibtRenumerote(){
   if(OIBT.pts.some(p=>p.ok || p.id)) return;
-  const t=oibtOrdre();
+  const t=oibtOrdreD();
   const base = parseInt(String((t[0]||{}).n||'1').replace(/\D/g,''),10) || 1;
   t.forEach((p,i)=>{ p.n=String(base+i); });
 }
 function oibtAjoutePoint(page, y){
-  const t=oibtOrdre();
+  const t=oibtOrdreD();
   const avant=t.filter(q=> q.page<page || (q.page===page && q.y<=y));
   const rang=avant.length + 1;
   const fige=OIBT.pts.some(q=>q.ok);            // au moins un point corrigé → numéros figés (suffixe)
@@ -4719,6 +4727,20 @@ function oibtAjoutePoint(page, y){
   oibtRender(); oibtSave();
   window.scrollTo(0, sy);
   requestAnimationFrame(()=>window.scrollTo(0, sy));
+}
+/* Borne « fin des défauts » : posée par défaut en bas de la page du dernier défaut, juste
+   au-dessus du pied de page. Se déplace ensuite au doigt comme n'importe quel repère. */
+function oibtPoseBorne(){
+  if(!OIBT.vues.length){ alert("Importe d'abord un rapport."); return; }
+  const ex=OIBT.pts.find(q=>q.fin);
+  if(ex){ alert('Une borne « fin des défauts » existe déjà (page '+ex.page+').\nDéplace-la sur le rapport pour l\'ajuster.'); return; }
+  const t=oibtOrdreD(), der=t[t.length-1];
+  const page = der ? der.page : OIBT.vues.length;
+  const H=(OIBT.vues[page-1]||{h:842}).h, B=OIBT.bandes||{haut:0, bas:1};
+  let y=H*B.bas;                                        // juste au-dessus du pied de page
+  if(der && der.page===page && y<=der.y+20) y=Math.min(H, der.y+40);
+  OIBT.pts.push({ n:'', page, y, fin:true, texte:'', titre:'', rem:'', ok:false, sig:null, vals:[], manuel:true });
+  oibtRender(); oibtSave();
 }
 function oibtSupprimePoint(p){
   const i=OIBT.pts.indexOf(p); if(i<0) return;
@@ -4743,6 +4765,7 @@ function oibtRenderVue(){
   box.hidden = !OIBT.vues.length;
   const aide=$('#oibtVueAide'); if(aide) aide.hidden = !OIBT.vues.length;
   const zb=$('#oibtZoom'); if(zb) zb.hidden = !OIBT.vues.length;
+  const bb=$('#oibtBorneBtn'); if(bb) bb.hidden = !OIBT.vues.length;
   OIBT.vues.forEach((v,k)=>{
     const pg=k+1;
     const d=el('div','oibt-pg');
@@ -4757,9 +4780,9 @@ function oibtRenderVue(){
     };
     OIBT.pts.filter(p=>p.page===pg).forEach(p=>{
       const verrou=oibtLocked(p);                    // validé par un autre : ni déplacement ni suppression
-      const m=el('div','oibt-mk'+(p.ok?' ok':'')+(verrou?' lockmk':''));
+      const m=el('div','oibt-mk'+(p.fin?' fin':'')+(p.ok?' ok':'')+(verrou?' lockmk':''));
       m.style.top=(p.y/v.h*100)+'%';
-      m.innerHTML=`<b>${esc(String(p.n))}</b>`+(verrou?'<span class="oibt-mk-x" title="Verrouillé">🔒</span>':'<span class="oibt-mk-x" title="Supprimer ce point">×</span>');
+      m.innerHTML=`<b>${p.fin?'🏁 fin':esc(String(p.n))}</b>`+(verrou?'<span class="oibt-mk-x" title="Verrouillé">🔒</span>':`<span class="oibt-mk-x" title="${p.fin?'Supprimer la borne':'Supprimer ce point'}">×</span>`);
       m.querySelector('.oibt-mk-x').onclick=ev=>{ ev.stopPropagation(); if(verrou){ alert('Point validé par '+p.by+' — seule cette personne peut le modifier.'); return; } oibtSupprimePoint(p); };
       // déplacement au doigt
       m.onpointerdown=ev=>{
@@ -4785,10 +4808,31 @@ function oibtRender(){
   const cont=$('#oibtPts'); cont.innerHTML='';
   $('#oibtNone').hidden = OIBT.pts.length>0 || OIBT.vues.length>0;
   $('#oibtInfo').hidden = !OIBT.vues.length;
-  if(OIBT.vues.length){ $('#oibtFile').textContent=OIBT.file||'—'; $('#oibtCount').textContent=OIBT.pts.length; }
+  if(OIBT.vues.length){ $('#oibtFile').textContent=OIBT.file||'—'; $('#oibtCount').textContent=oibtOrdreD().length; }
   oibtRenderVue();
   oibtOrdre().forEach(p=>{
     const i=OIBT.pts.indexOf(p);
+    if(p.fin){                       // borne : pas un défaut, carte réduite au strict nécessaire
+      const b=el('div','oibt-pt folded'); b.dataset.i=i;
+      b.innerHTML=`
+        <div class="oibt-hd">
+          <span class="oibt-num" style="background:#b3261e">🏁</span>
+          <div class="oibt-hc">
+            <div class="oibt-lieu">Fin des défauts — page ${p.page}</div>
+            <div class="oibt-res">Borne : le dernier défaut s'arrête ici.</div>
+          </div>
+          <span class="oibt-fold">▸</span>
+        </div>
+        <div class="oibt-body">
+          <p class="hint" style="margin:0 0 10px">Ce repère <b>n'est pas un défaut</b> : il ne se numérote pas, ne se compte pas
+          et n'apparaît pas dans l'annexe. Il sert uniquement à dire où s'arrête le dernier défaut, pour ne pas
+          exporter la fin du rapport (mentions légales, page de signature…). Déplace-le au doigt sur le rapport.</p>
+          <button type="button" class="oibt-del" data-o="del">Supprimer la borne</button>
+        </div>`;
+      b.querySelector('.oibt-hd').onclick=()=>{ const f=b.classList.toggle('folded'); b.querySelector('.oibt-fold').textContent=f?'▸':'▾'; };
+      b.querySelector('[data-o="del"]').onclick=()=>{ if(confirm('Supprimer la borne « fin des défauts » ?')) oibtSupprimePoint(p); };
+      cont.appendChild(b); return;
+    }
     // Repliés par défaut : la liste reste lisible même avec 15 défauts. On déplie au besoin.
     const d=el('div','oibt-pt folded'+(p.ok?' done':''));
     d.dataset.i=i;
@@ -5052,16 +5096,17 @@ async function oibtAvisUnlock(){
 }
 function oibtProgress(){
   const el2=$('#oibtProgress'); if(!el2) return;
-  if(!OIBT.pts.length){ el2.hidden=true; return; }
-  const n=OIBT.pts.filter(p=>p.ok).length;
+  const D=oibtOrdreD();
+  if(!D.length){ el2.hidden=true; return; }
+  const n=D.filter(p=>p.ok).length;
   el2.hidden=false;
-  el2.innerHTML=`<b style="color:${n===OIBT.pts.length?'var(--ok)':'var(--navy)'}">${n} / ${OIBT.pts.length}</b> point(s) marqué(s) corrigé(s)`;
+  el2.innerHTML=`<b style="color:${n===D.length?'var(--ok)':'var(--navy)'}">${n} / ${D.length}</b> point(s) marqué(s) corrigé(s)`;
 }
 function updateOibtReq(){
   const c=document.querySelector('.card[data-reqo="pts"]');
-  const some=OIBT.pts.some(p=>p.ok);
-  if(c) c.classList.toggle('ok', OIBT.pts.length>0 && OIBT.pts.every(p=>p.ok));
-  const b=$('#oibtGenBtn'); if(b) b.disabled = !(currentUser && OIBT.pts.length && some);
+  const D=oibtOrdreD(), some=D.some(p=>p.ok);
+  if(c) c.classList.toggle('ok', D.length>0 && D.every(p=>p.ok));
+  const b=$('#oibtGenBtn'); if(b) b.disabled = !(currentUser && D.length && some);
 }
 /* ---- Persistance du rapport en cours ---------------------------------------------
    localStorage plafonne à ~5 Mo et ne stocke que du texte : il garde le brouillon léger,
@@ -5112,7 +5157,7 @@ function oibtSave(){
     file:OIBT.file, modele:OIBT.modele,
     // l'avis sans sa signature (le trait est lourd → il va dans IndexedDB, hors quota)
     avis:OIBT.avis?{name:OIBT.avis.name, ini:OIBT.avis.ini, date:OIBT.avis.date}:null,
-    pts:OIBT.pts.map(p=>({n:p.n, id:p.id, page:p.page, y:p.y, titre:p.titre, texte:p.texte, manuel:p.manuel,
+    pts:OIBT.pts.map(p=>({n:p.n, id:p.id, page:p.page, y:p.y, titre:p.titre, texte:p.texte, manuel:p.manuel, fin:!!p.fin,
                           rem:p.rem, ok:p.ok, cli:!!p.cli, vals:p.vals||[], circuits:p.circuits||null, by:p.by, byIni:p.byIni, byDate:p.byDate}))
   })); }catch(e){ warnQuota(); }
   oibtDBSauveEtat();                                   // + signatures (points ET avis) et PDF, hors quota
@@ -5219,7 +5264,7 @@ async function oibtExportPDF(annexeSeule){
     const today=frDate(todayISO());
     // ORDRE DE LECTURE (page puis position), comme dans l'interface : un point ajouté après
     // coup est rangé à sa place et non à la fin. Sans ça, l'annexe sort dans le désordre.
-    const faits=oibtOrdre().filter(p=>p.ok);
+    const faits=oibtOrdreD().filter(p=>p.ok);
     if(!faits.length){ alert('Aucun point n\'est marqué corrigé.'); return; }
 
     const NAVY=rgb(0.12,0.23,0.36), GREEN=rgb(0.11,0.49,0.25), INK=rgb(0.20,0.20,0.20),
@@ -5282,7 +5327,7 @@ async function oibtExportPDF(annexeSeule){
       pg.drawRectangle({x:M, y:y-dh, width:dw, height:dh, borderColor:FILET, borderWidth:0.6});
       y-=dh+18;
     }
-    pg.drawText(winAnsi(faits.length+' point(s) corrigé(s) sur '+OIBT.pts.length),
+    pg.drawText(winAnsi(faits.length+' point(s) corrigé(s) sur '+oibtOrdreD().length),
                 {x:M, y, size:10, font:bold, color:GREEN});
     droite(winAnsi('Établi le '+today), y, 10, bold, NAVY);
     y-=8;
@@ -5308,10 +5353,14 @@ async function oibtExportPDF(annexeSeule){
       const remL  = p.rem ? wrapText(winAnsi('Remarque : '+p.rem), font, 9, COLI-12) : [];
       const sig   = p.sig ? sigs.get(p.sig) : null;
       const IL    = 10.5;                                 // interligne du cartouche
+      // signature nettement plus lisible qu'avant (80 × 15 pt) : le cartouche s'agrandit
+      // au besoin pour l'accueillir sans déborder.
+      let sigW=0, sigH=0;
+      if(sig){ const sc=Math.min(135/sig.width, 32/sig.height); sigW=sig.width*sc; sigH=sig.height*sc; }
 
       // cartouche vert : ligne « OK ! » (la signature s'y loge à droite) + mesures + remarque
       const contenuH = 13 + (p.cli?IL:0) + mesL.length*IL + remL.length*IL;
-      const okH = contenuH + 11;                          // + marge haute et basse du cartouche
+      const okH = Math.max(contenuH + 11, sigH + 10);     // + marge haute et basse du cartouche
       const besoin = 14 + lieuL.length*11 + txtL.length*11 + (vg?vg.h+6:0) + 5 + okH + 14;
       // un bloc plus haut qu'une page entière ne gagne rien à être déplacé
       if(y-besoin < BAS && y < HAUT-2) nouvellePage();
@@ -5339,11 +5388,7 @@ async function oibtExportPDF(annexeSeule){
       pg.drawText(winAnsi('OK !  Corrigé le '+pdate+(p.cli?' par le client':' par '+pby)), {x:IND+12, y:yc, size:10, font:bold, color:GREEN});
       // la signature se loge À DROITE du « OK ! » : elle ne coûte plus une ligne entière.
       // Calée sous le bord haut du cartouche pour ne pas en déborder.
-      if(sig){
-        const sc=Math.min(80/sig.width, 15/sig.height);
-        const sh=sig.height*sc;
-        pg.drawImage(sig, {x:R-16-sig.width*sc, y:cartTop-2-sh, width:sig.width*sc, height:sh});
-      }
+      if(sig) pg.drawImage(sig, {x:R-16-sigW, y:cartTop-5-sigH, width:sigW, height:sigH});
       yc-=13;
       // travail fait par le client : on nomme quand même qui l'a constaté / attesté
       if(p.cli){ pg.drawText(winAnsi('Constaté et attesté par '+pby), {x:IND+12, y:yc, size:8.5, font, color:GREY}); yc-=IL; }
@@ -5412,9 +5457,9 @@ async function oibtExportPDF(annexeSeule){
       pg.drawText(winAnsi("N° "+SEVJ_OIBT_NO), {x:cx, y:cy, size:7.5, font:bold, color:NAVY});
       // colonne 3 — signature + porteur + n° d'autorisation
       const sx=x0+c1+c2+6;
-      if(avisSig){ const sc=Math.min((c3-14)/avisSig.width, 28/avisSig.height);
-        pg.drawImage(avisSig, {x:sx, y:yBody-32, width:avisSig.width*sc, height:avisSig.height*sc}); }
-      if(a) pg.drawText(winAnsi(a.name), {x:sx, y:yBody-43, size:8.5, font:bold, color:INK});
+      if(avisSig){ const sc=Math.min((c3-14)/avisSig.width, 32/avisSig.height);
+        pg.drawImage(avisSig, {x:sx, y:yBody-38, width:avisSig.width*sc, height:avisSig.height*sc}); }
+      if(a) pg.drawText(winAnsi(a.name), {x:sx, y:yBody-49, size:8.5, font:bold, color:INK});
       y=bas-16;
     }
 
@@ -5669,7 +5714,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v106-arbre — OIBT : cachet et n° d\'autorisation alignés sur le registre ESTI (I-01303-3)';
+const APP_VERSION='v107-arbre — OIBT : borne « fin des défauts », signatures plus grandes dans l\'annexe';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -5738,6 +5783,7 @@ function init(){
   $('#oibtPdf').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) oibtImport(f); e.target.value=''; });
   $('#oibtGenBtn').onclick=()=>oibtExportPDF($('#oibtAnnexeSeule') && $('#oibtAnnexeSeule').checked);
   $('#oibtResetBtn').onclick=resetOibt;
+  $('#oibtBorneBtn').onclick=oibtPoseBorne;
   // Avis de suppression de défaut (personne du métier)
   oibtInitAvis();
   $('#oibtAvisBtn').onclick=oibtAvisUnlock;
