@@ -630,7 +630,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 <header>
   <div class="hdr-row">
     <img id="logoImg" alt="SEVJ">
-    <button type="button" id="themeBtn" class="theme-btn" style="margin-left:auto" title="Mode clair / sombre" aria-label="Mode clair / sombre">🌙</button>
+    <span style="margin-left:auto; display:flex; gap:8px">
+      <button type="button" id="foldAllBtn" class="theme-btn" hidden title="Tout replier / déployer" aria-label="Tout replier / déployer">⇕</button>
+      <button type="button" id="themeBtn" class="theme-btn" title="Mode clair / sombre" aria-label="Mode clair / sombre">🌙</button>
+    </span>
   </div>
   <div class="who">Relevé par : <b id="whoName">— non connecté —</b> <span id="appVer" style="opacity:.55; font-size:10px; margin-left:8px"></span></div>
 </header>
@@ -1833,8 +1836,56 @@ function rlvRenumerote(){
 function rlvResume(o){
   const b=[ o.chiffre===false ? '○ écarté du chiffrage' : '✓ à chiffrer' ];
   if(o.h) b.push(o.h+' h');
-  if(o.travaux) b.push(o.travaux.length>38 ? o.travaux.slice(0,38)+'…' : o.travaux);
+  const nm=(o.mat||[]).length; if(nm) b.push(nm+' article'+(nm>1?'s':''));
+  if(o.travaux) b.push(o.travaux.length>34 ? o.travaux.slice(0,34)+'…' : o.travaux);
   return esc(b.join('  ·  '));
+}
+/* ---- Matériel rattaché à un défaut ----
+   Mêmes lignes que partout ailleurs (choix d'article, couleurs, ELDAS, tranches de
+   longueur, case « PE uniquement »…). Comme les cartes sont reconstruites dès qu'un
+   repère bouge, le matériel vit dans le point (o.mat), pas seulement dans le DOM. */
+function rlvMatSync(cont, o){
+  o.mat=[...cont.children].filter(x=>x.classList.contains('row'))
+        .map(r=>({t:r.dataset.mt, s:rowState(r)}));
+  scheduleSave();
+}
+function rlvMatAdd(cont, o, t, state){
+  const add=MAT_ADDERS[t]; if(!cont || !add) return null;
+  add(cont);
+  const r=cont.lastElementChild; if(!r) return null;
+  r.dataset.mt=t;
+  // hors arbre : un câble n'emprunte aucun cheminement de pièce
+  const lk=r.querySelector('[data-links-list]'); if(lk){ const w=lk.closest('div'); if(w) w.style.display='none'; }
+  if(state) fillRow(r, state);
+  const maj=()=>{ rlvMatSync(cont, o); const c=cont.closest('.oibt-pt');
+    const sm=c && c.querySelector('[data-sum]'); if(sm) sm.innerHTML=rlvResume(o); };
+  r.addEventListener('input', maj); r.addEventListener('change', maj);
+  const btn=r.querySelector('.rm'), avant=btn.onclick;
+  btn.onclick=()=>{ if(avant) avant(); maj(); };
+  return r;
+}
+function rlvMatBuild(cont, o){
+  if(!cont) return;
+  cont.innerHTML='';
+  (o.mat||[]).forEach(m=> rlvMatAdd(cont, o, m.t, m.s));
+}
+/* Matériel de tous les défauts retenus, agrégé pour l'export */
+function rlvMatCollect(){
+  const out={chemins:[], cables:[], apps:[], boites:[], disj:[]};
+  document.querySelectorAll('#rlvOibtPts .oibt-pt').forEach(card=>{
+    const o=RLVOIBT.pts.find(x=>x._id===card.dataset.pid);
+    if(!o || o.chiffre===false) return;                  // défaut écarté : son matériel aussi
+    const dest='Défaut '+(o.n||'');
+    card.querySelectorAll('[data-rlvmat] > .row').forEach(r=>{
+      const t=r.dataset.mt;
+      if(t==='chem'){ const c=parseChem(r); c.dest=dest; if((c.article||c.long) && !c.existant) out.chemins.push(c); }
+      else if(t==='cable'){ const c=parseCable(r); c.dest=dest; if((c.long||c.name) && !c.existant) out.cables.push(c); }
+      else if(t==='app'){ const a=parseApp(r); if(a.article) out.apps.push(a); }
+      else if(t==='boite'){ const b=parseBoite(r); if(b.article && !b.existant) out.boites.push(b); }
+      else if(t==='disj'){ const x=parseDisjRow(r); if(x.amp) out.disj.push(x); }
+    });
+  });
+  return out;
 }
 function rlvOibtInfo(){
   const info=$('#rlvOibtInfo'), cl=$('#rlvOibtClear'), vw=$('#rlvOibtVgWrap'), fa=$('#rlvOibtFoldAll');
@@ -1981,7 +2032,18 @@ function rlvOibtRender(){
         <div style="margin-top:10px"><label class="fld">Travaux à prévoir</label>
           <input data-rd="travaux" type="text" value="${esc(o.travaux||'')}" placeholder="ex : tirer un PE, remplacer le luminaire"></div>
         <div class="chk"><input type="checkbox" data-rd="chiffre"${o.chiffre===false?'':' checked'}><label><b>À chiffrer</b></label></div>
-        <button type="button" class="oibt-del" data-del>Supprimer ce défaut</button>
+        <div class="liais-lbl" style="margin-top:14px"><span class="lstep">⚙</span> Matériel à prévoir</div>
+        <p class="hint" style="margin:2px 0 6px">Longueurs de câble / fil (case <b>PE uniquement</b> comprise), tube, canal,
+        appareils, boîtes, disjoncteurs… Tout est additionné dans l'export sous <b>« Remise en conformité OIBT »</b>.</p>
+        <div data-rlvmat></div>
+        <div class="mat-add">
+          <button type="button" class="add" data-addrm="cable">＋ Câble / fil</button>
+          <button type="button" class="add" data-addrm="chem">＋ Tube / canal</button>
+          <button type="button" class="add" data-addrm="app">＋ Appareil</button>
+          <button type="button" class="add" data-addrm="boite">＋ Dérivation / boîte</button>
+          <button type="button" class="add" data-addrm="disj">＋ Disjoncteur</button>
+        </div>
+        <button type="button" class="oibt-del" data-del style="margin-top:12px">Supprimer ce défaut</button>
       </div>`;
     c.querySelector('.oibt-hd').onclick=()=>{ const f=c.classList.toggle('folded');
       c.querySelector('.oibt-fold').textContent=f?'▸':'▾'; };
@@ -2006,6 +2068,14 @@ function rlvOibtRender(){
     });
     const im=c.querySelector('[data-vgbox] img'); if(im) im.onclick=()=>oibtLoupeImg(o.vg);
     c.querySelector('[data-del]').onclick=()=>rlvSupprime(o);
+    const mc=c.querySelector('[data-rlvmat]');
+    rlvMatBuild(mc, o);
+    c.querySelectorAll('[data-addrm]').forEach(b=> b.onclick=()=>{
+      const r=rlvMatAdd(mc, o, b.dataset.addrm);
+      rlvMatSync(mc, o);
+      const sm=c.querySelector('[data-sum]'); if(sm) sm.innerHTML=rlvResume(o);
+      if(r) r.scrollIntoView({behavior:'smooth', block:'center'});
+    });
     cont.appendChild(c);
   });
   rlvOibtInfo();
@@ -2088,14 +2158,15 @@ function rlvOibtState(){
            avecVg: !$('#rlvOibtVg') || $('#rlvOibtVg').checked,
            pts:RLVOIBT.pts.map(o=>({ n:o.n, nMan:!!o.nMan, page:o.page, y:o.y, fin:!!o.fin, manuel:!!o.manuel,
                                      titre:o.titre||'', texte:o.texte||'',
-                                     chiffre:o.chiffre!==false, travaux:o.travaux||'', h:o.h||'' })) };
+                                     chiffre:o.chiffre!==false, travaux:o.travaux||'', h:o.h||'',
+                                     mat:(o.mat||[]).map(m=>({t:m.t, s:m.s})) })) };
 }
 function rlvOibtApply(st){
   if(!st) return;
   const memePdf = st.file && st.file===RLVOIBT.file && RLVOIBT.vues.length;
   RLVOIBT={ file:st.file||'', pdf:memePdf?RLVOIBT.pdf:null, pages:st.pages||0,
             vues:memePdf?RLVOIBT.vues:[], bandes:memePdf?RLVOIBT.bandes:{haut:0, bas:1},
-            pts:(st.pts||[]).map(o=>Object.assign({vg:null, chiffre:true, travaux:'', h:'', y:0, page:1}, o)) };
+            pts:(st.pts||[]).map(o=>Object.assign({vg:null, chiffre:true, travaux:'', h:'', y:0, page:1, mat:[]}, o)) };
   const vg=$('#rlvOibtVg'); if(vg) vg.checked = st.avecVg!==false;
   rlvOibtRender();
 }
@@ -2937,6 +3008,14 @@ function collect(){
   if(mat.chemins.length||mat.cables.length||mat.apps.length||mat.boites.length||mat.disj.length){
     rooms.push({name:'Matériel supplémentaire', rid:'__mat', color:'#5A4F9E',
       chemins:mat.chemins, cables:mat.cables, apps:mat.apps, boites:mat.boites, disj:mat.disj,
+      departs:[], photos:[]});
+  }
+
+  // Matériel rattaché aux défauts du rapport OIBT : même traitement, en pièce de synthèse
+  const omat=rlvMatCollect();
+  if(omat.chemins.length||omat.cables.length||omat.apps.length||omat.boites.length||omat.disj.length){
+    rooms.push({name:'Remise en conformité OIBT', rid:'__oibtmat', color:'#9B2C4A',
+      chemins:omat.chemins, cables:omat.cables, apps:omat.apps, boites:omat.boites, disj:omat.disj,
       departs:[], photos:[]});
   }
 
@@ -3985,6 +4064,7 @@ const TAB_EL={releve:'#tabReleve', regie:'#tabRegie', proto:'#tabProto', rm:'#ta
 const BAR_EL={releve:'#barReleve', regie:'#barRegie', proto:'#barProto', rm:'#barRM', oibt:'#barOIBT', listing:'#barListing'};
 function showHome(){
   $('#homeScreen').hidden = false;
+  const fb=$('#foldAllBtn'); if(fb) fb.hidden=true;
   $('#funcNav').hidden = true;
   $('#collabCard').hidden = true;
   TABS.forEach(t=>{ $(TAB_EL[t]).hidden = true; $(BAR_EL[t]).hidden = true; });
@@ -4012,9 +4092,21 @@ function majBackupNudge(){
     el.hidden=false;
   } else el.hidden=true;
 }
+/* ⇕ de l'en-tête : replie ou déploie d'un coup toutes les cartes de l'onglet affiché.
+   S'il en reste une d'ouverte, on replie ; sinon on déploie tout. */
+function foldAllCards(){
+  if(!$('#homeScreen').hidden) return;
+  const tab=document.querySelector(TAB_EL[ACTIVE_TAB]); if(!tab) return;
+  const cartes=[...tab.querySelectorAll(':scope > section.card')];
+  if(!cartes.length) return;
+  const ouvert=cartes.some(c=>!c.classList.contains('collapsed'));
+  cartes.forEach(c=>c.classList.toggle('collapsed', ouvert));
+  const b=$('#foldAllBtn'); if(b) b.title = ouvert ? 'Tout déployer' : 'Tout replier';
+}
 function setTab(t){
   ACTIVE_TAB = TABS.indexOf(t)>=0 ? t : 'releve';
   $('#homeScreen').hidden = true;
+  const fb=$('#foldAllBtn'); if(fb) fb.hidden=false;
   $('#funcNav').hidden = false;
   $('#collabCard').hidden = false;
   const ft=$('#funcTitle'); if(ft) ft.textContent=FUNC_TITLES[ACTIVE_TAB]||'';
@@ -4183,17 +4275,27 @@ function protoTypeLabel(x){
 }
 /* Valeur Icc pour l'export : mesurée, + 2ᵉ valeur × 0,66 si le facteur est coché */
 function icc066(val){ const n=parseFloat((val||'').trim().replace(',','.')); return isNaN(n)?null:Math.round(n*0.66*100)/100; }
+/* Un courant de court-circuit se lit en kA dès 1000 A : 1250 A -> 1.25 kA.
+   Deux décimales au plus, zéros inutiles retirés (6000 A -> 6 kA). En dessous de
+   1000 A, ou si ce n'est pas un nombre, la saisie est reprise telle quelle. */
+function iccTxt(val){
+  const s=String(val==null?'':val).trim(); if(!s) return '';
+  const n=parseFloat(s.replace(',','.')); if(isNaN(n)) return s;
+  if(Math.abs(n)<1000) return s;
+  return (Math.round(n/10)/100)+' kA';
+}
 /* version PDF (texte brut, saut de ligne) */
 function iccOut(val, on){
-  const s=(val||'').trim(); if(!s || !on) return s;
-  const f=icc066(s); return f===null ? s : s+'\n'+f+' (x 0,66)';
+  const s=(val||'').trim(); if(!s) return '';
+  const base=iccTxt(s); if(!on) return base;
+  const f=icc066(s); return f===null ? base : base+'\n'+iccTxt(f)+' (x 0,66)';
 }
 /* version aperçu HTML (échappée) */
 function iccOutH(val, on){
   const s=(val||'').trim(); if(!s) return '';
-  if(!on) return esc(s);
-  const f=icc066(s); if(f===null) return esc(s);
-  return esc(s)+'<br><span style="color:#666; white-space:nowrap">'+esc(String(f))+' (× 0,66)</span>';
+  const base=esc(iccTxt(s)); if(!on) return base;
+  const f=icc066(s); if(f===null) return base;
+  return base+'<br><span style="color:#666; white-space:nowrap">'+esc(iccTxt(f))+' (× 0,66)</span>';
 }
 /* État / remplissage d'un groupe — sert à la duplication et à la restauration */
 function protoRowState(r){
@@ -4325,7 +4427,10 @@ function resetProto(){
   $('#protoRows').innerHTML=''; document.querySelectorAll('.sigpad[data-sig="proto"]').forEach(c=>c._sig&&c._sig.clear());
   applyProtoInstr(); addProtoRow(); updateProtoMonteur(); updateProtoReq(); protoSave();
 }
-const pChk=b=>b?'✓':'';
+/* Examen visuel / essais fonctionnels / champ tournant : un mot lisible plutôt qu'une
+   croix, à l'aperçu comme au PDF. */
+const pChk=b=>b?'vu':'';
+const pOk =b=>b?'ok':'';
 /* ---- Aperçu HTML du protocole ---- */
 function buildProtoFiche(d){
   const L=[];
@@ -4345,8 +4450,8 @@ function buildProtoFiche(d){
   L.push('<h3>Installations &amp; mesures</h3><div style="overflow-x:auto"><table style="min-width:1080px; font-size:11px">');
   L.push('<tr><th colspan="3" rowspan="2">Installations</th><th colspan="2" rowspan="2">Organe de protection</th><th colspan="2" rowspan="2">Examen</th><th colspan="7">Mesures</th><th rowspan="2">Champ tournant</th><th rowspan="2">Tension</th></tr>');
   L.push('<tr><th>Conducteur PE</th><th colspan="2">Résistances d\'isolement</th><th colspan="2">Courant de court-circuit</th><th colspan="2">Protect. de courant résiduel DDR / RCD</th></tr>');
-  L.push('<tr><th>Repère</th><th>Désignation</th><th>Système / Câble-fil</th><th>Type / Caract.</th><th>Iₙ [A]</th><th>Examen visuel</th><th>Essais fonct.</th><th>R_PE / R_LOW [Ω / ok]</th><th>R_iso [MΩ]</th><th>I_Diff / I_fuite [mA]</th><th>Icc L-PE [A]</th><th>Icc L-N [A]</th><th>I_ΔN [mA]</th><th>Test t [ms]</th><th>[ok]</th><th>U [V]</th></tr>');
-  if(d.rows.length) d.rows.forEach(x=> L.push(`<tr><td>${esc(x.rep)}</td><td>${esc(x.desig)}</td><td>${esc(protoSystCf(x,' · '))}</td><td>${esc(protoTypeLabel(x))}</td><td>${esc(x.imagn)}</td><td style="text-align:center">${pChk(x.visuel)}</td><td style="text-align:center">${pChk(x.essais)}</td><td>${esc(x.pe)}</td><td>${esc(x.riso)}</td><td>${esc(x.idiff)}</td><td>${iccOutH(x.iccpe,x.icc066)}</td><td>${iccOutH(x.iccln,x.icc066)}</td><td>${esc(x.idn)}</td><td>${esc(x.test)}</td><td style="text-align:center">${pChk(x.champ)}</td><td>${esc(x.tension)}</td></tr>`));
+  L.push('<tr><th>Repère</th><th>Désignation</th><th>Système / Câble-fil</th><th>Type / Caract.</th><th>Iₙ [A]</th><th>Examen visuel</th><th>Essais fonct.</th><th>R_PE / R_LOW [Ω / ok]</th><th>R_iso [MΩ]</th><th>I_Diff / I_fuite [mA]</th><th>Icc L-PE [A / kA]</th><th>Icc L-N [A / kA]</th><th>I_ΔN [mA]</th><th>Test t [ms]</th><th>[ok]</th><th>U [V]</th></tr>');
+  if(d.rows.length) d.rows.forEach(x=> L.push(`<tr><td>${esc(x.rep)}</td><td>${esc(x.desig)}</td><td>${esc(protoSystCf(x,' · '))}</td><td>${esc(protoTypeLabel(x))}</td><td>${esc(x.imagn)}</td><td style="text-align:center">${pChk(x.visuel)}</td><td style="text-align:center">${pOk(x.essais)}</td><td>${esc(x.pe)}</td><td>${esc(x.riso)}</td><td>${esc(x.idiff)}</td><td>${iccOutH(x.iccpe,x.icc066)}</td><td>${iccOutH(x.iccln,x.icc066)}</td><td>${esc(x.idn)}</td><td>${esc(x.test)}</td><td style="text-align:center">${pOk(x.champ)}</td><td>${esc(x.tension)}</td></tr>`));
   else L.push('<tr><td colspan="16" class="empty">Aucune installation.</td></tr>');
   L.push('</table></div>');
   if(d.rows.some(x=>x.icc066))
@@ -4381,8 +4486,8 @@ function buildProtoPDF(d){
   const widths=[12, 42,     30,    17,  13, 10, 10, 19,  14,  15,   24,   24,   13, 12,  10, 12];   // total 277 / 281
   const colStyles={}; widths.forEach((w,i)=> colStyles[i]={cellWidth:w, halign:(i>=5&&i!==7)?'center':'left'});
   colStyles[1].halign='left'; colStyles[7].halign='left';
-  const body=d.rows.map(x=>[x.rep, x.desig, protoSystCf(x), protoTypeLabel(x), x.imagn, x.visuel?'X':'', x.essais?'X':'', x.pe,x.riso,x.idiff,
-    iccOut(x.iccpe,x.icc066), iccOut(x.iccln,x.icc066), x.idn,x.test, x.champ?'X':'', x.tension]);
+  const body=d.rows.map(x=>[x.rep, x.desig, protoSystCf(x), protoTypeLabel(x), x.imagn, pChk(x.visuel), pOk(x.essais), x.pe,x.riso,x.idiff,
+    iccOut(x.iccpe,x.icc066), iccOut(x.iccln,x.icc066), x.idn,x.test, pOk(x.champ), x.tension]);
   if(!body.length) body.push([{content:'Aucune installation.', colSpan:16, styles:{textColor:CLR.mut, fontStyle:'italic'}}]);
   doc.autoTable({ startY:y+1, theme:'grid', margin:{left:M,right:M},
     styles:{fontSize:6.6, cellPadding:1, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top', overflow:'linebreak'},
@@ -4392,7 +4497,7 @@ function buildProtoPDF(d){
       [ {content:'Installations',colSpan:3,rowSpan:2}, {content:'Organe de protection',colSpan:2,rowSpan:2}, {content:'Examen',colSpan:2,rowSpan:2},
         {content:'Mesures',colSpan:7}, {content:'Champ tournant',colSpan:1,rowSpan:2}, {content:'Tension',colSpan:1,rowSpan:2} ],
       [ {content:'Conducteur PE',colSpan:1}, {content:"Résistances d'isolement",colSpan:2}, {content:'Courant de court-circuit',colSpan:2}, {content:'Protect. de courant résiduel DDR / RCD',colSpan:2} ],
-      ['Repère','Désignation','Système / Câble-fil','Type / Caract.','In [A]','Examen visuel','Essais fonct.','R_PE / R_LOW [Ohm / ok]','R_iso [MOhm]','I_Diff / I_fuite [mA]','Icc L-PE [A]','Icc L-N [A]','IdN [mA]','Test t [ms]','[ok]','U [V]']
+      ['Repère','Désignation','Système / Câble-fil','Type / Caract.','In [A]','Examen visuel','Essais fonct.','R_PE / R_LOW [Ohm / ok]','R_iso [MOhm]','I_Diff / I_fuite [mA]','Icc L-PE [A/kA]','Icc L-N [A/kA]','IdN [mA]','Test t [ms]','[ok]','U [V]']
     ], body, didParseCell:sanitize });
   y=doc.lastAutoTable.finalY+4;
   // Note : facteur 0,66 appliqué aux courants de court-circuit
@@ -4450,7 +4555,8 @@ const RM_DRAFT='sevj_rm_v1';
 /* Colonnes du tableau : k=clé, t=titre, g=groupe, u=unité.
    Avec unité (ou val:true) -> valeur à saisir ; sinon -> case à cocher. */
 const RM_COLS=[
-  {k:'classe',  t:'Classe de protection',      g:'',                       u:'', val:true},
+  {k:'classe',  t:'Classe de protection',      g:'',                       u:'', val:true,
+   sel:[{v:'I',t:'Classe I'},{v:'II',t:'Classe II'},{v:'III',t:'Classe III'}]},
   {k:'tension', t:'Tension nominale',          g:'',                       u:'V'},
   {k:'visuel',  t:'Examen visuel',             g:'',                       u:''},
   {k:'cordon',  t:'Longueur du cordon',        g:'',                       u:'m'},
@@ -4468,7 +4574,10 @@ const RM_COLS=[
 const RM_UNIT_HTML={'Ohm':'Ω','MOhm':'MΩ','V':'V','m':'m','mA':'mA'};
 function addRMRow(){
   const r=el('div','row proto-row');
-  const champ=c=> (c.u||c.val)
+  const champ=c=> c.sel
+    ? `<div><label class="fld">${esc(c.t)}</label><select data-rm="${c.k}"><option value="">— à choisir —</option>`
+      + c.sel.map(o=>`<option value="${esc(o.v)}">${esc(o.t)}</option>`).join('')+`</select></div>`
+    : (c.u||c.val)
     ? `<div><label class="fld">${esc(c.t)}${c.u?' ['+(RM_UNIT_HTML[c.u]||c.u)+']':''}</label><input data-rm="${c.k}" type="text"${c.u?' class="num" inputmode="decimal"':''}></div>`
     : `<div class="chk"><input type="checkbox" data-rm="${c.k}"><label>${esc(c.t)}</label></div>`;
   const bloc=(titre,cols)=> (titre?`<div class="liais-lbl" style="margin-top:10px">${esc(titre)}</div>`:'')
@@ -6290,7 +6399,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v110-arbre — Relevé/OIBT : visionneuse du rapport, borne de fin, cartes repliées';
+const APP_VERSION='v112-arbre — Relevé/OIBT : matériel par défaut (câble, PE seul, tube, canal…) compté dans l\'export';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -6308,12 +6417,17 @@ function init(){
   restoreSession();          // « Rester connecté » : reprend l'identité mémorisée (jamais le mot de passe)
   // Sections vides au départ : l'utilisateur ajoute les lignes via les boutons « + ».
 
-  // Sections repliables (relevé) : fermées par défaut. Les obligatoires (.req) et les Pièces restent ouvertes.
-  document.querySelectorAll('#tabReleve .card').forEach(card=>{
-    if(card.classList.contains('req')) return;
-    if(card.id!=='roomsCard' && card.id!=='tableauCard') card.classList.add('collapsed');
-    card.querySelector('h2').addEventListener('click',()=>card.classList.toggle('collapsed'));
+  /* Sections repliables : TOUTES les cartes de l'app se replient au clic sur leur titre
+     (avant, seules celles du relevé, et les obligatoires n'étaient même pas cliquables).
+     L'état de départ ne change pas : dans le relevé, tout est replié sauf les cartes
+     obligatoires, le Tableau et les Pièces ; ailleurs, tout est ouvert. */
+  document.querySelectorAll('main section.card').forEach(card=>{
+    const h=card.querySelector(':scope > h2'); if(!h) return;
+    h.addEventListener('click',()=>card.classList.toggle('collapsed'));
+    if(card.closest('#tabReleve') && !card.classList.contains('req')
+       && card.id!=='roomsCard' && card.id!=='tableauCard') card.classList.add('collapsed');
   });
+  $('#foldAllBtn').onclick=foldAllCards;
   const apb=$('#addProtBtn'); if(apb) apb.onclick=()=>{ addProtection(); scheduleSave(); };
 
   document.querySelectorAll('.add[data-add]').forEach(b=>{
