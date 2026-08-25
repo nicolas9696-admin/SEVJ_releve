@@ -819,6 +819,11 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       </div>
       <div class="msg" id="rlvOibtMsg" hidden></div>
       <div class="mo-total" id="rlvOibtInfo" hidden style="margin-top:12px"></div>
+      <div id="rlvOibtSansPdf" hidden style="margin-top:10px">
+        <p class="hint" style="margin:0 0 6px; color:var(--warn)"><b>Le PDF du rapport n'est pas chargé</b> — la sauvegarde .SEVJ
+        ne le contient pas. Les défauts et le chiffrage sont là, mais tu ne peux ni voir le rapport ni déplacer les repères.</p>
+        <button type="button" class="add" id="rlvOibtRecharge" style="border-style:solid; margin:0">📄 Recharger le PDF du rapport (garder le chiffrage)</button>
+      </div>
 
       <!-- le rapport : bloc dépliable, fermé par défaut -->
       <div class="fold-blk" id="rlvOibtVueBlk" hidden>
@@ -1899,6 +1904,7 @@ function rlvMatCollect(){
 function rlvOibtInfo(){
   const info=$('#rlvOibtInfo'), cl=$('#rlvOibtClear'), vw=$('#rlvOibtVgWrap'), fa=$('#rlvOibtFoldAll');
   const D=rlvDefauts(), n=D.length, has=!!(n || RLVOIBT.file);
+  const sp=$('#rlvOibtSansPdf'); if(sp) sp.hidden = !(n && !RLVOIBT.vues.length);
   if(cl) cl.hidden=!has;
   if(fa) fa.hidden=n<2;
   if(vw) vw.hidden=!D.some(o=>o.vg);
@@ -1973,17 +1979,42 @@ function rlvOibtVue(){
     box.appendChild(d);
   });
 }
-/* Texte du rapport contenu dans la zone d'un point. C'est ce qui garantit que le texte
-   affiché corresponde à l'extrait image : les deux sont lus dans la MÊME zone. */
+/* Texte du rapport contenu dans la zone d'un point : c'est ce qui garantit que le texte
+   affiché corresponde à l'extrait image, les deux étant lus dans la MÊME zone.
+   On applique les MÊMES filtres que le parseur — sans eux, la zone ramasse l'en-tête, le
+   pied de page, les mentions légales et les légendes de photo, et le résultat est une
+   bouillie de mots venus de blocs sans rapport entre eux. */
+const RLV_TXT_MAX=600;
 function rlvTexteZone(q){
   const L=RLVOIBT.lignes;
   if(!L || !L.length || !RLVOIBT.vues.length) return null;
   const tr=oibtZone(q, RLVOIBT); if(!tr.length) return '';
+  const B=RLVOIBT.bandes||{haut:0, bas:1};
   const bouts=[];
-  tr.forEach(z=>{ L.forEach(l=>{
-    if(l.page===z.page && l.y>=z.y0 && l.y<=z.y1) bouts.push(l.frags.map(f=>f.txt).join(''));
-  }); });
-  return bouts.join(' ').replace(/\s+/g,' ').trim();
+  for(const z of tr){
+    const H=(RLVOIBT.vues[z.page-1]||{h:842}).h;
+    const hautCorps=H*B.haut, basCorps=H*B.bas;
+    let stop=false;
+    for(const l of L){
+      if(stop) break;
+      if(l.page!==z.page || l.y<z.y0 || l.y>z.y1) continue;
+      if(l.y<hautCorps || l.y>basCorps) continue;              // bandeau d'en-tête / pied de page
+      const t=l.frags.map(f=>f.txt).join('').replace(/\s+/g,' ').trim();
+      if(!t) continue;
+      if(OIBT_STOP.test(t)){ stop=true; break; }               // mentions légales : tout ce qui suit est hors sujet
+      if(OIBT_ES_SKIP.test(t)) continue;                       // logo, pied, légende de photo, n° de section
+      if(OIBT_DEF.test(t) && bouts.length) continue;           // marqueur du défaut suivant
+      bouts.push(t);
+    }
+  }
+  let out=bouts.join(' ').replace(/\s+/g,' ').trim();
+  if(out.length>RLV_TXT_MAX) out=out.slice(0,RLV_TXT_MAX).replace(/\s+\S*$/,'')+'…';
+  return out;
+}
+/* « Concerne : … » du rapport -> proposition de description / lieu */
+function rlvLieuDepuisTexte(t){
+  const m=/concerne\s*:?\s*([^.]{3,90})/i.exec(String(t||''));
+  return m ? m[1].trim().replace(/\s+/g,' ') : '';
 }
 /* Une géométrie qui bouge (ajout, déplacement, suppression, borne) invalide TOUS les
    extraits ET tous les textes : la zone d'un défaut est bornée par le suivant, donc
@@ -1991,7 +2022,11 @@ function rlvTexteZone(q){
 function rlvGeoChange(){
   RLVOIBT.pts.forEach(q=>{
     q._vgSale=true;
-    if(!q.fin){ const t=rlvTexteZone(q); if(t!==null) q.texte=t; }
+    if(q.fin || q.texteMan) return;                            // texte corrigé à la main : on n'y touche plus
+    const t=rlvTexteZone(q);
+    if(t===null) return;
+    q.texte=t;
+    if(!q.titreMan){ const lieu=rlvLieuDepuisTexte(t); if(lieu) q.titre=lieu; }
   });
   rlvOibtRender(); rlvMajVignettes(); scheduleSave();
 }
@@ -2058,8 +2093,9 @@ function rlvOibtRender(){
       </div>
       <div class="oibt-body">
         <div data-vgbox>${o.vg?`<div class="oibt-vg"><img src="${o.vg}" alt="Extrait du défaut ${esc(String(o.n||''))}"></div>`:''}</div>
-        ${txt?`<div class="oibt-txt">${esc(txt)}</div>`:''}
-        <div class="grid-3">
+        <label class="fld" style="margin-top:8px">Texte du rapport <span style="font-weight:600; color:var(--mut)">(relu dans la zone du repère — corrigeable)</span></label>
+        <textarea data-rd="texte" rows="3" placeholder="Aucun texte lu dans cette zone">${esc(txt)}</textarea>
+        <div class="grid-3" style="margin-top:10px">
           <div><label class="fld">N° au rapport</label><input data-rd="n" type="text" value="${esc(String(o.n||''))}" placeholder="ex : 14"></div>
           <div><label class="fld">Page</label><input data-rd="page" type="number" min="1" step="1" value="${esc(String(o.page||''))}"></div>
           <div><label class="fld">Temps estimé (h)</label><input data-rd="h" type="number" min="0" step="0.25" value="${esc(o.h||'')}" placeholder="ex : 1"></div>
@@ -2090,7 +2126,9 @@ function rlvOibtRender(){
         if(f==='page'){ return; }                              // la page se valide au « change »
         o[f] = chk ? e.checked : e.value;
         if(f==='n') { o.nMan=true; const b=c.querySelector('[data-num]'); if(b) b.textContent=e.value||'?'; }
-        if(f==='titre'){ const l=c.querySelector('[data-lieu]'); if(l) l.textContent=e.value||('Page '+(o.page||'?')); }
+        if(f==='titre'){ o.titreMan=true; const l=c.querySelector('[data-lieu]'); if(l) l.textContent=e.value||('Page '+(o.page||'?')); }
+        if(f==='texte'){ o.texteMan=true; const rs=c.querySelector('.oibt-res');
+          if(rs) rs.textContent=(e.value||'').slice(0,70)+((e.value||'').length>70?'…':''); }
         if(chk){ c.classList.toggle('off', !e.checked);
           const mk=document.querySelector('#rlvOibtVue .oibt-mk[data-pid="'+o._id+'"]');
           if(mk) mk.classList.toggle('mkoff', !e.checked); }
@@ -2134,6 +2172,25 @@ function rlvFoldAll(){
   const cards=[...document.querySelectorAll('#rlvOibtPts .oibt-pt')];
   const ouvert=cards.some(c=>!c.classList.contains('folded'));
   cards.forEach(c=>{ c.classList.toggle('folded', ouvert); const f=c.querySelector('.oibt-fold'); if(f) f.textContent=ouvert?'▸':'▾'; });
+}
+/* Recharge le PDF SANS toucher aux défauts ni au chiffrage : après un import .SEVJ (qui
+   ne contient pas le PDF), ou après un changement de téléphone. */
+async function rlvRechargePdf(file){
+  const msg=$('#rlvOibtMsg'); if(msg){ msg.hidden=false; msg.className='msg'; msg.textContent='Lecture du PDF…'; }
+  try{
+    const buf=await file.arrayBuffer();
+    const vues=await oibtRenderPages(buf.slice(0), (i,n)=>{ if(msg) msg.textContent='Rendu de la page '+i+' / '+n+'…'; });
+    let lignes=null; try{ lignes=(await oibtParse(buf.slice(0))).lignes||null; }catch(e){}
+    RLVOIBT.file=file.name; RLVOIBT.pdf=b64FromBuf(buf); RLVOIBT.pages=vues.length;
+    RLVOIBT.vues=vues; RLVOIBT.lignes=lignes; RLVOIBT.bandes={haut:0, bas:1};
+    await oibtCalcBandes(RLVOIBT);
+    rlvDBSauvePdf();
+    RLVOIBT.pts.forEach(q=>{ q._vgSale=true; });
+    if(msg){ msg.className='msg ok'; msg.textContent=vues.length+' page(s) rechargée(s) ✓ — repères et chiffrage conservés.'; }
+    rlvOibtRender(); await rlvMajVignettes(); scheduleSave();
+  }catch(e){
+    if(msg){ msg.hidden=false; msg.className='msg err'; msg.textContent='PDF illisible : '+e.message; }
+  }
 }
 async function rlvOibtImport(file){
   const msg=$('#rlvOibtMsg'); if(msg){ msg.hidden=false; msg.className='msg'; msg.textContent='Lecture du PDF…'; }
@@ -2199,6 +2256,7 @@ function rlvOibtState(){
   return { file:RLVOIBT.file, pages:RLVOIBT.pages, base:RLVOIBT.base||1,
            avecVg: !$('#rlvOibtVg') || $('#rlvOibtVg').checked,
            pts:RLVOIBT.pts.map(o=>({ n:o.n, nMan:!!o.nMan, page:o.page, y:o.y, fin:!!o.fin, manuel:!!o.manuel,
+                                     titreMan:!!o.titreMan, texteMan:!!o.texteMan,
                                      titre:o.titre||'', texte:o.texte||'',
                                      chiffre:o.chiffre!==false, travaux:o.travaux||'', h:o.h||'',
                                      mat:(o.mat||[]).map(m=>({t:m.t, s:m.s})) })) };
@@ -6417,6 +6475,7 @@ function importBackup(file){
     applyDraft(data.draft);
     if(Array.isArray(data.photos)) [...document.querySelectorAll('#rooms .room')].forEach((room,i)=>{ if(Array.isArray(data.photos[i])){ room._photos=data.photos[i]; renderRoomPhotos(room); } });
     if(Array.isArray(data.oibtvg)){ RLVOIBT.pts.forEach((o,i)=>{ if(data.oibtvg[i]) o.vg=data.oibtvg[i]; }); rlvOibtRender(); }
+    rlvRestorePdf().catch(()=>{});   // le PDF est peut-être encore dans IndexedDB (même téléphone)
     updateMO(); buildRef(); saveDraft();
     alert('Sauvegarde restaurée ✓');
   };
@@ -6452,7 +6511,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v115-arbre — Repères : glissement réparé sur mobile, texte qui suit la zone, numérotation stable';
+const APP_VERSION='v116-arbre — Texte de zone filtré et corrigeable, PDF rechargeable après .SEVJ, lieu auto';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -6686,10 +6745,14 @@ function init(){
 
   // Rapport de contrôle OIBT importé dans le relevé (chiffrage d'une offre)
   $('#rlvOibtBtn').onclick=()=>$('#rlvOibtPdf').click();
-  $('#rlvOibtPdf').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) rlvOibtImport(f); e.target.value=''; });
+  $('#rlvOibtPdf').addEventListener('change',e=>{ const f=e.target.files[0];
+    const rech=e.target.dataset.mode==='recharge'; delete e.target.dataset.mode;
+    if(f) (rech && RLVOIBT.pts.length ? rlvRechargePdf : rlvOibtImport)(f);
+    e.target.value=''; });
   $('#rlvOibtClear').onclick=rlvOibtReset;
   $('#rlvOibtAdd').onclick=rlvOibtAjoute;
   $('#rlvOibtBorne').onclick=rlvPoseBorne;
+  $('#rlvOibtRecharge').onclick=()=>{ const i=$('#rlvOibtPdf'); i.dataset.mode='recharge'; i.click(); };
   $('#rlvOibtFoldAll').onclick=rlvFoldAll;
   $('#rlvOibtZoomFit').onclick=()=>rlvSetZoom(1);
   $('#rlvOibtVueHd').onclick=()=>{ const b=$('#rlvOibtVueBlk'); const o=b.classList.toggle('open');
