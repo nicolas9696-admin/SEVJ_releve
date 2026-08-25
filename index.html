@@ -1899,9 +1899,9 @@ function rlvMatCollect(){
       const t=r.dataset.mt;
       if(t==='chem'){ const c=parseChem(r); c.dest=dest; if((c.article||c.long) && !c.existant) out.chemins.push(c); }
       else if(t==='cable'){ const c=parseCable(r); c.dest=dest; if((c.long||c.name) && !c.existant) out.cables.push(c); }
-      else if(t==='app'){ const a=parseApp(r); if(a.article) out.apps.push(a); }
-      else if(t==='boite'){ const b=parseBoite(r); if(b.article && !b.existant) out.boites.push(b); }
-      else if(t==='disj'){ const x=parseDisjRow(r); if(x.amp) out.disj.push(x); }
+      else if(t==='app'){ const a=parseApp(r); a.dest=dest; if(a.article) out.apps.push(a); }
+      else if(t==='boite'){ const b=parseBoite(r); b.dest=dest; if(b.article && !b.existant) out.boites.push(b); }
+      else if(t==='disj'){ const x=parseDisjRow(r); x.dest=dest; if(x.amp) out.disj.push(x); }
     });
   });
   return out;
@@ -3159,7 +3159,7 @@ function buildFiche(d, mode){
       L.push(`<div class="room-block" style="border-left:5px solid ${col}; padding-left:10px; margin:14px 0 4px">`);
       L.push(`<div class="room-title" style="color:${col}; border-bottom-color:${col}">${esc(room.name)}</div>`);
       L.push(`<table><tr><th>Désignation</th><th class="q">Qté</th><th class="u">Unité</th></tr>`);
-      pushSections(L, agg, room.cables||[], room.chemins||[]);
+      pushSections(L, agg, room.cables||[], room.chemins||[], room.apps||[], room.boites||[], room.disj||[]);
       L.push(`</table></div>`);
     });
     if(!shown) L.push('<p class="empty">Aucune pièce saisie.</p>');
@@ -3213,7 +3213,7 @@ function buildFiche(d, mode){
 function boldColor(escLabel, col){ return col ? escLabel.replace(new RegExp('\\b('+col+')\\b','i'), '<b>$1</b>') : escLabel; }
 /* Rendu des sections d'un agrégat dans le tableau HTML */
 function destTag(dest){ return dest?` <span class="dest">→ ${esc(dest)}</span>`:''; }
-function pushSections(L, agg, rawCables, rawChemins){
+function pushSections(L, agg, rawCables, rawChemins, rawApps, rawBoites, rawDisj){
   const dwn=o=> boldColor(esc(o.label), o.colbold)
     + (o.eldas?` <span class="eldas">ELDAS ${esc(o.eldas)}</span>`:'')
     + (o.names&&o.names.length?` <span class="names">(${o.names.map(esc).join(', ')})</span>`:'');
@@ -3235,10 +3235,27 @@ function pushSections(L, agg, rawCables, rawChemins){
       });
     }
   } else if(agg.cables.length){ L.push(secRow('Câblage')); agg.cables.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'm', o.red))); }
-  if(agg.apps.length){ L.push(secRow('Appareillage')); agg.apps.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red)));
+  /* Ligne brute : le libellé, sa réf. ELDAS, son nom et son renvoi « → Défaut N ». */
+  const brut=(lbl,o,eldas)=> boldColor(esc(lbl), o.colbold)
+    + (eldas?` <span class="eldas">ELDAS ${esc(eldas)}</span>`:'')
+    + (o.name?` <span class="names">(${esc(o.name)})</span>`:'')
+    + destTag(o.dest);
+  const avecDest=a=> Array.isArray(a) && a.some(x=>x.dest);
+  if(avecDest(rawApps)){        // détaillé : 1 ligne par article, avec son défaut
+    L.push(secRow('Appareillage'));
+    rawApps.forEach(a=> L.push(itemRowH(brut(appLabel(a), a, isAppSansFourniture(a)?'':a.eldas),
+      a.qte||'', 'pce', !isAppSansFourniture(a) && isDue(a))));
+    if(agg.demontage) L.push(itemRowH('<b>'+esc(FORFAIT_DEM)+'</b>', agg.demontage, 'pce', false));
+  } else if(agg.apps.length){ L.push(secRow('Appareillage')); agg.apps.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red)));
     if(agg.demontage) L.push(itemRowH('<b>'+esc(FORFAIT_DEM)+'</b>', agg.demontage, 'pce', false)); }
-  if(agg.boites.length){ L.push(secRow('Boîtes de dérivation')); agg.boites.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
-  if(agg.disj.length){ L.push(secRow('Tableau / protections')); agg.disj.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
+  if(avecDest(rawBoites)){
+    L.push(secRow('Boîtes de dérivation'));
+    rawBoites.forEach(b=> L.push(itemRowH(brut(b.article, b, b.eldas), b.qte||'', 'pce', false)));
+  } else if(agg.boites.length){ L.push(secRow('Boîtes de dérivation')); agg.boites.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
+  if(avecDest(rawDisj)){
+    L.push(secRow('Tableau / protections'));
+    rawDisj.forEach(x=> L.push(itemRowH(brut(disjLabel(x), x, ''), x.qte||'', 'pce', false)));
+  } else if(agg.disj.length){ L.push(secRow('Tableau / protections')); agg.disj.forEach(o=> L.push(itemRowH(dwn(o), o.qty||'', 'pce', o.red))); }
 }
 function totRowH(label,q,u){ return `<tr class="tot-row"><td>${esc(label)}</td><td class="q">${esc(String(q))}</td><td class="u">${esc(u)}</td></tr>`; }
 /* Regroupe des câbles par spec identique (cableLabel), en gardant l'ordre d'apparition,
@@ -3506,7 +3523,7 @@ function setExportMode(m){
 const CLR={navy:[31,59,91], navy2:[62,97,136], bg:[234,240,246], line:[201,212,224], sec:[242,246,251], ink:[43,43,43], mut:[110,110,110], danger:[176,42,42]};
 function pdfSafe(s){ return String(s==null?'':s).replace(/[—–]/g,'-').replace(/→/g,'->').replace(/œ/g,'oe').replace(/[’‘]/g,"'").replace(/⚠/g,'/!\\'); }
 /* Construit les lignes autoTable d'un agrégat (nom affiché entre parenthèses) */
-function aggToBody(agg, rawCables, rawChemins){
+function aggToBody(agg, rawCables, rawChemins, rawApps, rawBoites, rawDisj){
   const secStyle={fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
   const body=[];
   const sec=t=>body.push([{content:t, colSpan:3, styles:secStyle}]);
@@ -3526,12 +3543,24 @@ function aggToBody(agg, rawCables, rawChemins){
         totRow('Total câblage · '+gr.spec, gr.tot, 'm'); });
     }
   } else if(agg.cables.length){ sec('Câblage'); agg.cables.forEach(o=>item(dwn(o), o.qty||'', 'm', o.red)); }
-  if(agg.apps.length){ sec('Appareillage'); agg.apps.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red));
-    if(agg.demontage) body.push([{content:FORFAIT_DEM, styles:{fontStyle:'bold'}},
+  const brut=(lbl,o,eldas)=> lbl+(eldas? '  [ELDAS '+eldas+']':'')+(o.name? ' ('+o.name+')':'')+dt(o);
+  const avecDest=a=> Array.isArray(a) && a.some(x=>x.dest);
+  const forfait=()=>{ if(!agg.demontage) return;
+    body.push([{content:FORFAIT_DEM, styles:{fontStyle:'bold'}},
       {content:String(agg.demontage), styles:{fontStyle:'bold', halign:'center'}},
-      {content:'pce', styles:{fontStyle:'bold', halign:'center'}}]); }
-  if(agg.boites.length){ sec('Boîtes de dérivation'); agg.boites.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
-  if(agg.disj.length){ sec('Tableau / protections'); agg.disj.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
+      {content:'pce', styles:{fontStyle:'bold', halign:'center'}}]); };
+  if(avecDest(rawApps)){        // détaillé : 1 ligne par article, avec son défaut
+    sec('Appareillage');
+    rawApps.forEach(a=> item(brut(appLabel(a), a, isAppSansFourniture(a)?'':a.eldas), a.qte||'', 'pce',
+      !isAppSansFourniture(a) && isDue(a)));
+    forfait();
+  } else if(agg.apps.length){ sec('Appareillage'); agg.apps.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); forfait(); }
+  if(avecDest(rawBoites)){ sec('Boîtes de dérivation');
+    rawBoites.forEach(b=> item(brut(b.article, b, b.eldas), b.qte||'', 'pce', false));
+  } else if(agg.boites.length){ sec('Boîtes de dérivation'); agg.boites.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
+  if(avecDest(rawDisj)){ sec('Tableau / protections');
+    rawDisj.forEach(x=> item(brut(disjLabel(x), x, ''), x.qte||'', 'pce', false));
+  } else if(agg.disj.length){ sec('Tableau / protections'); agg.disj.forEach(o=>item(dwn(o), o.qty||'', 'pce', o.red)); }
   return body;
 }
 function downloadPDF(){
@@ -3598,7 +3627,7 @@ function buildPDFDoc(d, mode){
     heading('Descriptif par pièce');
     let any=false;
     rooms.forEach(room=>{
-      const body=aggToBody(aggregate(room), room.cables||[], room.chemins||[]);
+      const body=aggToBody(aggregate(room), room.cables||[], room.chemins||[], room.apps||[], room.boites||[], room.disj||[]);
       if(!body.length) return;
       any=true;
       if(y>H-26){ doc.addPage(); y=16; }
@@ -6455,7 +6484,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v120-arbre — Extrait coupé pile au repère suivant, titres hérités de l\'OCR effacés';
+const APP_VERSION='v121-arbre — Export détaillé : « → Défaut N » sur tous les articles, pas seulement les câbles';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
