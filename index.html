@@ -1820,7 +1820,7 @@ function updateCirc(){
    tel quel. On désigne les défauts sur le rapport, on pose la borne de fin, puis on
    chiffre chacun (travaux + temps). Le PDF d'origine va dans IndexedDB, comme pour
    l'onglet OIBT : les pages se refabriquent au démarrage. */
-let RLVOIBT={ file:'', pdf:null, pages:0, vues:[], pts:[], bandes:{haut:0, bas:1} };
+let RLVOIBT={ file:'', pdf:null, pages:0, vues:[], pts:[], bandes:{haut:0, bas:1}, lignes:null, base:1 };
 let RLV_Z=1;
 
 function rlvDefauts(){ return oibtOrdreD(RLVOIBT); }
@@ -1829,12 +1829,18 @@ function rlvTotal(){
   return Math.round(t*100)/100;
 }
 /* Numéros : suivent l'ordre de lecture tant qu'aucun n'a été corrigé à la main.
-   On garde le décalage du rapport (12, 13, 14… et non 1, 2, 3). */
+   La base (12, 13, 14… et non 1, 2, 3) est FIGÉE à l'import : la relire sur le premier
+   point ferait dériver toute la numérotation à chaque déplacement de repère. */
 function rlvRenumerote(){
   if(RLVOIBT.pts.some(q=>q.nMan)) return;
-  const t=rlvDefauts();
-  const base=parseInt(String((t[0]||{}).n||'1').replace(/\D/g,''),10) || 1;
-  t.forEach((q,i)=>{ q.n=String(base+i); });
+  const base=parseInt(RLVOIBT.base,10) || 1;
+  rlvDefauts().forEach((q,i)=>{ q.n=String(base+i); });
+}
+/* Plus petit n° détecté dans le rapport — sert de base une fois pour toutes */
+function rlvBaseNum(pts){
+  const ns=(pts||[]).filter(q=>!q.fin)
+    .map(q=>parseInt(String(q.n||'').replace(/\D/g,''),10)).filter(n=>!isNaN(n));
+  return ns.length ? Math.min.apply(null, ns) : 1;
 }
 function rlvResume(o){
   const b=[ o.chiffre===false ? '○ écarté du chiffrage' : '✓ à chiffrer' ];
@@ -1938,27 +1944,55 @@ function rlvOibtVue(){
       m.innerHTML='<b>'+(q.fin?'🏁 fin':esc(String(q.n||'?')))+'</b>'
         + '<span class="oibt-mk-x" title="'+(q.fin?'Supprimer la borne':'Supprimer ce défaut')+'">×</span>';
       m.querySelector('.oibt-mk-x').onclick=ev=>{ ev.stopPropagation(); rlvSupprime(q); };
+      /* setPointerCapture() peut échouer (pointeur déjà relâché, retargeté par le
+         navigateur) : sur mobile l'exception coupait tout le reste et le repère devenait
+         indéplaçable. On protège la capture et on écoute sur window — le glissement
+         survit alors même sans capture. */
       m.onpointerdown=ev=>{
         if(ev.target.classList.contains('oibt-mk-x')) return;
         ev.preventDefault(); ev.stopPropagation();
-        m.setPointerCapture(ev.pointerId); m.classList.add('drag');
+        try{ m.setPointerCapture(ev.pointerId); }catch(e){}
+        m.classList.add('drag');
         const r=d.getBoundingClientRect();
-        const move=e2=>{ const y=Math.min(v.h, Math.max(0, (e2.clientY-r.top)/r.height*v.h));
+        const move=e2=>{ if(e2.pointerId!==ev.pointerId) return;
+          if(e2.cancelable) e2.preventDefault();
+          const y=Math.min(v.h, Math.max(0, (e2.clientY-r.top)/r.height*v.h));
           q.y=y; m.style.top=(y/v.h*100)+'%'; };
-        const up=()=>{ m.classList.remove('drag');
-          m.removeEventListener('pointermove',move); m.removeEventListener('pointerup',up);
-          rlvGeoChange(); };                                    // l'ordre a changé → n° et extraits suivent
-        m.addEventListener('pointermove',move); m.addEventListener('pointerup',up);
+        const up=e2=>{ if(e2 && e2.pointerId!==ev.pointerId) return;
+          m.classList.remove('drag');
+          window.removeEventListener('pointermove',move,true);
+          window.removeEventListener('pointerup',up,true);
+          window.removeEventListener('pointercancel',up,true);
+          rlvGeoChange(); };                                    // l'ordre a changé → n°, textes et extraits suivent
+        window.addEventListener('pointermove',move,true);
+        window.addEventListener('pointerup',up,true);
+        window.addEventListener('pointercancel',up,true);
       };
       d.appendChild(m);
     });
     box.appendChild(d);
   });
 }
+/* Texte du rapport contenu dans la zone d'un point. C'est ce qui garantit que le texte
+   affiché corresponde à l'extrait image : les deux sont lus dans la MÊME zone. */
+function rlvTexteZone(q){
+  const L=RLVOIBT.lignes;
+  if(!L || !L.length || !RLVOIBT.vues.length) return null;
+  const tr=oibtZone(q, RLVOIBT); if(!tr.length) return '';
+  const bouts=[];
+  tr.forEach(z=>{ L.forEach(l=>{
+    if(l.page===z.page && l.y>=z.y0 && l.y<=z.y1) bouts.push(l.frags.map(f=>f.txt).join(''));
+  }); });
+  return bouts.join(' ').replace(/\s+/g,' ').trim();
+}
 /* Une géométrie qui bouge (ajout, déplacement, suppression, borne) invalide TOUS les
-   extraits : la zone d'un défaut est bornée par le suivant. */
+   extraits ET tous les textes : la zone d'un défaut est bornée par le suivant, donc
+   déplacer un repère change aussi la zone de celui d'avant. */
 function rlvGeoChange(){
-  RLVOIBT.pts.forEach(q=>{ q._vgSale=true; });
+  RLVOIBT.pts.forEach(q=>{
+    q._vgSale=true;
+    if(!q.fin){ const t=rlvTexteZone(q); if(t!==null) q.texte=t; }
+  });
   rlvOibtRender(); rlvMajVignettes(); scheduleSave();
 }
 function rlvAjoutePoint(page, y){
@@ -2106,10 +2140,12 @@ async function rlvOibtImport(file){
   try{
     const buf=await file.arrayBuffer();
     const vues=await oibtRenderPages(buf.slice(0), (i,n)=>{ if(msg) msg.textContent='Rendu de la page '+i+' / '+n+'…'; });
-    let pts=[];
-    try{ pts=(await oibtParse(buf.slice(0))).pts||[]; }catch(e){ pts=[]; }   // détection ratée : pas bloquant
+    let pts=[], lignes=null;
+    try{ const r=await oibtParse(buf.slice(0)); pts=r.pts||[]; lignes=r.lignes||null; }
+    catch(e){ pts=[]; }                                                      // détection ratée : pas bloquant
     pts.forEach(q=>{ q.chiffre=true; q.travaux=''; q.h=''; q.vg=null; q._vgSale=true; });
-    RLVOIBT={ file:file.name, pdf:b64FromBuf(buf), pages:vues.length, vues, pts, bandes:{haut:0, bas:1} };
+    RLVOIBT={ file:file.name, pdf:b64FromBuf(buf), pages:vues.length, vues, pts, bandes:{haut:0, bas:1},
+              lignes, base:rlvBaseNum(pts) };
     await oibtCalcBandes(RLVOIBT);
     rlvDBSauvePdf();                                   // le rapport survit à la fermeture de l'app
     if(msg){ msg.className='msg ok';
@@ -2123,7 +2159,7 @@ async function rlvOibtImport(file){
 }
 function rlvOibtReset(){
   if(RLVOIBT.pts.length && !confirm('Retirer le rapport de contrôle et ses défauts du relevé ?')) return;
-  RLVOIBT={ file:'', pdf:null, pages:0, vues:[], pts:[], bandes:{haut:0, bas:1} };
+  RLVOIBT={ file:'', pdf:null, pages:0, vues:[], pts:[], bandes:{haut:0, bas:1}, lignes:null, base:1 };
   const msg=$('#rlvOibtMsg'); if(msg){ msg.hidden=true; msg.textContent=''; }
   rlvDBSauvePdf(); rlvOibtRender(); scheduleSave();
 }
@@ -2142,6 +2178,9 @@ async function rlvRestorePdf(){
     RLVOIBT.pdf=b64FromBuf(oct.buffer.slice(oct.byteOffset, oct.byteOffset+oct.byteLength));
     RLVOIBT.vues=await oibtRenderPages(bufFromB64(RLVOIBT.pdf).buffer);
     RLVOIBT.pages=RLVOIBT.vues.length;
+    // on relit aussi le texte du rapport : sans lui, déplacer un repère ne pourrait plus
+    // remettre le texte d'accord avec l'extrait
+    try{ RLVOIBT.lignes=(await oibtParse(bufFromB64(RLVOIBT.pdf).buffer)).lignes||null; }catch(e){}
     await oibtCalcBandes(RLVOIBT);
     rlvOibtRender(); rlvMajVignettes();
   }catch(e){}
@@ -2157,7 +2196,7 @@ function collectOibtRlv(){
 }
 /* État sérialisable (sans les extraits : ils vont dans leur propre clé) */
 function rlvOibtState(){
-  return { file:RLVOIBT.file, pages:RLVOIBT.pages,
+  return { file:RLVOIBT.file, pages:RLVOIBT.pages, base:RLVOIBT.base||1,
            avecVg: !$('#rlvOibtVg') || $('#rlvOibtVg').checked,
            pts:RLVOIBT.pts.map(o=>({ n:o.n, nMan:!!o.nMan, page:o.page, y:o.y, fin:!!o.fin, manuel:!!o.manuel,
                                      titre:o.titre||'', texte:o.texte||'',
@@ -2169,6 +2208,7 @@ function rlvOibtApply(st){
   const memePdf = st.file && st.file===RLVOIBT.file && RLVOIBT.vues.length;
   RLVOIBT={ file:st.file||'', pdf:memePdf?RLVOIBT.pdf:null, pages:st.pages||0,
             vues:memePdf?RLVOIBT.vues:[], bandes:memePdf?RLVOIBT.bandes:{haut:0, bas:1},
+            lignes:memePdf?RLVOIBT.lignes:null, base:st.base||rlvBaseNum(st.pts),
             pts:(st.pts||[]).map(o=>Object.assign({vg:null, chiffre:true, travaux:'', h:'', y:0, page:1, mat:[]}, o)) };
   const vg=$('#rlvOibtVg'); if(vg) vg.checked = st.avecVg!==false;
   rlvOibtRender();
@@ -4998,7 +5038,7 @@ async function oibtParse(buf){
     p.texte=p.texte.join(' ').replace(/\s+/g,' ').trim();
     p.vals=[];                                   // les mesures s'ajoutent à la main (liste + type)
   });
-  return {pages, pts, modele};
+  return {pages, pts, modele, lignes};      // lignes : texte du rapport avec ses coordonnées
 }
 /* ---- Rendu des pages : le rapport devient une SUITE D'IMAGES ----------------------
    C'est le pivot de l'approche. On n'essaie plus de reconnaître ce qu'il y a dans la
@@ -5450,18 +5490,28 @@ function oibtRenderVue(){
       m.innerHTML=`<b>${p.fin?'🏁 fin':esc(String(p.n))}</b>`+(verrou?'<span class="oibt-mk-x" title="Verrouillé">🔒</span>':`<span class="oibt-mk-x" title="${p.fin?'Supprimer la borne':'Supprimer ce point'}">×</span>`);
       m.querySelector('.oibt-mk-x').onclick=ev=>{ ev.stopPropagation(); if(verrou){ alert('Point validé par '+p.by+' — seule cette personne peut le modifier.'); return; } oibtSupprimePoint(p); };
       // déplacement au doigt
+      /* Voir la note de la visionneuse du relevé : capture protégée + écoute sur window,
+         sinon le glissement casse dès que setPointerCapture() échoue (mobile). */
       m.onpointerdown=ev=>{
         if(ev.target.classList.contains('oibt-mk-x')) return;
         if(verrou) return;                            // point verrouillé : pas de déplacement
         ev.preventDefault(); ev.stopPropagation();
-        m.setPointerCapture(ev.pointerId); m.classList.add('drag');
+        try{ m.setPointerCapture(ev.pointerId); }catch(e){}
+        m.classList.add('drag');
         const r=d.getBoundingClientRect();
-        const move=e2=>{ const y=Math.min(v.h, Math.max(0, (e2.clientY-r.top)/r.height*v.h));
+        const move=e2=>{ if(e2.pointerId!==ev.pointerId) return;
+          if(e2.cancelable) e2.preventDefault();
+          const y=Math.min(v.h, Math.max(0, (e2.clientY-r.top)/r.height*v.h));
           p.y=y; m.style.top=(y/v.h*100)+'%'; };
-        const up=()=>{ m.classList.remove('drag');
-          m.removeEventListener('pointermove',move); m.removeEventListener('pointerup',up);
+        const up=e2=>{ if(e2 && e2.pointerId!==ev.pointerId) return;
+          m.classList.remove('drag');
+          window.removeEventListener('pointermove',move,true);
+          window.removeEventListener('pointerup',up,true);
+          window.removeEventListener('pointercancel',up,true);
           oibtRenumerote(); oibtRender(); oibtSave(); };   // l'ordre a changé → les numéros suivent
-        m.addEventListener('pointermove',move); m.addEventListener('pointerup',up);
+        window.addEventListener('pointermove',move,true);
+        window.addEventListener('pointerup',up,true);
+        window.addEventListener('pointercancel',up,true);
       };
       d.appendChild(m);
     });
@@ -6402,7 +6452,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v114-arbre — Catalogue : appareillage de fusibles (anneaux, têtes, vis de contact — 15 réf.)';
+const APP_VERSION='v115-arbre — Repères : glissement réparé sur mobile, texte qui suit la zone, numérotation stable';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
