@@ -1582,8 +1582,15 @@ function wireMat(box){
   // repli sur la gamme de base : un brouillon enregistré avant la séparation ENC/AP
   // porte encore « EDIZIO.due » — ses couleurs doivent quand même s'afficher.
   function colorsOf(){ const fd=famData(famEl.value); return (fd&&fd.colors) ? fd.colors : colorsOfFam(famEl.value); }
-  /* Luminaires : le catalogue ne donne pas d'ELDAS -> saisie manuelle, reprise dans l'export */
-  function eldasManOn(){ return sec==='app' && famEl.value==='Point lumineux'; }
+  /* Luminaires : ceux du catalogue qui n'ont PAS de réf. ELDAS se saisissent à la main.
+     Ceux qui en ont une (Ledvance…) gardent la leur — avant, le champ manuel, vide par
+     défaut, écrasait systématiquement la référence du catalogue. */
+  function eldasManOn(){
+    if(sec!=='app' || famEl.value!=='Point lumineux') return false;
+    const base=baseEl.value||'';
+    const it=base ? MAT.find(m=>m.s===sec && m.n===base) : null;
+    return !(it && it.e);
+  }
   function syncEldasMan(){
     const on=eldasManOn();
     if(eldasManWrap) eldasManWrap.hidden=!on;
@@ -1853,7 +1860,7 @@ function rlvMoTxt(o){
   return '→ main d\'œuvre : <b>'+hh+' h</b>'+(rlvPers(o)>1 ? ' <span style="color:var(--mut)">('+o.h+' h × '+rlvPers(o)+' pers.)</span>' : '');
 }
 function rlvResume(o){
-  const b=[ o.chiffre===false ? '○ écarté du chiffrage' : '✓ à chiffrer' ];
+  const b=[ o.chiffre===false ? ('○ non chiffré'+(o.motif?' : '+o.motif:'')) : '✓ à chiffrer' ];
   if(o.h) b.push(rlvPers(o)>1 ? (o.h+' h × '+rlvPers(o)+' = '+rlvHeuresPt(o)+' h') : (o.h+' h'));
   const nm=(o.mat||[]).length; if(nm) b.push(nm+' article'+(nm>1?'s':''));
   if(o.travaux) b.push(o.travaux.length>34 ? o.travaux.slice(0,34)+'…' : o.travaux);
@@ -2072,6 +2079,10 @@ function rlvOibtRender(){
         <div style="margin-top:10px"><label class="fld">Travaux à prévoir</label>
           <input data-rd="travaux" type="text" value="${esc(o.travaux||'')}" placeholder="ex : tirer un PE, remplacer le luminaire"></div>
         <div class="chk"><input type="checkbox" data-rd="chiffre"${o.chiffre===false?'':' checked'}><label><b>À chiffrer</b></label></div>
+        <div class="cond${o.chiffre===false?' on':''}" data-c="motif" style="margin-top:8px">
+          <label class="fld">Pourquoi ce défaut n'est pas chiffré</label>
+          <input data-rd="motif" type="text" value="${esc(o.motif||'')}" placeholder="ex : déjà corrigé, hors mandat, à la charge du propriétaire">
+        </div>
         <div class="liais-lbl" style="margin-top:14px"><span class="lstep">⚙</span> Matériel à prévoir</div>
         <p class="hint" style="margin:2px 0 6px">Longueurs de câble / fil (case <b>PE uniquement</b> comprise), tube, canal,
         appareils, boîtes, disjoncteurs… Tout est additionné dans l'export sous <b>« Remise en conformité OIBT »</b>.</p>
@@ -2097,6 +2108,7 @@ function rlvOibtRender(){
         if(f==='titre'){ const l=c.querySelector('[data-lieu]'); if(l) l.textContent=e.value||('Page '+(o.page||'?'));
           const rs=c.querySelector('.oibt-res'); if(rs) rs.textContent=e.value?'':'— à décrire —'; }
         if(chk){ c.classList.toggle('off', !e.checked);
+          const mo=c.querySelector('[data-c="motif"]'); if(mo) mo.classList.toggle('on', !e.checked);
           const mk=document.querySelector('#rlvOibtVue .oibt-mk[data-pid="'+o._id+'"]');
           if(mk) mk.classList.toggle('mkoff', !e.checked); }
         const sm=c.querySelector('[data-sum]'); if(sm) sm.innerHTML=rlvResume(o);
@@ -2209,12 +2221,17 @@ async function rlvRestorePdf(){
 }
 /* Ce qui part dans la fiche : uniquement les défauts cochés « à chiffrer » */
 function collectOibtRlv(){
-  const D=rlvDefauts().filter(o=>o.chiffre!==false);
+  const D=rlvDefauts();
   if(!D.length) return null;
   const vg=$('#rlvOibtVg');
+  // les défauts écartés restent dans la fiche : sans eux, celui qui fait l'offre ne saurait
+  // pas qu'un point du rapport a été volontairement laissé de côté, ni pourquoi.
   return { file:RLVOIBT.file, pages:RLVOIBT.pages||RLVOIBT.vues.length, avecVg:!vg || vg.checked,
            total:rlvTotal(),
+           retenus:D.filter(o=>o.chiffre!==false).length,
+           ecartes:D.filter(o=>o.chiffre===false).length,
            defauts:D.map(o=>({n:o.n, page:o.page, titre:o.titre, travaux:o.travaux,
+                              chiffre:o.chiffre!==false, motif:o.motif||'',
                               h:o.h, pers:rlvPers(o), hh:rlvHeuresPt(o), vg:o.vg})) };
 }
 /* État sérialisable (sans les extraits : ils vont dans leur propre clé) */
@@ -2223,7 +2240,8 @@ function rlvOibtState(){
            avecVg: !$('#rlvOibtVg') || $('#rlvOibtVg').checked,
            pts:RLVOIBT.pts.map(o=>({ n:o.n, nMan:!!o.nMan, page:o.page, y:o.y, fin:!!o.fin, manuel:!!o.manuel,
                                      titre:o.titre||'',
-                                     chiffre:o.chiffre!==false, travaux:o.travaux||'', h:o.h||'', pers:rlvPers(o),
+                                     chiffre:o.chiffre!==false, motif:o.motif||'',
+                                     travaux:o.travaux||'', h:o.h||'', pers:rlvPers(o),
                                      mat:(o.mat||[]).map(m=>({t:m.t, s:m.s})) })) };
 }
 function rlvOibtApply(st){
@@ -3270,17 +3288,20 @@ function groupCablesBySpec(cables){
 }
 function pushOibtRlv(L,d){
   const o=d.oibtRlv; if(!o) return;
-  L.push('<h3>Remise en conformité OIBT — défauts à chiffrer</h3>');
+  L.push('<h3>Remise en conformité OIBT — défauts du rapport</h3>');
   L.push('<p class="obj" style="color:#666">D\'après le rapport de contrôle <b>'+esc(o.file||'—')+'</b>'
     + (o.pages?' ('+o.pages+' page'+(o.pages>1?'s':'')+')':'')+'. '
-    + o.defauts.length+' défaut(s) retenu(s) pour l\'offre.</p>');
+    + o.retenus+' défaut(s) retenu(s) pour l\'offre'
+    + (o.ecartes? ', '+o.ecartes+' non chiffré'+(o.ecartes>1?'s':''):'')+'.</p>');
   L.push('<table><tr><th>Défaut</th><th class="q">Qté</th><th class="u">Unité</th></tr>');
   o.defauts.forEach(x=>{
     const des='<b>N° '+esc(String(x.n))+'</b> <span class="dest">rapport, page '+esc(String(x.page))+'</span>'
       + (x.titre?'<br><b>'+esc(x.titre)+'</b>':'')
-      + (x.travaux?'<br><b>Travaux :</b> '+esc(x.travaux):'')
-      + (x.pers>1?'<br><span style="color:#666">'+esc(x.h)+' h × '+x.pers+' personnes</span>':'');
-    L.push(itemRowH(des, x.hh||'', 'h', false));
+      + (x.chiffre===false
+          ? '<br><b style="color:#b5651d">Non chiffré</b>'+(x.motif?' <span style="color:#666">— '+esc(x.motif)+'</span>':'')
+          : (x.travaux?'<br><b>Travaux :</b> '+esc(x.travaux):'')
+            + (x.pers>1?'<br><span style="color:#666">'+esc(x.h)+' h × '+x.pers+' personnes</span>':''));
+    L.push(itemRowH(des, x.chiffre===false?'—':(x.hh||''), x.chiffre===false?'':'h', false));
   });
   L.push(totRowH('Total remise en conformité', o.total||'', 'h'));
   L.push('</table>');
@@ -3438,8 +3459,9 @@ function grandTotalHeures(d){
 }
 /* Ligne « Remise en conformité OIBT » du tableau des temps */
 function oibtRlvDesc(o){
-  return "Remise en conformité OIBT — "+o.defauts.length+" défaut(s) à corriger"
-       + (o.file? " (rapport "+o.file+")" : "")
+  return "Remise en conformité OIBT — "+o.retenus+" défaut(s) à corriger"
+       + (o.ecartes? " ("+o.ecartes+" non chiffré"+(o.ecartes>1?'s':'')+")" : "")
+       + (o.file? " — rapport "+o.file : "")
        + " — main d'œuvre chiffrée point par point";
 }
 /* Ligne « Recherche … » du descriptif */
@@ -3675,18 +3697,23 @@ function buildPDFDoc(d, mode){
   const oiR=d.oibtRlv;
   if(oiR){
     if(y>H-40){ doc.addPage(); y=16; }
-    heading('Remise en conformité OIBT — défauts à chiffrer');
+    heading('Remise en conformité OIBT — défauts du rapport');
     doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(...CLR.mut);
     const it=doc.splitTextToSize(pdfSafe("D'après le rapport de contrôle "+(oiR.file||'-')
       +(oiR.pages?' ('+oiR.pages+' page'+(oiR.pages>1?'s':'')+')':'')+'. '
-      +oiR.defauts.length+" défaut(s) retenu(s) pour l'offre."), CW);
+      +oiR.retenus+" défaut(s) retenu(s) pour l'offre"
+      +(oiR.ecartes? ', '+oiR.ecartes+' non chiffré'+(oiR.ecartes>1?'s':''):'')+'.'), CW);
     doc.text(it, M, y); y+=it.length*3.9+3;
     const stO={fontStyle:'bold', fillColor:CLR.sec, textColor:CLR.navy};
-    const corps=oiR.defauts.map(x=>['N° '+x.n+'  (rapport, page '+x.page+')'
-        + (x.titre?   '\n'+x.titre : '')
-        + (x.travaux? '\nTravaux : '+x.travaux : '')
-        + (x.pers>1?  '\n'+x.h+' h x '+x.pers+' personnes' : ''),
-      String(x.hh||''), 'h']);
+    const corps=oiR.defauts.map(x=>{
+      const ecarte = x.chiffre===false;
+      return ['N° '+x.n+'  (rapport, page '+x.page+')'
+        + (x.titre? '\n'+x.titre : '')
+        + (ecarte ? '\nNon chiffré'+(x.motif? ' : '+x.motif : '')
+                  : (x.travaux? '\nTravaux : '+x.travaux : '')
+                    + (x.pers>1? '\n'+x.h+' h x '+x.pers+' personnes' : '')),
+        ecarte ? '-' : String(x.hh||''), ecarte ? '' : 'h'];
+    });
     corps.push([{content:'Total remise en conformité', styles:stO},
                 {content:String(oiR.total||''), styles:Object.assign({}, stO, {halign:'center'})},
                 {content:'h', styles:Object.assign({}, stO, {halign:'center'})}]);
@@ -6484,7 +6511,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v121-arbre — Export détaillé : « → Défaut N » sur tous les articles, pas seulement les câbles';
+const APP_VERSION='v123-arbre — Luminaires Ledvance CIRCULAR / DAMP PROOF + ELDAS des luminaires respecté';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
