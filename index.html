@@ -915,6 +915,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <div class="chk"><input id="vendredi" type="checkbox"><label for="vendredi">Journée(s) du vendredi (7 h 45)</label></div>
       <div class="chk"><input id="apprenti" type="checkbox"><label for="apprenti">Apprenti possible sur ce chantier</label></div>
       <div class="mo-total">→ Total main d'œuvre : <b id="moTotal">—</b></div>
+      <div class="mo-total" id="moAutres" hidden style="margin-top:8px"></div>
     </div>
   </section>
 
@@ -1417,13 +1418,10 @@ const SEVJ_OIBT_NO = "I-01303-3";
 const MM2      = ["1.5","2.5","4","6","10","16","25","autre…"];
 const CABLE_T  = ["TT-Flex (standard souple)","FG18OM16 (extérieur & voie de fuite)","Cca (voie de fuite)","FE0 (standard intérieur)","Fil"];
 const FIL_N    = ["1x","2x","3x","4x","5x","6x","7x","8x","9x","10x","plus…"];
-const CHEM_T   = ["Tube TIT","Tube ALU","Canal","Tube THFWG","Tube Bergmann","Chemin de câble"];
-const GAMME    = ["EDIZIO.liv","EDIZIO.due"];
 const PRISE_M  = ["T13","T15","T23","T25","CEE16A","CEE32A","CEE63A"];
 const INTER_M  = ["sch3","sch6","sch3 + prise","sch3+3","spécifique…"];
 const AMP       = ["6","8","10","13","16","20","25","32","40","63","autre…"];
 const MARQUE   = ["Schneider","ABB","ABB smissline","Hager","À préciser…"];
-const BOITE_T  = ["AP9","AP10","À préciser…"];
 const STATUT_LIST = ["Neuf","Déjà sur place (démonté / remonté)","Neuf fourni par le client","Démontage seul (pas de repose)","Démontage (le client remettra plus tard)"];
 /* Tranches de longueur — relevé rapide : « ligne de 5 à 10 m » au lieu du mètre exact.
    La borne haute sert de quantité (modifiable à la main juste après). */
@@ -1825,31 +1823,38 @@ function updateCirc(){
    tel quel. On désigne les défauts sur le rapport, on pose la borne de fin, puis on
    chiffre chacun (travaux + temps). Le PDF d'origine va dans IndexedDB, comme pour
    l'onglet OIBT : les pages se refabriquent au démarrage. */
-let RLVOIBT={ file:'', pdf:null, pages:0, vues:[], pts:[], bandes:{haut:0, bas:1}, lignes:null, base:1 };
+let RLVOIBT={ file:'', pdf:null, pages:0, vues:[], pts:[], bandes:{haut:0, bas:1} };
 let RLV_Z=1;
 
 function rlvDefauts(){ return oibtOrdreD(RLVOIBT); }
+/* Heures-homme d'un défaut : durée sur place × nombre de personnes */
+function rlvPers(o){ const n=parseInt(o.pers,10); return n>0?n:1; }
+function rlvHeuresPt(o){ const v=parseFloat(o.h); return isNaN(v)?0:Math.round(v*rlvPers(o)*100)/100; }
 function rlvTotal(){
-  const t=rlvDefauts().reduce((a,o)=>{ if(o.chiffre===false) return a; const v=parseFloat(o.h); return a+(isNaN(v)?0:v); },0);
+  const t=rlvDefauts().reduce((a,o)=> o.chiffre===false ? a : a+rlvHeuresPt(o), 0);
   return Math.round(t*100)/100;
 }
-/* Numéros : suivent l'ordre de lecture tant qu'aucun n'a été corrigé à la main.
-   La base (12, 13, 14… et non 1, 2, 3) est FIGÉE à l'import : la relire sur le premier
-   point ferait dériver toute la numérotation à chaque déplacement de repère. */
+/* Numéros : 1, 2, 3… dans l'ordre de lecture. On ne reprend PAS ceux du rapport : un
+   rapport de contrôle repart à 1 à chaque section (« Ensemble d'appareillage principal »,
+   « divisionnaire »…), il n'existe donc pas de suite unique à respecter.
+   Un n° corrigé à la main est gardé tel quel et les suivants reprennent la suite à partir
+   de lui — corriger un seul numéro ne fige plus toute la liste. */
 function rlvRenumerote(){
-  if(RLVOIBT.pts.some(q=>q.nMan)) return;
-  const base=parseInt(RLVOIBT.base,10) || 1;
-  rlvDefauts().forEach((q,i)=>{ q.n=String(base+i); });
+  let n=0;
+  rlvDefauts().forEach(q=>{
+    if(q.nMan){ const v=parseInt(String(q.n||'').replace(/\D/g,''),10); if(!isNaN(v)) n=v; return; }
+    q.n=String(++n);
+  });
 }
-/* Plus petit n° détecté dans le rapport — sert de base une fois pour toutes */
-function rlvBaseNum(pts){
-  const ns=(pts||[]).filter(q=>!q.fin)
-    .map(q=>parseInt(String(q.n||'').replace(/\D/g,''),10)).filter(n=>!isNaN(n));
-  return ns.length ? Math.min.apply(null, ns) : 1;
+/* Ligne « → main d'œuvre » d'un défaut */
+function rlvMoTxt(o){
+  const hh=rlvHeuresPt(o);
+  if(!hh) return '→ main d\'œuvre : <b>—</b>';
+  return '→ main d\'œuvre : <b>'+hh+' h</b>'+(rlvPers(o)>1 ? ' <span style="color:var(--mut)">('+o.h+' h × '+rlvPers(o)+' pers.)</span>' : '');
 }
 function rlvResume(o){
   const b=[ o.chiffre===false ? '○ écarté du chiffrage' : '✓ à chiffrer' ];
-  if(o.h) b.push(o.h+' h');
+  if(o.h) b.push(rlvPers(o)>1 ? (o.h+' h × '+rlvPers(o)+' = '+rlvHeuresPt(o)+' h') : (o.h+' h'));
   const nm=(o.mat||[]).length; if(nm) b.push(nm+' article'+(nm>1?'s':''));
   if(o.travaux) b.push(o.travaux.length>34 ? o.travaux.slice(0,34)+'…' : o.travaux);
   return esc(b.join('  ·  '));
@@ -1905,6 +1910,7 @@ function rlvOibtInfo(){
   const info=$('#rlvOibtInfo'), cl=$('#rlvOibtClear'), vw=$('#rlvOibtVgWrap'), fa=$('#rlvOibtFoldAll');
   const D=rlvDefauts(), n=D.length, has=!!(n || RLVOIBT.file);
   const sp=$('#rlvOibtSansPdf'); if(sp) sp.hidden = !(n && !RLVOIBT.vues.length);
+  if(typeof updateMO==='function') updateMO();     // le temps global suit le chiffrage
   if(cl) cl.hidden=!has;
   if(fa) fa.hidden=n<2;
   if(vw) vw.hidden=!D.some(o=>o.vg);
@@ -1917,7 +1923,7 @@ function rlvOibtInfo(){
   info.innerHTML='Rapport : <b>'+esc(RLVOIBT.file||'—')+'</b>'
     + (pg? ' · '+pg+' page'+(pg>1?'s':'') : '')
     + ' — <b>'+ch+' / '+n+'</b> défaut(s) à chiffrer'
-    + (t? ' · <b>'+t+' h</b> estimées' : '')
+    + (t? ' · <b>'+t+' h</b> de main d\'œuvre' : '')
     + (borne? ' · 🏁 borne page '+borne.page : (RLVOIBT.vues.length? ' · <span style="color:var(--warn)">borne de fin non posée</span>' : ''));
 }
 
@@ -1984,50 +1990,11 @@ function rlvOibtVue(){
    On applique les MÊMES filtres que le parseur — sans eux, la zone ramasse l'en-tête, le
    pied de page, les mentions légales et les légendes de photo, et le résultat est une
    bouillie de mots venus de blocs sans rapport entre eux. */
-const RLV_TXT_MAX=600;
-function rlvTexteZone(q){
-  const L=RLVOIBT.lignes;
-  if(!L || !L.length || !RLVOIBT.vues.length) return null;
-  const tr=oibtZone(q, RLVOIBT); if(!tr.length) return '';
-  const B=RLVOIBT.bandes||{haut:0, bas:1};
-  const bouts=[];
-  for(const z of tr){
-    const H=(RLVOIBT.vues[z.page-1]||{h:842}).h;
-    const hautCorps=H*B.haut, basCorps=H*B.bas;
-    let stop=false;
-    for(const l of L){
-      if(stop) break;
-      if(l.page!==z.page || l.y<z.y0 || l.y>z.y1) continue;
-      if(l.y<hautCorps || l.y>basCorps) continue;              // bandeau d'en-tête / pied de page
-      const t=l.frags.map(f=>f.txt).join('').replace(/\s+/g,' ').trim();
-      if(!t) continue;
-      if(OIBT_STOP.test(t)){ stop=true; break; }               // mentions légales : tout ce qui suit est hors sujet
-      if(OIBT_ES_SKIP.test(t)) continue;                       // logo, pied, légende de photo, n° de section
-      if(OIBT_DEF.test(t) && bouts.length) continue;           // marqueur du défaut suivant
-      bouts.push(t);
-    }
-  }
-  let out=bouts.join(' ').replace(/\s+/g,' ').trim();
-  if(out.length>RLV_TXT_MAX) out=out.slice(0,RLV_TXT_MAX).replace(/\s+\S*$/,'')+'…';
-  return out;
-}
-/* « Concerne : … » du rapport -> proposition de description / lieu */
-function rlvLieuDepuisTexte(t){
-  const m=/concerne\s*:?\s*([^.]{3,90})/i.exec(String(t||''));
-  return m ? m[1].trim().replace(/\s+/g,' ') : '';
-}
 /* Une géométrie qui bouge (ajout, déplacement, suppression, borne) invalide TOUS les
    extraits ET tous les textes : la zone d'un défaut est bornée par le suivant, donc
    déplacer un repère change aussi la zone de celui d'avant. */
 function rlvGeoChange(){
-  RLVOIBT.pts.forEach(q=>{
-    q._vgSale=true;
-    if(q.fin || q.texteMan) return;                            // texte corrigé à la main : on n'y touche plus
-    const t=rlvTexteZone(q);
-    if(t===null) return;
-    q.texte=t;
-    if(!q.titreMan){ const lieu=rlvLieuDepuisTexte(t); if(lieu) q.titre=lieu; }
-  });
+  RLVOIBT.pts.forEach(q=>{ q._vgSale=true; });
   rlvOibtRender(); rlvMajVignettes(); scheduleSave();
 }
 function rlvAjoutePoint(page, y){
@@ -2080,26 +2047,26 @@ function rlvOibtRender(){
     if(!o._id) o._id=nextId('rd');
     const c=el('div','oibt-pt folded'+(o.chiffre===false?' off':''));
     c.dataset.pid=o._id;
-    const txt=(o.texte||'').replace(/\s+/g,' ').trim();
     c.innerHTML=`
       <div class="oibt-hd">
         <span class="oibt-num" data-num>${esc(String(o.n||'?'))}</span>
         <div class="oibt-hc">
           <div class="oibt-lieu" data-lieu>${esc(o.titre||('Page '+(o.page||'?')))}</div>
-          <div class="oibt-res">${esc(txt.slice(0,70))}${txt.length>70?'…':(txt?'':'Zone désignée sur le rapport')}</div>
+          <div class="oibt-res">${o.titre?'':'— à décrire —'}</div>
           <div class="oibt-sum" data-sum>${rlvResume(o)}</div>
         </div>
         <span class="oibt-fold">▸</span>
       </div>
       <div class="oibt-body">
         <div data-vgbox>${o.vg?`<div class="oibt-vg"><img src="${o.vg}" alt="Extrait du défaut ${esc(String(o.n||''))}"></div>`:''}</div>
-        <label class="fld" style="margin-top:8px">Texte du rapport <span style="font-weight:600; color:var(--mut)">(relu dans la zone du repère — corrigeable)</span></label>
-        <textarea data-rd="texte" rows="3" placeholder="Aucun texte lu dans cette zone">${esc(txt)}</textarea>
         <div class="grid-3" style="margin-top:10px">
           <div><label class="fld">N° au rapport</label><input data-rd="n" type="text" value="${esc(String(o.n||''))}" placeholder="ex : 14"></div>
           <div><label class="fld">Page</label><input data-rd="page" type="number" min="1" step="1" value="${esc(String(o.page||''))}"></div>
-          <div><label class="fld">Temps estimé (h)</label><input data-rd="h" type="number" min="0" step="0.25" value="${esc(o.h||'')}" placeholder="ex : 1"></div>
+          <div><label class="fld">Personnes</label><select data-rd="pers">${[1,2,3].map(k=>`<option value="${k}"${rlvPers(o)===k?' selected':''}>${k}</option>`).join('')}</select></div>
         </div>
+        <div style="margin-top:10px"><label class="fld">Temps sur place (h) — pour une personne</label>
+          <input data-rd="h" type="number" min="0" step="0.25" value="${esc(o.h||'')}" placeholder="ex : 1.5"></div>
+        <div class="mo-total" data-motot style="margin-top:6px">${rlvMoTxt(o)}</div>
         <div style="margin-top:10px"><label class="fld">Description / lieu</label>
           <input data-rd="titre" type="text" value="${esc(o.titre||'')}" placeholder="ex : Plafonnier séjour — pas de conducteur de protection"></div>
         <div style="margin-top:10px"><label class="fld">Travaux à prévoir</label>
@@ -2122,19 +2089,22 @@ function rlvOibtRender(){
       c.querySelector('.oibt-fold').textContent=f?'▸':'▾'; };
     c.querySelectorAll('[data-rd]').forEach(e=>{
       const chk=e.type==='checkbox', f=e.dataset.rd;
-      e.addEventListener(chk?'change':'input', ()=>{
+      // input ET change : un <select> (nombre de personnes) ne déclenche pas toujours input
+      const maj=()=>{
         if(f==='page'){ return; }                              // la page se valide au « change »
         o[f] = chk ? e.checked : e.value;
         if(f==='n') { o.nMan=true; const b=c.querySelector('[data-num]'); if(b) b.textContent=e.value||'?'; }
-        if(f==='titre'){ o.titreMan=true; const l=c.querySelector('[data-lieu]'); if(l) l.textContent=e.value||('Page '+(o.page||'?')); }
-        if(f==='texte'){ o.texteMan=true; const rs=c.querySelector('.oibt-res');
-          if(rs) rs.textContent=(e.value||'').slice(0,70)+((e.value||'').length>70?'…':''); }
+        if(f==='titre'){ const l=c.querySelector('[data-lieu]'); if(l) l.textContent=e.value||('Page '+(o.page||'?'));
+          const rs=c.querySelector('.oibt-res'); if(rs) rs.textContent=e.value?'':'— à décrire —'; }
         if(chk){ c.classList.toggle('off', !e.checked);
           const mk=document.querySelector('#rlvOibtVue .oibt-mk[data-pid="'+o._id+'"]');
           if(mk) mk.classList.toggle('mkoff', !e.checked); }
         const sm=c.querySelector('[data-sum]'); if(sm) sm.innerHTML=rlvResume(o);
+        const mt=c.querySelector('[data-motot]'); if(mt) mt.innerHTML=rlvMoTxt(o);
         rlvOibtInfo(); scheduleSave();
-      });
+      };
+      e.addEventListener(chk?'change':'input', maj);
+      if(!chk) e.addEventListener('change', maj);
     });
     const pgIn=c.querySelector('[data-rd="page"]');
     if(pgIn) pgIn.addEventListener('change', ()=>{                // changer de page = géométrie
@@ -2180,9 +2150,8 @@ async function rlvRechargePdf(file){
   try{
     const buf=await file.arrayBuffer();
     const vues=await oibtRenderPages(buf.slice(0), (i,n)=>{ if(msg) msg.textContent='Rendu de la page '+i+' / '+n+'…'; });
-    let lignes=null; try{ lignes=(await oibtParse(buf.slice(0))).lignes||null; }catch(e){}
     RLVOIBT.file=file.name; RLVOIBT.pdf=b64FromBuf(buf); RLVOIBT.pages=vues.length;
-    RLVOIBT.vues=vues; RLVOIBT.lignes=lignes; RLVOIBT.bandes={haut:0, bas:1};
+    RLVOIBT.vues=vues; RLVOIBT.bandes={haut:0, bas:1};
     await oibtCalcBandes(RLVOIBT);
     rlvDBSauvePdf();
     RLVOIBT.pts.forEach(q=>{ q._vgSale=true; });
@@ -2197,12 +2166,11 @@ async function rlvOibtImport(file){
   try{
     const buf=await file.arrayBuffer();
     const vues=await oibtRenderPages(buf.slice(0), (i,n)=>{ if(msg) msg.textContent='Rendu de la page '+i+' / '+n+'…'; });
-    let pts=[], lignes=null;
-    try{ const r=await oibtParse(buf.slice(0)); pts=r.pts||[]; lignes=r.lignes||null; }
-    catch(e){ pts=[]; }                                                      // détection ratée : pas bloquant
-    pts.forEach(q=>{ q.chiffre=true; q.travaux=''; q.h=''; q.vg=null; q._vgSale=true; });
-    RLVOIBT={ file:file.name, pdf:b64FromBuf(buf), pages:vues.length, vues, pts, bandes:{haut:0, bas:1},
-              lignes, base:rlvBaseNum(pts) };
+    let pts=[];
+    try{ pts=(await oibtParse(buf.slice(0))).pts||[]; }catch(e){ pts=[]; }   // détection ratée : pas bloquant
+    // le texte reconnu n'est pas repris : seul l'extrait image du rapport fait foi
+    pts.forEach(q=>{ delete q.texte; q.chiffre=true; q.travaux=''; q.h=''; q.vg=null; q._vgSale=true; });
+    RLVOIBT={ file:file.name, pdf:b64FromBuf(buf), pages:vues.length, vues, pts, bandes:{haut:0, bas:1} };
     await oibtCalcBandes(RLVOIBT);
     rlvDBSauvePdf();                                   // le rapport survit à la fermeture de l'app
     if(msg){ msg.className='msg ok';
@@ -2216,7 +2184,7 @@ async function rlvOibtImport(file){
 }
 function rlvOibtReset(){
   if(RLVOIBT.pts.length && !confirm('Retirer le rapport de contrôle et ses défauts du relevé ?')) return;
-  RLVOIBT={ file:'', pdf:null, pages:0, vues:[], pts:[], bandes:{haut:0, bas:1}, lignes:null, base:1 };
+  RLVOIBT={ file:'', pdf:null, pages:0, vues:[], pts:[], bandes:{haut:0, bas:1} };
   const msg=$('#rlvOibtMsg'); if(msg){ msg.hidden=true; msg.textContent=''; }
   rlvDBSauvePdf(); rlvOibtRender(); scheduleSave();
 }
@@ -2235,9 +2203,6 @@ async function rlvRestorePdf(){
     RLVOIBT.pdf=b64FromBuf(oct.buffer.slice(oct.byteOffset, oct.byteOffset+oct.byteLength));
     RLVOIBT.vues=await oibtRenderPages(bufFromB64(RLVOIBT.pdf).buffer);
     RLVOIBT.pages=RLVOIBT.vues.length;
-    // on relit aussi le texte du rapport : sans lui, déplacer un repère ne pourrait plus
-    // remettre le texte d'accord avec l'extrait
-    try{ RLVOIBT.lignes=(await oibtParse(bufFromB64(RLVOIBT.pdf).buffer)).lignes||null; }catch(e){}
     await oibtCalcBandes(RLVOIBT);
     rlvOibtRender(); rlvMajVignettes();
   }catch(e){}
@@ -2249,16 +2214,16 @@ function collectOibtRlv(){
   const vg=$('#rlvOibtVg');
   return { file:RLVOIBT.file, pages:RLVOIBT.pages||RLVOIBT.vues.length, avecVg:!vg || vg.checked,
            total:rlvTotal(),
-           defauts:D.map(o=>({n:o.n, page:o.page, titre:o.titre, texte:o.texte, travaux:o.travaux, h:o.h, vg:o.vg})) };
+           defauts:D.map(o=>({n:o.n, page:o.page, titre:o.titre, travaux:o.travaux,
+                              h:o.h, pers:rlvPers(o), hh:rlvHeuresPt(o), vg:o.vg})) };
 }
 /* État sérialisable (sans les extraits : ils vont dans leur propre clé) */
 function rlvOibtState(){
-  return { file:RLVOIBT.file, pages:RLVOIBT.pages, base:RLVOIBT.base||1,
+  return { file:RLVOIBT.file, pages:RLVOIBT.pages,
            avecVg: !$('#rlvOibtVg') || $('#rlvOibtVg').checked,
            pts:RLVOIBT.pts.map(o=>({ n:o.n, nMan:!!o.nMan, page:o.page, y:o.y, fin:!!o.fin, manuel:!!o.manuel,
-                                     titreMan:!!o.titreMan, texteMan:!!o.texteMan,
-                                     titre:o.titre||'', texte:o.texte||'',
-                                     chiffre:o.chiffre!==false, travaux:o.travaux||'', h:o.h||'',
+                                     titre:o.titre||'',
+                                     chiffre:o.chiffre!==false, travaux:o.travaux||'', h:o.h||'', pers:rlvPers(o),
                                      mat:(o.mat||[]).map(m=>({t:m.t, s:m.s})) })) };
 }
 function rlvOibtApply(st){
@@ -2266,8 +2231,8 @@ function rlvOibtApply(st){
   const memePdf = st.file && st.file===RLVOIBT.file && RLVOIBT.vues.length;
   RLVOIBT={ file:st.file||'', pdf:memePdf?RLVOIBT.pdf:null, pages:st.pages||0,
             vues:memePdf?RLVOIBT.vues:[], bandes:memePdf?RLVOIBT.bandes:{haut:0, bas:1},
-            lignes:memePdf?RLVOIBT.lignes:null, base:st.base||rlvBaseNum(st.pts),
             pts:(st.pts||[]).map(o=>Object.assign({vg:null, chiffre:true, travaux:'', h:'', y:0, page:1, mat:[]}, o)) };
+  RLVOIBT.pts.forEach(o=>{ delete o.texte; delete o.texteMan; delete o.titreMan; });   // anciens brouillons
   const vg=$('#rlvOibtVg'); if(vg) vg.checked = st.avecVg!==false;
   rlvOibtRender();
 }
@@ -2414,14 +2379,6 @@ function renderProtImages(r){
 }
 
 /* ================= Pièces ================= */
-const ROOM_ADDERS = {chemins:addChemin, cables:addCable, apps:addApp, boites:addBoite, disj:addDisj};
-function subBlock(key,title,btn){
-  return `<div class="sub">
-    <h4>${title}</h4>
-    <div data-sub="${key}"></div>
-    <button class="add" data-addsub="${key}">${btn}</button>
-  </div>`;
-}
 function addRoom(name, colorIdx){
   const room = el('div','room'); room.setAttribute('data-room','');
   const known = name && ROOM_NAMES.includes(name);
@@ -2971,14 +2928,45 @@ function reqOk(kind){
   if(kind==='collab')   return !!currentUser;
   if(kind==='chantier') return $('#chantier').value.trim()!=='';
   if(kind==='temps'){ const d={jours:$('#jours').value, dureeH:$('#dureeH').value, vendredi:$('#vendredi').checked};
-    return parseFloat($('#monteurs').value)>0 && onsiteHours(d)>0; }
+    if(parseFloat($('#monteurs').value)>0 && onsiteHours(d)>0) return true;
+    return autresHeures()>0;   // tout chiffré par point (OIBT / recherches) : la main d'œuvre devient facultative
+  }
   return true;
+}
+/* Heures chiffrées ailleurs que dans la main d'œuvre : remise en conformité OIBT,
+   recherche de défaut, recherche de circuit. */
+function autresHeures(){
+  let t=0;
+  try{ t+=rlvTotal(); }catch(e){}
+  try{ t+=totalDefaut(collectDefauts()); }catch(e){}
+  try{ t+=totalDefaut(collectCircuits()); }catch(e){}
+  return Math.round(t*100)/100;
 }
 /* Met à jour l'affichage du total de main d'œuvre + validation */
 function updateMO(){
   const d={jours:$('#jours').value, dureeH:$('#dureeH').value, monteurs:$('#monteurs').value, vendredi:$('#vendredi').checked};
   const t=totalHeures(d);
   $('#moTotal').textContent = t? t+' h' : '—';
+  // Détail des heures chiffrées ailleurs : elles comptent dans le total et suffisent à
+  // valider cette carte, sinon on croirait la main d'œuvre obligatoire.
+  const a=$('#moAutres');
+  if(a){
+    let oibt=0, def=0, cir=0;
+    try{ oibt=rlvTotal(); }catch(e){}
+    try{ def=totalDefaut(collectDefauts()); }catch(e){}
+    try{ cir=totalDefaut(collectCircuits()); }catch(e){}
+    const bouts=[];
+    if(oibt) bouts.push('remise en conformité OIBT <b>'+oibt+' h</b>');
+    if(def)  bouts.push('recherche de défaut <b>'+def+' h</b>');
+    if(cir)  bouts.push('recherche de circuit <b>'+cir+' h</b>');
+    a.hidden=!bouts.length;
+    if(bouts.length){
+      const tot=Math.round(((parseFloat(t)||0)+oibt+def+cir)*100)/100;
+      a.innerHTML='Chiffré par point : '+bouts.join(' · ')
+        +'<br>→ <b>Total général : '+tot+' h</b>'
+        +(t? '' : ' <span style="color:var(--mut)">(main d\'œuvre sur site facultative ici)</span>');
+    }
+  }
   updateReq();
 }
 function updateReq(){
@@ -3131,8 +3119,6 @@ function collect(){
     oibtRlv:collectOibtRlv(), user:currentUser
   };
 }
-/* AP / ENC sans parenthèses */
-function montageCode(m){ return (m||'').split(' ')[0]; }
 
 /* ================= Génération de la fiche ================= */
 function frDate(iso){
@@ -3270,9 +3256,9 @@ function pushOibtRlv(L,d){
   o.defauts.forEach(x=>{
     const des='<b>N° '+esc(String(x.n))+'</b> <span class="dest">rapport, page '+esc(String(x.page))+'</span>'
       + (x.titre?'<br><b>'+esc(x.titre)+'</b>':'')
-      + (x.texte?'<br><span style="color:#666">'+esc(x.texte)+'</span>':'')
-      + (x.travaux?'<br><b>Travaux :</b> '+esc(x.travaux):'');
-    L.push(itemRowH(des, x.h||'', 'h', false));
+      + (x.travaux?'<br><b>Travaux :</b> '+esc(x.travaux):'')
+      + (x.pers>1?'<br><span style="color:#666">'+esc(x.h)+' h × '+x.pers+' personnes</span>':'');
+    L.push(itemRowH(des, x.hh||'', 'h', false));
   });
   L.push(totRowH('Total remise en conformité', o.total||'', 'h'));
   L.push('</table>');
@@ -3418,24 +3404,6 @@ function allRemarks(d){
     out.push({txt: t.important && !/^⚠/.test(t.txt) ? '⚠ '+t.txt : t.txt, red:!!t.important}); });
   return out;
 }
-function chemLabel(c,full){
-  let s=c.type;
-  if(c.canal && c.dim) s+=` ${c.dim}`;
-  if(c.thfwg) s+= c.uv&&/Oui/.test(c.uv)?' (résistant UV)':' (non UV)';
-  if(full && c.haut) s+= ' — travail en hauteur > 3.50 m (majoration 1.5×)';
-  return s;
-}
-/* Additionne les cheminements identiques (même libellé) */
-function groupChemins(list){
-  const map=new Map();
-  list.forEach(c=>{
-    const key=chemLabel(c,true);
-    const cur=map.get(key)||{label:key, long:0, any:false};
-    const v=parseFloat(c.long); if(!isNaN(v)){ cur.long+=v; cur.any=true; }
-    map.set(key,cur);
-  });
-  return [...map.values()].map(o=>({label:o.label, long:o.any?String(Math.round(o.long*100)/100):''}));
-}
 function heuresParJour(d){return d.vendredi?7.75:8.5;}
 /* Durée passée sur site (heures), par personne */
 function onsiteHours(d){ return (parseFloat(d.jours)||0)*heuresParJour(d) + (parseFloat(d.dureeH)||0); }
@@ -3449,7 +3417,8 @@ function grandTotalHeures(d){
 /* Ligne « Remise en conformité OIBT » du tableau des temps */
 function oibtRlvDesc(o){
   return "Remise en conformité OIBT — "+o.defauts.length+" défaut(s) à corriger"
-       + (o.file? " (rapport "+o.file+")" : "");
+       + (o.file? " (rapport "+o.file+")" : "")
+       + " — main d'œuvre chiffrée point par point";
 }
 /* Ligne « Recherche … » du descriptif */
 function rechercheDesc(titre, o){
@@ -3465,13 +3434,6 @@ function hasJours(d){ return d.jours && parseFloat(d.jours)>0; }
 function dureeSurSite(d){
   const b=[]; if(hasJours(d)) b.push(d.jours+' j'); if(d.dureeH && parseFloat(d.dureeH)>0) b.push(d.dureeH+' h');
   return b.join(' + ');
-}
-function tempsTxt(d){
-  const t=totalHeures(d), parts=[(d.monteurs||'1')+' monteur(s)'];
-  const dur=dureeSurSite(d); if(dur) parts.push(dur+' sur site');
-  if(t) parts.push('total '+t+' h');
-  if(d.apprenti) parts.push('apprenti possible');
-  return parts.join(' · ');
 }
 /* Ligne « Main d'œuvre » du descriptif — personnes + durée sur site explicites */
 function tempsDesc(d){
@@ -3688,9 +3650,9 @@ function buildPDFDoc(d, mode){
     const stO={fontStyle:'bold', fillColor:CLR.sec, textColor:CLR.navy};
     const corps=oiR.defauts.map(x=>['N° '+x.n+'  (rapport, page '+x.page+')'
         + (x.titre?   '\n'+x.titre : '')
-        + (x.texte?   '\n'+x.texte : '')
-        + (x.travaux? '\nTravaux : '+x.travaux : ''),
-      String(x.h||''), 'h']);
+        + (x.travaux? '\nTravaux : '+x.travaux : '')
+        + (x.pers>1?  '\n'+x.h+' h x '+x.pers+' personnes' : ''),
+      String(x.hh||''), 'h']);
     corps.push([{content:'Total remise en conformité', styles:stO},
                 {content:String(oiR.total||''), styles:Object.assign({}, stO, {halign:'center'})},
                 {content:'h', styles:Object.assign({}, stO, {halign:'center'})}]);
@@ -4930,7 +4892,6 @@ const OIBT_STOP=/Les .ventuels d.fauts|Mention de l'installateur|Imprim. avec le
    il n'y a pas de « 1. » « 2. », et le texte vient d'une OCR (corps de police erratique). */
 const OIBT_DEF=/D.?faut\s+M?\s*(\d{6,})/i;
 const OIBT_ES_SKIP=/^(Page\s*\d+\s*\/|Action n|ACCRED|NCCRED|CREDIT|electr|SUISSe|omin\.ch|Photo\s*\d+\s*:|Rez-de-chauss|Sous-sol|\d+(er|ème|e)\s+étage|\d+\.\d+(\.\d+)?$)/i;
-const OIBT_ES_LIEU=/^(Sous-sol|Rez-de-chauss.e|\d+\s*(er|ème|e)\s+étage|Combles?|Grenier|Ext.rieur|Atelier|Cave)\b/i;
 // vues = les pages du rapport rendues en images ; pdf = base64 de l'original (pour l'export)
 let OIBT={ file:'', pdf:null, vues:[], pts:[], modele:'', avis:null };
 
@@ -4962,13 +4923,7 @@ function oibtRichRuns(t){
   }
   return out;
 }
-/* Largeur d'un texte mixte, et tracé du même texte. `f` = Helvetica (ou gras), `fs` = Symbol. */
-function oibtRichW(t, f, fs, size){
-  return oibtRichRuns(t).reduce((a,r)=>{
-    const police=r.sym?fs:f;
-    try{ return a+police.widthOfTextAtSize(r.s, size); }catch(e){ return a+r.s.length*size*0.5; }
-  }, 0);
-}
+/* Tracé d'un texte mixte Helvetica / Symbol. */
 function oibtRichDraw(pg, t, o){
   let x=o.x;
   for(const r of oibtRichRuns(t)){
@@ -5096,7 +5051,7 @@ async function oibtParse(buf){
     p.texte=p.texte.join(' ').replace(/\s+/g,' ').trim();
     p.vals=[];                                   // les mesures s'ajoutent à la main (liste + type)
   });
-  return {pages, pts, modele, lignes};      // lignes : texte du rapport avec ses coordonnées
+  return {pages, pts, modele};
 }
 /* ---- Rendu des pages : le rapport devient une SUITE D'IMAGES ----------------------
    C'est le pivot de l'approche. On n'essaie plus de reconnaître ce qu'il y a dans la
@@ -5343,8 +5298,6 @@ function oibtBoite(cv){
              x1:Math.round(Math.min(AW-1,x1+mx)*kx),       y1:Math.round(Math.min(AH-1,y1+my)*ky) };
   }catch(e){ return null; }
 }
-/* Repère les « ____ » à compléter dans le texte d'un point */
-function oibtBlanks(texte){ return String(texte||'').match(/_{3,}/g) || []; }
 /* ---- Mesures d'un point : type choisi dans une liste + valeur. Remplace les « ____ » du
        texte, illisibles dès que l'OCR en avale un. ---- */
 const OIBT_MESURES=[
@@ -5409,18 +5362,6 @@ function oibtResume(p){
   if(nm) b.push(nm+' mesure'+(nm>1?'s':''));
   if(p.by) b.push('par '+String(p.by).split(' ')[0]);
   return esc(b.join('  ·  '));
-}
-/* Texte du point avec les blancs remplis par les valeurs saisies */
-function oibtFilled(p){
-  let i=0;
-  return String(p.texte||'').replace(/_{3,}/g, ()=>{ const v=(p.vals&&p.vals[i++])||''; return v? ' '+v+' ' : ' ____ '; });
-}
-/* Segments de phrase contenant un blanc (c'est ce qu'on écrit dans l'export) */
-function oibtFilledSegments(p){
-  if(!oibtBlanks(p.texte).length) return [];
-  const rempli=oibtFilled(p);
-  return rempli.split(/(?:\.\s+)/).filter(s=>/\d|____/.test(s) && /(valeur|apr.s|mesur|_)/i.test(s))
-               .map(s=>s.trim()).filter(Boolean);
 }
 /* (Les anciens calculs de placement dans la page — oibtBottom / oibtFreeAt / oibtGutterY /
    oibtPlace — ont été retirés : l'export n'écrit plus rien sur le rapport d'origine, donc
@@ -5614,7 +5555,7 @@ function oibtRender(){
         <span class="oibt-num">${esc(String(p.n))}</span>
         <div class="oibt-hc">
           <div class="oibt-lieu">${esc(p.titre||('Page '+p.page))}</div>
-          <div class="oibt-res">${esc(p.texte.slice(0,70))}${p.texte.length>70?'…':(p.texte?'':'Zone désignée sur le rapport')}</div>
+          <div class="oibt-res">Zone désignée sur le rapport</div>
           <div class="oibt-sum" data-o="sum">${oibtResume(p)}</div>
         </div>
         <span class="oibt-fold">▸</span>
@@ -5627,7 +5568,6 @@ function oibtRender(){
           <input data-o="n" type="text" value="${esc(String(p.n))}" inputmode="text">
           <input data-o="titre" type="text" value="${esc(p.titre||'')}" placeholder="titre (ex : Appartement rez — tableau)" style="flex:1">
         </div>
-        ${p.texte?`<div class="oibt-txt">${esc(p.texte)}</div>`:''}
         <div class="oibt-vals">
           <div class="fld" style="margin-bottom:4px">Circuits / mesures à consigner</div>
           <div data-o="circuits"></div>
@@ -5930,7 +5870,7 @@ function oibtSave(){
     file:OIBT.file, modele:OIBT.modele,
     // l'avis sans sa signature (le trait est lourd → il va dans IndexedDB, hors quota)
     avis:OIBT.avis?{name:OIBT.avis.name, ini:OIBT.avis.ini, date:OIBT.avis.date}:null,
-    pts:OIBT.pts.map(p=>({n:p.n, id:p.id, page:p.page, y:p.y, titre:p.titre, texte:p.texte, manuel:p.manuel, fin:!!p.fin,
+    pts:OIBT.pts.map(p=>({n:p.n, id:p.id, page:p.page, y:p.y, titre:p.titre, manuel:p.manuel, fin:!!p.fin,
                           rem:p.rem, ok:p.ok, cli:!!p.cli, vals:p.vals||[], circuits:p.circuits||null, by:p.by, byIni:p.byIni, byDate:p.byDate}))
   })); }catch(e){ warnQuota(); }
   oibtDBSauveEtat();                                   // + signatures (points ET avis) et PDF, hors quota
@@ -6110,8 +6050,6 @@ async function oibtExportPDF(annexeSeule){
     for(const p of faits){
       const ident = p.id ? ('Défaut M'+p.id) : (String(p.n).replace(/\.?$/,'.'));
       const vg    = vgs.get(p);
-      // le texte n'est repris QUE si la vignette manque : sinon on le lirait deux fois
-      const txtL  = (!vg && p.texte) ? wrapText(winAnsi(p.texte), font, 9, COLI) : [];
       const lieuL = p.titre ? wrapText(winAnsi(p.titre), bold, 9, COLI) : [];
       // Circuits : chaque circuit → sa désignation (si renseignée) puis ses mesures (« Riso : 500 MΩ »).
       const mes=[];
@@ -6134,7 +6072,7 @@ async function oibtExportPDF(annexeSeule){
       // cartouche vert : ligne « OK ! » (la signature s'y loge à droite) + mesures + remarque
       const contenuH = 13 + (p.cli?IL:0) + mesL.length*IL + remL.length*IL;
       const okH = Math.max(contenuH + 11, sigH + 10);     // + marge haute et basse du cartouche
-      const besoin = 14 + lieuL.length*11 + txtL.length*11 + (vg?vg.h+6:0) + 5 + okH + 14;
+      const besoin = 14 + lieuL.length*11 + (vg?vg.h+6:0) + 5 + okH + 14;
       // un bloc plus haut qu'une page entière ne gagne rien à être déplacé
       if(y-besoin < BAS && y < HAUT-2) nouvellePage();
 
@@ -6143,7 +6081,6 @@ async function oibtExportPDF(annexeSeule){
       droite(winAnsi('rapport, page '+p.page+' / '+nOrig), y+1, 8, font, GREY);
       y-=14;
       lieuL.forEach(ln=>{ oibtRichDraw(pg, ln, {x:IND, y, size:9, font:bold, symFont:symb, color:INK}); y-=11; });
-      txtL .forEach(ln=>{ oibtRichDraw(pg, ln, {x:IND, y, size:9, font,      symFont:symb, color:GREY}); y-=11; });
       if(vg){
         pg.drawImage(vg.im, {x:IND, y:y-vg.h+4, width:vg.w, height:vg.h});
         pg.drawRectangle({x:IND, y:y-vg.h+4, width:vg.w, height:vg.h, borderColor:FILET, borderWidth:0.6});
@@ -6270,7 +6207,6 @@ const DRAFT='sevj_draft_arbre_v1', DRAFT_PHOTOS='sevj_draft_photos_arbre_v1', DR
 const DRAFT_OIBTVG='sevj_draft_oibtvg_arbre_v1';
 const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#dureeH'];
 const D_CHECK=['#vendredi','#apprenti','#tabAmiante'];
-const SUBS=['chemins','cables','apps','boites','disj'];
 let _saveT=null;
 function scheduleSave(){ clearTimeout(_saveT); _saveT=setTimeout(saveDraft,500); }
 function rowState(r){ const o={}; r.querySelectorAll('[data-f]').forEach(e=>{ o[e.dataset.f]= e.type==='checkbox'?e.checked:e.value; }); if(r.classList.contains('folded')) o.__folded=1; return o; }
@@ -6511,7 +6447,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v116-arbre — Texte de zone filtré et corrigeable, PDF rechargeable après .SEVJ, lieu auto';
+const APP_VERSION='v119-arbre — OIBT : personnes par défaut, heures-homme dans le temps global, main d\'œuvre facultative';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
