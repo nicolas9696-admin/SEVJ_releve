@@ -319,6 +319,29 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .tile-rm     .ic{background:linear-gradient(135deg,#c2603a,#8f3d1f)}
 .tile-oibt   .ic{background:linear-gradient(135deg,#1c8f7a,#0e5c4e)}
 .tile-listing .ic{background:linear-gradient(135deg,#c79a2e,#8a6410)}
+.tile-ft     .ic{background:linear-gradient(135deg,#3d7ea6,#1d4a66)}
+/* ---------- Fiche de travail : aperçu en direct ---------- */
+#ftApercu{overflow:hidden; border:1px solid var(--line); border-radius:10px; background:#fff}
+.ftdoc{width:1040px; transform-origin:top left; background:#fff; color:#222;
+  font:12px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; padding:14px}
+.ftdoc *{box-sizing:border-box}
+.ftdoc .ft-grid{display:flex; gap:14px; align-items:flex-start}
+.ftdoc .ft-l{width:430px; flex:0 0 430px}
+.ftdoc .ft-r{flex:1; min-width:0}
+.ftdoc h1{font-size:19px; margin:0 0 2px; color:#1F3B5B; letter-spacing:.4px}
+.ftdoc h2{font-size:12.5px; margin:10px 0 3px; color:#fff; background:#1F3B5B; padding:3px 7px; border-radius:3px}
+.ftdoc table{width:100%; border-collapse:collapse; font-size:10.5px}
+.ftdoc th,.ftdoc td{border:1px solid #b9c6d4; padding:2px 4px; vertical-align:top}
+.ftdoc th{background:#eaf0f6; color:#1F3B5B; font-weight:700; text-align:left; font-size:9.5px; line-height:1.15}
+.ftdoc .lbl{background:#f4f7fb; font-weight:700; color:#1F3B5B; width:38%}
+.ftdoc .zone{min-height:52px; white-space:pre-wrap}
+.ftdoc .zone.big{min-height:96px}
+.ftdoc .num{text-align:right}
+.ftdoc .ft-note{font-size:9.5px; color:#666; margin-top:3px}
+.ftdoc .ft-sig{height:52px}
+.ftdoc .ft-sig img{max-height:46px; max-width:100%; display:block}
+.ftdoc .ft-hd{display:flex; align-items:flex-start; gap:12px; border-bottom:2px solid #1F3B5B; padding-bottom:6px}
+.ftdoc .ft-hd img{height:42px; width:auto}
 /* ---------- Rapport OIBT : points importés ---------- */
 .oibt-pt{border:1px solid var(--line); border-left:5px solid var(--navy2); border-radius:12px;
   padding:12px; margin:0 0 14px; background:#fbfdff; box-shadow:0 1px 4px rgba(31,59,91,.06)}
@@ -686,6 +709,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         </svg></span>
         <span class="tx"><span class="t">Rapport OIBT</span><span class="d">Importer un rapport de contrôle et signer les points corrigés</span></span>
         <span class="arrow">→</span>
+      </button>
+      <button type="button" class="tile tile-ft" data-goto="ft">
+        <span class="ic"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 15.5h7M9 19h4"/>
+        </svg></span>
+        <span class="tx"><span class="t">Fiche de travail</span><span class="d">Travaux courants : adresses, heures, matériel, contrôle → PDF</span></span>
       </button>
       <button type="button" class="tile tile-listing" data-goto="listing">
         <span class="ic"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1102,6 +1131,145 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 
   </div><!-- /#tabProto -->
 
+  <!-- ================= ONGLET FICHE DE TRAVAIL ================= -->
+  <div id="tabFt" hidden>
+
+    <section class="card" id="ftApercuCard">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span> Aperçu en direct</h2>
+      <div class="body">
+        <p class="hint">La fiche se redessine à chaque saisie. <b>Générer la fiche</b> l'ouvre en grand et permet de l'exporter en PDF.</p>
+        <div id="ftApercu"></div>
+      </div>
+    </section>
+
+    <section class="card req" data-reqf="tete">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg></span> En-tête</h2>
+      <div class="body">
+        <div class="grid">
+          <div><label class="fld" for="ftDate">Date</label><input id="ftDate" type="date"></div>
+          <div><label class="fld" for="ftAffaire">Numéro d'affaire</label><input id="ftAffaire" type="text" placeholder="ex : 26-0142" autocomplete="off"></div>
+        </div>
+        <div style="height:10px"></div>
+        <label class="fld" for="ftChantier">Chantier</label>
+        <input id="ftChantier" type="text" placeholder="ex : Villa L'Orient" autocomplete="off">
+        <div style="display:flex; gap:8px; margin-top:12px">
+          <button class="add" id="ftBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.SEVJ)</button>
+          <input id="ftBackupImport" type="file" accept=".sevj,application/json,.json" style="display:none">
+          <button class="add" id="ftBackupImportBtn" style="border-style:solid; margin:0; flex:1">📂 Restaurer (.SEVJ)</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span> Adresses</h2>
+      <div class="body">
+        <p class="hint">🔒 Les données client <b>ne sont pas enregistrées</b> dans le brouillon — elles servent à l'export.</p>
+        <div class="liais-lbl" style="margin-top:4px">Adresse du chantier</div>
+        <label class="fld">Client</label><input id="ftChCli" type="text" autocomplete="off">
+        <label class="fld" style="margin-top:8px">Demandeur, tél, …</label><input id="ftChDem" type="text" autocomplete="off">
+        <div class="grid" style="margin-top:8px">
+          <div><label class="fld">Rue N°</label><input id="ftChRue" type="text" autocomplete="off"></div>
+          <div><label class="fld">Code postal, Ville</label><input id="ftChNpa" type="text" autocomplete="off"></div>
+        </div>
+        <div class="liais-lbl" style="margin-top:14px">Adresse de facturation</div>
+        <div class="chk"><input id="ftFacIdem" type="checkbox"><label for="ftFacIdem">Identique à l'adresse du chantier</label></div>
+        <div id="ftFacBloc">
+          <label class="fld">Client</label><input id="ftFacCli" type="text" autocomplete="off">
+          <label class="fld" style="margin-top:8px">Demandeur, tél, …</label><input id="ftFacDem" type="text" autocomplete="off">
+          <div class="grid" style="margin-top:8px">
+            <div><label class="fld">Rue N°</label><input id="ftFacRue" type="text" autocomplete="off"></div>
+            <div><label class="fld">Code postal, Ville</label><input id="ftFacNpa" type="text" autocomplete="off"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6v1H4z"/></svg></span> Informations</h2>
+      <div class="body">
+        <div class="grid">
+          <div><label class="fld">Chef de projet</label><input id="ftChef" type="text" autocomplete="off"></div>
+          <div><label class="fld">Nom du monteur</label><input id="ftMonteur" type="text" autocomplete="off"></div>
+        </div>
+        <div class="grid" style="margin-top:10px">
+          <div><label class="fld">Nom de l'apprenti</label><input id="ftAppr" type="text" autocomplete="off"></div>
+          <div><label class="fld">Déplacement en km</label><input id="ftKm" type="number" min="0" step="1" placeholder="ex : 24"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 16.5h6"/></svg></span> Description &amp; travaux</h2>
+      <div class="body">
+        <label class="fld">Description du travail à effectuer</label>
+        <textarea id="ftDesc" rows="3" placeholder="Ce qui est demandé…"></textarea>
+        <label class="fld" style="margin-top:10px">Travaux effectués</label>
+        <textarea id="ftTrav" rows="6" placeholder="Ce qui a été fait sur place…"></textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span> Dates &amp; heures</h2>
+      <div class="body">
+        <p class="hint">Une ligne par jour d'intervention. <b>La 1ʳᵉ heure d'intervention est forfaitaire.</b></p>
+        <div id="ftJours"></div>
+        <button class="add" id="ftAddJour" style="border-style:solid; margin-top:4px">＋ Ajouter un jour</button>
+        <div class="mo-total" style="margin-top:12px">→ Total heures : <b id="ftTotH">—</b></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/></svg></span> Matériel</h2>
+      <div class="body">
+        <div id="ftMat"></div>
+        <button class="add" id="ftAddMat" style="border-style:solid; margin-top:4px">＋ Ajouter une ligne</button>
+        <div class="mo-total" style="margin-top:12px">→ Total matériel : <b id="ftTotMat">—</b></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16"/></svg></span> Contrôle de l'installation</h2>
+      <div class="body">
+        <div class="grid-3">
+          <div><label class="fld">Tension L-PE / L-N [V]</label><input id="ftTension" type="text" class="num" inputmode="decimal"></div>
+          <div><label class="fld">N° de compteur</label><input id="ftCompteur" type="text" autocomplete="off"></div>
+          <div><label class="fld">CSG existant [A]</label><input id="ftCsg" type="text" class="num" inputmode="decimal"></div>
+        </div>
+        <div id="ftCircs" style="margin-top:10px"></div>
+        <button class="add" id="ftAddCirc" style="border-style:solid; margin-top:4px">＋ Ajouter un circuit</button>
+        <p class="hint" style="margin-top:6px">* facteur de correction × 0.66 appliqué aux mesures d'ICC — coche la case sur la ligne concernée.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z"/></svg></span> Contrôle des appareils</h2>
+      <div class="body">
+        <div id="ftApps"></div>
+        <button class="add" id="ftAddApp" style="border-style:solid; margin-top:4px">＋ Ajouter un appareil</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3 0 3-10 6-10s3 10 6 10 3-4 6-4"/></svg></span> Signatures</h2>
+      <div class="body">
+        <p class="hint">Signatures non enregistrées — à refaire après un rechargement.</p>
+        <div class="sig-wrap">
+          <div class="sig-box">
+            <div class="sig-lbl">Visa monteur <span id="ftMonteurName" class="pill">—</span></div>
+            <canvas class="sigpad" data-sig="ftmonteur" width="600" height="180"></canvas>
+            <button type="button" class="sig-clear" data-clear="ftmonteur">Effacer</button>
+          </div>
+          <div class="sig-box">
+            <div class="sig-lbl">Visa client</div>
+            <canvas class="sigpad" data-sig="ftclient" width="600" height="180"></canvas>
+            <button type="button" class="sig-clear" data-clear="ftclient">Effacer</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /#tabFt -->
+
   <!-- ================= ONGLET RAPPORT DE MESURES (SNR 462638) ================= -->
   <div id="tabRM" hidden>
 
@@ -1306,6 +1474,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 <div class="bar" id="barOIBT" hidden>
   <button class="btn-2" id="oibtResetBtn">Réinitialiser</button>
   <button class="btn-main" id="oibtGenBtn" disabled>Exporter le PDF signé</button>
+</div>
+<div class="bar" id="barFt" hidden>
+  <button class="btn-2" id="ftResetBtn">Réinitialiser</button>
+  <button class="btn-main" id="ftGenBtn" disabled>Générer la fiche</button>
 </div>
 <div class="bar" id="barListing" hidden>
   <button class="btn-2" id="lstResetBtn">Réinitialiser</button>
@@ -3591,6 +3763,7 @@ function downloadPDF(){
   if(window._lastDoc==='regie'){ const d=window._lastData||collectRegie(); downloadBlob(buildRegiePDF(d).output('blob'), regieFileName(d)); return; }
   if(window._lastDoc==='proto'){ const d=window._lastData||collectProto(); downloadBlob(buildProtoPDF(d).output('blob'), protoFileName(d)); return; }
   if(window._lastDoc==='rm'){ const d=window._lastData||collectRM(); downloadBlob(buildRMPDF(d).output('blob'), rmFileName(d)); return; }
+  if(window._lastDoc==='ft'){ const d=window._lastData||collectFt(); downloadBlob(buildFtPDF(d).output('blob'), ftFileName(d)); return; }
   const d = window._lastData || collect();
   const doc = buildPDFDoc(d, EXPORT_MODE);
   const suffix = EXPORT_MODE==='global'?'_global':'_detail';
@@ -3811,6 +3984,10 @@ async function sharePDF(){
     d = window._lastData || collectProto();
     name = protoFileName(d);
     blob = buildProtoPDF(d).output('blob');
+  } else if(window._lastDoc==='ft'){
+    d = window._lastData || collectFt();
+    name = ftFileName(d);
+    blob = buildFtPDF(d).output('blob');
   } else if(window._lastDoc==='rm'){
     d = window._lastData || collectRM();
     name = rmFileName(d);
@@ -4180,12 +4357,12 @@ function resetRegie(){
 
 /* ---- Accueil / Fonctions ---- */
 let ACTIVE_TAB='releve';
-const TABS=['releve','regie','proto','rm','oibt','listing'];
+const TABS=['releve','regie','proto','rm','oibt','listing','ft'];
 const FUNC_TITLES={releve:'📋 Relevé chantier', regie:'🧾 Bon de régie',
                    proto:"📟 Protocole d'essai et de mesure", rm:'📄 Rapport de mesures',
                    oibt:'✅ Rapport OIBT', listing:'🔖 Listing tableau'};
-const TAB_EL={releve:'#tabReleve', regie:'#tabRegie', proto:'#tabProto', rm:'#tabRM', oibt:'#tabOIBT', listing:'#tabListing'};
-const BAR_EL={releve:'#barReleve', regie:'#barRegie', proto:'#barProto', rm:'#barRM', oibt:'#barOIBT', listing:'#barListing'};
+const TAB_EL={releve:'#tabReleve', regie:'#tabRegie', proto:'#tabProto', rm:'#tabRM', oibt:'#tabOIBT', listing:'#tabListing', ft:'#tabFt'};
+const BAR_EL={releve:'#barReleve', regie:'#barRegie', proto:'#barProto', rm:'#barRM', oibt:'#barOIBT', listing:'#barListing', ft:'#barFt'};
 function showHome(){
   $('#homeScreen').hidden = false;
   const fb=$('#foldAllBtn'); if(fb) fb.hidden=true;
@@ -4240,6 +4417,7 @@ function setTab(t){
   if(ACTIVE_TAB==='rm'){ updateRMMonteur(); updateRMReq(); }
   if(ACTIVE_TAB==='oibt'){ updateOibtReq(); oibtInitAvis(); oibtRenderAvis(); }
   if(ACTIVE_TAB==='listing'){ updateListingMonteur(); updateListingReq(); }
+  if(ACTIVE_TAB==='ft'){ updateFtMonteur(); ftMaj(); }
   window.scrollTo(0,0);
 }
 
@@ -4668,6 +4846,427 @@ function buildProtoPDF(d){
   for(let i=1;i<=pc;i++){ doc.setPage(i); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,150,150);
     doc.text(pdfSafe('SEVJ · Protocole OIBT'), M, H-4); doc.text(i+' / '+pc, W-M, H-4, {align:'right'}); }
   return doc;
+}
+
+/* ==================================================================
+   FICHE DE TRAVAIL — reprise du classeur « Fiche de travail.xlsm »
+   Colonne gauche : la fiche (adresses, informations, description, travaux,
+   dates/heures, matériel avec prix, signatures).
+   Colonne droite : contrôle de l'installation (circuits) + contrôle des appareils.
+   L'aperçu se redessine à chaque frappe — c'est le MÊME rendu que l'export.
+   ================================================================== */
+const FT_DRAFT='sevj_ft_v1';
+const FT_G=(r,f)=>{ const e=r.querySelector('[data-f="'+f+'"]'); return e?(e.type==='checkbox'?e.checked:e.value.trim()):''; };
+const nb=v=>{ const n=parseFloat(String(v==null?'':v).replace(',','.')); return isNaN(n)?0:n; };
+const fr2=n=>n.toLocaleString('fr-CH',{minimumFractionDigits:2, maximumFractionDigits:2});
+
+/* --- jour d'intervention : une date + des heures --- */
+function addFtJour(st){
+  const r=el('div','row');
+  r.innerHTML=`<button class="rm" title="Supprimer">×</button>
+    <div class="tag">Jour</div>
+    <div class="grid">
+      <div><label class="fld">Date</label><input data-f="date" type="date"></div>
+      <div><label class="fld">Heures</label><input data-f="h" type="number" min="0" step="0.25" placeholder="ex : 3.5"></div>
+    </div>`;
+  r.querySelector('.rm').onclick=()=>{ r.remove(); ftMaj(); };
+  if(st) Object.entries(st).forEach(([k,v])=>{ const e=r.querySelector('[data-f="'+k+'"]'); if(e) e.value=v; });
+  $('#ftJours').appendChild(r); ftMaj(); return r;
+}
+/* --- ligne de matériel : numéro, désignation, quantité, prix --- */
+function addFtMat(st){
+  const r=el('div','row');
+  r.innerHTML=`<button class="rm" title="Supprimer">×</button>
+    <div class="tag">Matériel</div>
+    <div class="grid">
+      <div><label class="fld">Numéro</label><input data-f="num" type="text" placeholder="ELDAS / réf."></div>
+      <div><label class="fld">Désignation</label><input data-f="desig" type="text"></div>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div><label class="fld">Quantité</label><input data-f="qte" type="number" min="0" step="0.01"></div>
+      <div><label class="fld">Prix unitaire</label><input data-f="prix" type="number" min="0" step="0.05"></div>
+    </div>
+    <div class="mo-total" data-tot style="margin-top:6px">→ Total : <b>—</b></div>`;
+  r.querySelector('.rm').onclick=()=>{ r.remove(); ftMaj(); };
+  if(st) Object.entries(st).forEach(([k,v])=>{ const e=r.querySelector('[data-f="'+k+'"]'); if(e) e.value=v; });
+  $('#ftMat').appendChild(r); ftMaj(); return r;
+}
+/* --- circuit contrôlé --- */
+function addFtCirc(st){
+  const r=el('div','row');
+  r.innerHTML=`<button class="rm" title="Supprimer">×</button>
+    <div class="tag">Circuit</div>
+    <div class="grid-3">
+      <div><label class="fld">N°</label><input data-f="n" type="text"></div>
+      <div><label class="fld">Lieu / partie d'inst.</label><input data-f="lieu" type="text"></div>
+      <div><label class="fld">In [A] protection</label><input data-f="in" type="text" class="num" inputmode="decimal"></div>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div><label class="fld">Canalisation — genre / type</label><input data-f="cangenre" type="text"></div>
+      <div><label class="fld">Nb. cond. et section</label><input data-f="section" type="text" placeholder="ex : 3×1.5"></div>
+    </div>
+    <div style="margin-top:8px"><label class="fld">Coupe-surintensité — genre / type</label><input data-f="protgenre" type="text" placeholder="ex : DII 16A / LS B16"></div>
+    <div class="grid-3" style="margin-top:8px">
+      <div><label class="fld">Icc début [A]</label><input data-f="iccd" type="text" class="num" inputmode="decimal"></div>
+      <div><label class="fld">Icc fin [A]</label><input data-f="iccf" type="text" class="num" inputmode="decimal"></div>
+      <div><label class="fld">Riso [MΩ]</label><input data-f="riso" type="text" class="num" inputmode="decimal"></div>
+    </div>
+    <div class="grid-3" style="margin-top:8px">
+      <div><label class="fld">Continuité PE</label><input data-f="pe" type="text" class="num" inputmode="decimal"></div>
+      <div><label class="fld">DDR In [A]</label><input data-f="ddrin" type="text" class="num" inputmode="decimal"></div>
+      <div><label class="fld">I∆n [mA]</label><input data-f="idn" type="text" class="num" inputmode="decimal"></div>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div><label class="fld">Temps décl. [ms]</label><input data-f="tdecl" type="text" class="num" inputmode="decimal"></div>
+      <div class="chk" style="align-self:end"><input type="checkbox" data-f="c066"><label>Facteur × 0.66 sur les Icc</label></div>
+    </div>`;
+  r.querySelector('.rm').onclick=()=>{ r.remove(); ftMaj(); };
+  if(st) Object.entries(st).forEach(([k,v])=>{ const e=r.querySelector('[data-f="'+k+'"]'); if(e){ if(e.type==='checkbox') e.checked=!!v; else e.value=v; } });
+  $('#ftCircs').appendChild(r); ftMaj(); return r;
+}
+/* --- appareil contrôlé --- */
+function addFtApp(st){
+  const r=el('div','row');
+  r.innerHTML=`<button class="rm" title="Supprimer">×</button>
+    <div class="tag">Appareil</div>
+    <div class="grid-3">
+      <div><label class="fld">Appareil / marque</label><input data-f="marque" type="text"></div>
+      <div><label class="fld">Type</label><input data-f="type" type="text"></div>
+      <div><label class="fld">N° de série</label><input data-f="serie" type="text"></div>
+    </div>
+    <div class="grid-3" style="margin-top:8px">
+      <div><label class="fld">I fuite [mA]</label><input data-f="ifuite" type="text" class="num" inputmode="decimal"></div>
+      <div><label class="fld">Cont. PE [Ω]</label><input data-f="contpe" type="text" class="num" inputmode="decimal"></div>
+      <div><label class="fld">Riso [MΩ]</label><input data-f="riso" type="text" class="num" inputmode="decimal"></div>
+    </div>`;
+  r.querySelector('.rm').onclick=()=>{ r.remove(); ftMaj(); };
+  if(st) Object.entries(st).forEach(([k,v])=>{ const e=r.querySelector('[data-f="'+k+'"]'); if(e) e.value=v; });
+  $('#ftApps').appendChild(r); ftMaj(); return r;
+}
+
+/* --- collecte --- */
+function collectFt(){
+  const idem=$('#ftFacIdem').checked;
+  const ch={cli:$('#ftChCli').value.trim(), dem:$('#ftChDem').value.trim(),
+            rue:$('#ftChRue').value.trim(), npa:$('#ftChNpa').value.trim()};
+  const fac= idem ? Object.assign({}, ch)
+                  : {cli:$('#ftFacCli').value.trim(), dem:$('#ftFacDem').value.trim(),
+                     rue:$('#ftFacRue').value.trim(), npa:$('#ftFacNpa').value.trim()};
+  const jours=[...document.querySelectorAll('#ftJours .row')]
+    .map(r=>({date:FT_G(r,'date'), h:FT_G(r,'h')})).filter(o=>o.date||o.h);
+  const mat=[...document.querySelectorAll('#ftMat .row')]
+    .map(r=>{ const o={num:FT_G(r,'num'), desig:FT_G(r,'desig'), qte:FT_G(r,'qte'), prix:FT_G(r,'prix')};
+              o.total = (o.qte!=='' && o.prix!=='') ? Math.round(nb(o.qte)*nb(o.prix)*100)/100 : '';
+              return o; })
+    .filter(o=>o.num||o.desig||o.qte||o.prix);
+  const circs=[...document.querySelectorAll('#ftCircs .row')].map(r=>({
+    n:FT_G(r,'n'), lieu:FT_G(r,'lieu'), cangenre:FT_G(r,'cangenre'), section:FT_G(r,'section'),
+    protgenre:FT_G(r,'protgenre'), in:FT_G(r,'in'), iccd:FT_G(r,'iccd'), iccf:FT_G(r,'iccf'),
+    riso:FT_G(r,'riso'), pe:FT_G(r,'pe'), ddrin:FT_G(r,'ddrin'), idn:FT_G(r,'idn'),
+    tdecl:FT_G(r,'tdecl'), c066:!!FT_G(r,'c066')
+  })).filter(o=>Object.keys(o).some(k=>k!=='c066'&&o[k]));
+  const apps=[...document.querySelectorAll('#ftApps .row')].map(r=>({
+    marque:FT_G(r,'marque'), type:FT_G(r,'type'), serie:FT_G(r,'serie'),
+    ifuite:FT_G(r,'ifuite'), contpe:FT_G(r,'contpe'), riso:FT_G(r,'riso')
+  })).filter(o=>o.marque||o.type||o.serie||o.ifuite||o.contpe||o.riso);
+  const sig=c=>{ const p=document.querySelector('.sigpad[data-sig="'+c+'"]'); return (p&&p._sig)?p._sig.data():null; };   // data() rend null si vide
+  return {
+    date:$('#ftDate').value, affaire:$('#ftAffaire').value.trim(), chantier:$('#ftChantier').value.trim(),
+    ch, fac, idem,
+    chef:$('#ftChef').value.trim(), monteur:$('#ftMonteur').value.trim(),
+    appr:$('#ftAppr').value.trim(), km:$('#ftKm').value.trim(),
+    desc:$('#ftDesc').value, trav:$('#ftTrav').value,
+    jours, mat, circs, apps,
+    tension:$('#ftTension').value.trim(), compteur:$('#ftCompteur').value.trim(), csg:$('#ftCsg').value.trim(),
+    totH:jours.reduce((a,o)=>a+nb(o.h),0),
+    totMat:mat.reduce((a,o)=>a+(o.total===''?0:o.total),0),
+    sigMonteur:sig('ftmonteur'), sigClient:sig('ftclient'), user:currentUser
+  };
+}
+/* Icc avec le facteur 0,66 quand la ligne le demande */
+function ftIcc(v, on){ const s=String(v||'').trim(); if(!s) return '';
+  if(!on) return s; const n=nb(s); return n? s+' ('+Math.round(n*0.66*100)/100+')' : s; }
+
+/* --- rendu HTML : sert À LA FOIS l'aperçu en direct et l'export --- */
+function buildFtHTML(d){
+  const e=esc, L=[];
+  const adr=a=>[a.cli,a.dem,a.rue,a.npa].filter(Boolean).map(e).join('<br>')||'&nbsp;';
+  L.push('<div class="ftdoc">');
+  L.push('<div class="ft-hd"><img src="'+LOGO+'" alt="SEVJ">'
+    +'<div style="flex:1"><h1>Fiche de travail</h1>'
+    +'<div style="font-size:11px;color:#555">'+e(d.chantier||'')+'</div></div>'
+    +'<table style="width:250px"><tr><td class="lbl">Date</td><td>'+e(frDate(d.date))+'</td></tr>'
+    +'<tr><td class="lbl">N° d\'affaire</td><td>'+e(d.affaire)+'</td></tr></table></div>');
+  L.push('<div class="ft-grid">');
+
+  /* ----- colonne gauche : la fiche ----- */
+  L.push('<div class="ft-l">');
+  L.push('<table style="margin-top:8px"><tr><th style="width:50%">Adresse du chantier</th><th>Adresse de facturation</th></tr>'
+    +'<tr><td>'+adr(d.ch)+'</td><td>'+adr(d.fac)+'</td></tr></table>');
+  L.push('<h2>Informations</h2>');
+  L.push('<table><tr><td class="lbl">Chef de projet</td><td>'+e(d.chef)+'</td>'
+    +'<td class="lbl">Nom du monteur</td><td>'+e(d.monteur)+'</td></tr>'
+    +'<tr><td class="lbl">Déplacement en km</td><td>'+e(d.km)+'</td>'
+    +'<td class="lbl">Nom de l\'apprenti</td><td>'+e(d.appr)+'</td></tr></table>');
+  L.push('<h2>Description du travail à effectuer</h2><div class="zone" style="border:1px solid #b9c6d4;padding:4px">'+e(d.desc)+'</div>');
+  L.push('<h2>Travaux effectués</h2><div class="zone big" style="border:1px solid #b9c6d4;padding:4px">'+e(d.trav)+'</div>');
+  L.push('<h2>Dates &amp; heures</h2><table><tr><th>Date</th>'
+    +(d.jours.length?d.jours.map(j=>'<th>'+e(frDate(j.date)||'—')+'</th>').join(''):'<th>&nbsp;</th>')
+    +'<th>Total</th></tr><tr><td class="lbl">Heures</td>'
+    +(d.jours.length?d.jours.map(j=>'<td class="num">'+e(j.h)+'</td>').join(''):'<td>&nbsp;</td>')
+    +'<td class="num"><b>'+(d.totH?fr2(d.totH):'')+'</b></td></tr></table>');
+  L.push('<h2>Matériel</h2><table><tr><th style="width:18%">Numéro</th><th>Désignation</th>'
+    +'<th style="width:12%">Qté</th><th style="width:16%">Prix unit.</th><th style="width:16%">Total</th></tr>');
+  const nlig=Math.max(d.mat.length,3);
+  for(let i=0;i<nlig;i++){ const m=d.mat[i]||{};
+    L.push('<tr><td>'+e(m.num||'')+'</td><td>'+e(m.desig||'')+'</td><td class="num">'+e(m.qte||'')
+      +'</td><td class="num">'+(m.prix?fr2(nb(m.prix)):'')+'</td><td class="num">'+(m.total!==''&&m.total!=null?fr2(m.total):'')+'</td></tr>'); }
+  L.push('<tr><td colspan="4" class="lbl" style="text-align:right">Total matériel</td><td class="num"><b>'
+    +(d.totMat?fr2(d.totMat):'')+'</b></td></tr></table>');
+  L.push('<div class="ft-note">La 1ʳᵉ heure d\'intervention est forfaitaire.</div>');
+  L.push('<h2>Signatures</h2><table><tr><th style="width:34%">Date</th><th>Visa monteur</th><th>Visa client</th></tr>'
+    +'<tr><td>'+e(frDate(d.date))+'</td>'
+    +'<td class="ft-sig">'+(d.sigMonteur?'<img src="'+d.sigMonteur+'">':'&nbsp;')+'</td>'
+    +'<td class="ft-sig">'+(d.sigClient?'<img src="'+d.sigClient+'">':'&nbsp;')+'</td></tr></table>');
+  L.push('</div>');
+
+  /* ----- colonne droite : les contrôles ----- */
+  L.push('<div class="ft-r">');
+  L.push('<h2>Contrôle de l\'installation</h2>');
+  L.push('<table><tr>'
+    +'<th rowspan="2">N°</th><th rowspan="2">Lieu / partie d\'inst.</th>'
+    +'<th colspan="2">Canalisation / câble</th><th colspan="2">Coupe-surintensité</th>'
+    +'<th colspan="4">Mesures</th><th colspan="3">DDR</th></tr>'
+    +'<tr><th>Genre / type</th><th>Nb. cond. et section</th><th>Genre / type</th><th>In [A]</th>'
+    +'<th>Icc déb. [A]*</th><th>Icc fin [A]*</th><th>Riso [MΩ]</th><th>Continu. PE</th>'
+    +'<th>In [A]</th><th>I∆n [mA]</th><th>Temps décl. [ms]</th></tr>');
+  const nc=Math.max(d.circs.length,4);
+  for(let i=0;i<nc;i++){ const c=d.circs[i]||{};
+    L.push('<tr><td>'+e(c.n||'')+'</td><td>'+e(c.lieu||'')+'</td><td>'+e(c.cangenre||'')+'</td><td>'+e(c.section||'')
+      +'</td><td>'+e(c.protgenre||'')+'</td><td class="num">'+e(c.in||'')+'</td>'
+      +'<td class="num">'+e(ftIcc(c.iccd,c.c066))+'</td><td class="num">'+e(ftIcc(c.iccf,c.c066))+'</td>'
+      +'<td class="num">'+e(c.riso||'')+'</td><td class="num">'+e(c.pe||'')+'</td>'
+      +'<td class="num">'+e(c.ddrin||'')+'</td><td class="num">'+e(c.idn||'')+'</td><td class="num">'+e(c.tdecl||'')+'</td></tr>'); }
+  L.push('</table>');
+  L.push('<div class="ft-note">* facteur de correction × 0.66 appliqué aux mesures d\'ICC (valeur corrigée entre parenthèses)</div>');
+  L.push('<table style="margin-top:6px; width:60%"><tr><td class="lbl">Tension L-PE / L-N [V]</td><td>'+e(d.tension)+'</td></tr>'
+    +'<tr><td class="lbl">N° de compteur</td><td>'+e(d.compteur)+'</td></tr>'
+    +'<tr><td class="lbl">CSG existant [A]</td><td>'+e(d.csg)+'</td></tr></table>');
+  L.push('<h2>Contrôle des appareils</h2>');
+  L.push('<table><tr><th>Appareil / marque</th><th>Type</th><th>N° de série</th>'
+    +'<th>I fuite [mA]</th><th>Cont. PE [Ω]</th><th>Riso [MΩ]</th></tr>');
+  const na=Math.max(d.apps.length,3);
+  for(let i=0;i<na;i++){ const a=d.apps[i]||{};
+    L.push('<tr><td>'+e(a.marque||'')+'</td><td>'+e(a.type||'')+'</td><td>'+e(a.serie||'')
+      +'</td><td class="num">'+e(a.ifuite||'')+'</td><td class="num">'+e(a.contpe||'')+'</td><td class="num">'+e(a.riso||'')+'</td></tr>'); }
+  L.push('</table>');
+  L.push('</div></div>');
+  L.push('<div class="ft-note" style="margin-top:6px">Fiche établie par : <b>'+e(d.user?d.user.name:'—')+'</b></div>');
+  L.push('</div>');
+  return L.join('');
+}
+
+/* --- aperçu en direct : même rendu, mis à l'échelle de la carte --- */
+let _ftT=null;
+function ftMaj(){ clearTimeout(_ftT); _ftT=setTimeout(ftMajNow, 120); }
+function ftMajNow(){
+  const box=$('#ftApercu'); if(!box) return;
+  const d=collectFt();
+  // totaux à l'écran
+  const th=$('#ftTotH'); if(th) th.textContent = d.totH? fr2(d.totH)+' h' : '—';
+  const tm=$('#ftTotMat'); if(tm) tm.textContent = d.totMat? fr2(d.totMat)+' CHF' : '—';
+  document.querySelectorAll('#ftMat .row').forEach(r=>{
+    const t=r.querySelector('[data-tot] b'); if(!t) return;
+    const q=FT_G(r,'qte'), pr=FT_G(r,'prix');
+    t.textContent = (q!=='' && pr!=='') ? fr2(nb(q)*nb(pr))+' CHF' : '—';
+  });
+  box.innerHTML=buildFtHTML(d);
+  ftEchelle();
+  updateFtReq();
+  ftSave();
+}
+function ftEchelle(){
+  const box=$('#ftApercu'), doc=box&&box.firstElementChild;
+  if(!box||!doc) return;
+  const k=Math.min(1, (box.clientWidth||1040)/1040);
+  doc.style.transform='scale('+k+')';
+  box.style.height=Math.ceil(doc.offsetHeight*k)+'px';
+}
+function updateFtMonteur(){
+  const p=$('#ftMonteurName'); if(p) p.textContent=currentUser?currentUser.name:'—';
+  const m=$('#ftMonteur'); if(m && !m.value && currentUser) m.value=currentUser.name;
+}
+function updateFtReq(){
+  const c=document.querySelector('.card.req[data-reqf="tete"]');
+  const ok=!!currentUser && $('#ftChantier').value.trim()!=='';
+  if(c) c.classList.toggle('ok', ok);
+  const b=$('#ftGenBtn'); if(b) b.disabled=!ok;
+}
+function ftFileName(d){
+  const base=[(d.affaire||'').replace(/\s+/g,''), 'fiche_travail', (d.chantier||'').replace(/\s+/g,'')]
+    .filter(Boolean).join('_') || 'fiche_travail';
+  return base.replace(/[^\wÀ-ſ.-]/g,'_')+'.pdf';
+}
+function generateFt(){
+  const d=collectFt();
+  window._lastData=d; window._lastDoc='ft';
+  $('#modeSwitch').hidden=true;
+  $('#fiche').innerHTML=buildFtHTML(d);
+  $('#outputOverlay').classList.add('on');
+}
+
+/* --- PDF : A4 paysage, deux colonnes comme le classeur --- */
+function buildFtPDF(d){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm', format:'a4', orientation:'landscape'});
+  const W=297, H=210, M=8, GAP=4;
+  const sanitize = data => { if(data.cell) data.cell.text = data.cell.text.map(pdfSafe); };
+  const LW=118, RX=M+LW+GAP, RW=W-RX-M;
+  let yL=M, yR=M;
+  const st={fontSize:6.6, cellPadding:0.9, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top', overflow:'linebreak'};
+  const hs={fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', fontSize:6, lineColor:CLR.line, lineWidth:0.1};
+  const titre=(x,w,t,y)=>{ doc.setFillColor(...CLR.navy); doc.rect(x,y,w,4.6,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
+    doc.text(pdfSafe(t), x+1.6, y+3.2); doc.setTextColor(...CLR.ink); return y+5.4; };
+  const tbl=(x,w,head,body,cols,y)=>{ doc.autoTable({startY:y, margin:{left:x, right:W-x-w}, tableWidth:w,
+      theme:'grid', styles:st, headStyles:hs, columnStyles:cols||{}, head, body, didParseCell:sanitize});
+    return doc.lastAutoTable.finalY+1.5; };
+
+  /* en-tête */
+  try{ doc.addImage(LOGO,'PNG',M,yL,30,13); }catch(e){}
+  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...CLR.navy);
+  doc.text('FICHE DE TRAVAIL', M+34, yL+7);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...CLR.mut);
+  doc.text(pdfSafe(d.chantier||''), M+34, yL+12);
+  doc.setFontSize(9); doc.setTextColor(...CLR.ink);
+  doc.text(pdfSafe('Date : '+(frDate(d.date)||'—')), W-M-70, yL+6);
+  doc.text(pdfSafe("N° d'affaire : "+(d.affaire||'—')), W-M-70, yL+11);
+  doc.setDrawColor(...CLR.navy); doc.setLineWidth(0.5); doc.line(M, yL+15, W-M, yL+15);
+  yL=yR=yL+18;
+
+  /* ---- colonne gauche ---- */
+  const adr=a=>[a.cli,a.dem,a.rue,a.npa].filter(Boolean).join('\n');
+  yL=tbl(M,LW,[['Adresse du chantier','Adresse de facturation']],[[adr(d.ch),adr(d.fac)]],
+    {0:{cellWidth:LW/2},1:{cellWidth:LW/2}},yL);
+  yL=titre(M,LW,'Informations',yL);
+  yL=tbl(M,LW,[],[['Chef de projet',d.chef,'Monteur',d.monteur],['Déplacement (km)',d.km,'Apprenti',d.appr]],
+    {0:{cellWidth:26,fontStyle:'bold'},1:{cellWidth:33},2:{cellWidth:22,fontStyle:'bold'},3:{cellWidth:LW-81}},yL);
+  yL=titre(M,LW,'Description du travail à effectuer',yL);
+  yL=tbl(M,LW,[],[[{content:d.desc||' ', styles:{minCellHeight:11}}]],{0:{cellWidth:LW}},yL);
+  yL=titre(M,LW,'Travaux effectués',yL);
+  yL=tbl(M,LW,[],[[{content:d.trav||' ', styles:{minCellHeight:22}}]],{0:{cellWidth:LW}},yL);
+  yL=titre(M,LW,'Dates & heures',yL);
+  const jh=['Date'].concat(d.jours.length?d.jours.map(j=>frDate(j.date)||'—'):['—']).concat(['Total']);
+  const jb=['Heures'].concat(d.jours.length?d.jours.map(j=>String(j.h||'')):['']).concat([d.totH?fr2(d.totH):'']);
+  yL=tbl(M,LW,[jh],[jb],null,yL);
+  yL=titre(M,LW,'Matériel',yL);
+  const mb=[]; for(let i=0;i<Math.max(d.mat.length,3);i++){ const m=d.mat[i]||{};
+    mb.push([m.num||'', m.desig||'', m.qte||'', m.prix?fr2(nb(m.prix)):'', (m.total!==''&&m.total!=null)?fr2(m.total):'']); }
+  mb.push([{content:'Total matériel', colSpan:4, styles:{fontStyle:'bold', halign:'right'}},
+           {content:d.totMat?fr2(d.totMat):'', styles:{fontStyle:'bold', halign:'right'}}]);
+  yL=tbl(M,LW,[['Numéro','Désignation','Qté','Prix unit.','Total']],mb,
+    {0:{cellWidth:20},1:{cellWidth:LW-74},2:{cellWidth:14,halign:'right'},3:{cellWidth:20,halign:'right'},4:{cellWidth:20,halign:'right'}},yL);
+  doc.setFont('helvetica','italic'); doc.setFontSize(6.5); doc.setTextColor(...CLR.mut);
+  doc.text(pdfSafe("La 1re heure d'intervention est forfaitaire."), M, yL+2.5); yL+=5;
+  yL=titre(M,LW,'Signatures',yL);
+  const ys=yL, hSig=17;
+  doc.setDrawColor(...CLR.line); doc.setLineWidth(0.1);
+  [0,1,2].forEach(i=>{ const w=LW/3; doc.rect(M+i*w, ys, w, hSig); });
+  doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(...CLR.navy);
+  ['Date','Visa monteur','Visa client'].forEach((t,i)=> doc.text(pdfSafe(t), M+i*(LW/3)+1.5, ys+3));
+  doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink); doc.setFontSize(7.5);
+  doc.text(pdfSafe(frDate(d.date)||''), M+2, ys+9);
+  const pose=(img,i)=>{ if(!img) return; try{ const pr=doc.getImageProperties(img);
+      const mw=LW/3-4, mh=hSig-6, k=Math.min(mw/pr.width, mh/pr.height);
+      doc.addImage(img,'PNG', M+i*(LW/3)+2, ys+4, pr.width*k, pr.height*k); }catch(e){} };
+  pose(d.sigMonteur,1); pose(d.sigClient,2);
+  yL=ys+hSig+2;
+
+  /* ---- colonne droite ---- */
+  yR=titre(RX,RW,"Contrôle de l'installation",yR);
+  const cb=[]; for(let i=0;i<Math.max(d.circs.length,4);i++){ const c=d.circs[i]||{};
+    cb.push([c.n||'', c.lieu||'', c.cangenre||'', c.section||'', c.protgenre||'', c.in||'',
+             ftIcc(c.iccd,c.c066), ftIcc(c.iccf,c.c066), c.riso||'', c.pe||'', c.ddrin||'', c.idn||'', c.tdecl||'']); }
+  yR=tbl(RX,RW,[
+      [{content:'N°',rowSpan:2},{content:"Lieu / partie d'inst.",rowSpan:2},
+       {content:'Canalisation / câble',colSpan:2},{content:'Coupe-surintensité',colSpan:2},
+       {content:'Mesures',colSpan:4},{content:'DDR',colSpan:3}],
+      ['Genre / type','Nb. cond. et section','Genre / type','In [A]',
+       'Icc deb. [A] *','Icc fin [A] *','Riso [MOhm]','Continu. PE','In [A]','IdN [mA]','Temps decl. [ms]']
+    ], cb, {0:{cellWidth:8},1:{cellWidth:24},2:{cellWidth:16},3:{cellWidth:15},4:{cellWidth:18},5:{cellWidth:9}}, yR);
+  doc.setFont('helvetica','italic'); doc.setFontSize(6.3); doc.setTextColor(...CLR.mut);
+  doc.text(pdfSafe("* facteur de correction x 0.66 applique aux mesures d'ICC (valeur corrigee entre parentheses)"), RX, yR+2.4); yR+=5;
+  yR=tbl(RX,60,[],[['Tension L-PE / L-N [V]',d.tension],["N° de compteur",d.compteur],['CSG existant [A]',d.csg]],
+    {0:{cellWidth:34,fontStyle:'bold'},1:{cellWidth:26}},yR);
+  yR=titre(RX,RW,'Contrôle des appareils',yR);
+  const ab=[]; for(let i=0;i<Math.max(d.apps.length,3);i++){ const a=d.apps[i]||{};
+    ab.push([a.marque||'', a.type||'', a.serie||'', a.ifuite||'', a.contpe||'', a.riso||'']); }
+  yR=tbl(RX,RW,[['Appareil / marque','Type','N° de série','I fuite [mA]','Cont. PE [Ohm]','Riso [MOhm]']],ab,
+    {3:{halign:'right'},4:{halign:'right'},5:{halign:'right'}},yR);
+
+  /* pied */
+  const pc=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pc;i++){ doc.setPage(i);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...CLR.mut);
+    doc.text(pdfSafe('SEVJ · Fiche de travail — établie par '+(d.user?d.user.name:'—')), M, H-4);
+    doc.text(i+' / '+pc, W-M, H-4, {align:'right'}); }
+  return doc;
+}
+
+/* --- persistance (sans les données client ni les signatures) --- */
+const FT_SIMPLE=['#ftDate','#ftAffaire','#ftChantier','#ftChef','#ftMonteur','#ftAppr','#ftKm',
+                 '#ftDesc','#ftTrav','#ftTension','#ftCompteur','#ftCsg'];
+function ftState(){
+  const o={simple:{}, jours:[], mat:[], circs:[], apps:[]};
+  FT_SIMPLE.forEach(k=>{ const e=$(k); if(e) o.simple[k]=e.value; });
+  const grab=(sel,keys)=>[...document.querySelectorAll(sel+' .row')].map(r=>{
+    const x={}; keys.forEach(k=>{ const e=r.querySelector('[data-f="'+k+'"]');
+      if(e) x[k]= e.type==='checkbox'? e.checked : e.value; }); return x; });
+  o.jours=grab('#ftJours',['date','h']);
+  o.mat  =grab('#ftMat',['num','desig','qte','prix']);
+  o.circs=grab('#ftCircs',['n','lieu','cangenre','section','protgenre','in','iccd','iccf','riso','pe','ddrin','idn','tdecl','c066']);
+  o.apps =grab('#ftApps',['marque','type','serie','ifuite','contpe','riso']);
+  return o;
+}
+let _ftSaveT=null;
+function ftSave(){ clearTimeout(_ftSaveT); _ftSaveT=setTimeout(()=>{
+  try{ localStorage.setItem(FT_DRAFT, JSON.stringify(ftState())); }catch(e){} }, 400); }
+function ftApply(o){
+  if(!o) return;
+  FT_SIMPLE.forEach(k=>{ const e=$(k); if(e && o.simple && o.simple[k]!=null) e.value=o.simple[k]; });
+  $('#ftJours').innerHTML=''; (o.jours||[]).forEach(addFtJour);
+  $('#ftMat').innerHTML='';   (o.mat||[]).forEach(addFtMat);
+  $('#ftCircs').innerHTML=''; (o.circs||[]).forEach(addFtCirc);
+  $('#ftApps').innerHTML='';  (o.apps||[]).forEach(addFtApp);
+  ftMajNow();
+}
+function ftRestore(){ let o; try{ o=JSON.parse(localStorage.getItem(FT_DRAFT)); }catch(e){} ftApply(o); return !!o; }
+function resetFt(){
+  if(!confirm('Vider la fiche de travail ?')) return;
+  try{ localStorage.removeItem(FT_DRAFT); }catch(e){}
+  FT_SIMPLE.forEach(k=>{ const e=$(k); if(e) e.value=''; });
+  ['#ftChCli','#ftChDem','#ftChRue','#ftChNpa','#ftFacCli','#ftFacDem','#ftFacRue','#ftFacNpa']
+    .forEach(k=>{ const e=$(k); if(e) e.value=''; });
+  $('#ftFacIdem').checked=false; $('#ftFacBloc').style.display='';
+  ['#ftJours','#ftMat','#ftCircs','#ftApps'].forEach(k=>{ $(k).innerHTML=''; });
+  document.querySelectorAll('.sigpad[data-sig^="ft"]').forEach(c=>{ if(c._sig) c._sig.clear(); });
+  $('#ftDate').value=todayISO();
+  addFtJour(); addFtMat(); addFtCirc(); addFtApp();
+  updateFtMonteur(); ftMajNow();
+}
+function exportFtBackup(){
+  const data={app:'sevj-ft', v:1, ft:ftState()};
+  downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}),
+    (($('#ftAffaire').value||'fiche_travail').replace(/[^\wÀ-ſ.-]/g,'_'))+'.sevj');
+  markBackup();
+}
+function importFtBackup(file){
+  const rd=new FileReader();
+  rd.onload=()=>{ let data; try{ data=JSON.parse(rd.result); }catch(e){ alert('Fichier illisible.'); return; }
+    if(!data || data.app!=='sevj-ft' || !data.ft){ alert("Ce fichier n'est pas une fiche de travail SEVJ."); return; }
+    if(!confirm('Remplacer la fiche en cours ?')) return;
+    ftApply(data.ft); alert('Fiche restaurée ✓'); };
+  rd.readAsText(file);
 }
 
 /* ==================================================================
@@ -6511,7 +7110,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v123-arbre — Luminaires Ledvance CIRCULAR / DAMP PROOF + ELDAS des luminaires respecté';
+const APP_VERSION='v124-arbre — Nouvelle fonction « Fiche de travail » avec aperçu en direct';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -6706,6 +7305,24 @@ function init(){
   $('#lstRows').addEventListener('input',()=>{ updateListingReq(); saveListingDraft(); });
   loadListingDraft();
   updateListingMonteur(); updateListingReq();
+
+  /* ===== Fiche de travail ===== */
+  $('#ftAddJour').onclick=()=>addFtJour();
+  $('#ftAddMat').onclick=()=>addFtMat();
+  $('#ftAddCirc').onclick=()=>addFtCirc();
+  $('#ftAddApp').onclick=()=>addFtApp();
+  $('#ftGenBtn').onclick=generateFt;
+  $('#ftResetBtn').onclick=resetFt;
+  $('#ftFacIdem').addEventListener('change',e=>{ $('#ftFacBloc').style.display=e.target.checked?'none':''; ftMaj(); });
+  $('#ftBackupExport').onclick=exportFtBackup;
+  $('#ftBackupImportBtn').onclick=()=>$('#ftBackupImport').click();
+  $('#ftBackupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importFtBackup(f); e.target.value=''; });
+  // l'aperçu suit la frappe
+  ['input','change'].forEach(ev=> $('#tabFt').addEventListener(ev, ftMaj));
+  window.addEventListener('resize', ftEchelle);
+  if(!$('#ftDate').value) $('#ftDate').value=todayISO();
+  if(!ftRestore()){ addFtJour(); addFtMat(); addFtCirc(); addFtApp(); }
+  updateFtMonteur(); ftMajNow();
 
   /* ===== Bon de régie ===== */
   $('#addRegItem').onclick=()=>{ addRegItem(); };
