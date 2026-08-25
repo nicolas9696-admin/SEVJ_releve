@@ -2232,7 +2232,12 @@ function rlvOibtApply(st){
   RLVOIBT={ file:st.file||'', pdf:memePdf?RLVOIBT.pdf:null, pages:st.pages||0,
             vues:memePdf?RLVOIBT.vues:[], bandes:memePdf?RLVOIBT.bandes:{haut:0, bas:1},
             pts:(st.pts||[]).map(o=>Object.assign({vg:null, chiffre:true, travaux:'', h:'', y:0, page:1, mat:[]}, o)) };
-  RLVOIBT.pts.forEach(o=>{ delete o.texte; delete o.texteMan; delete o.titreMan; });   // anciens brouillons
+  // Anciens brouillons : le titre était rempli automatiquement depuis la reconnaissance
+  // de texte, aujourd'hui supprimée. On ne garde que ceux tapés à la main (titreMan).
+  RLVOIBT.pts.forEach(o=>{
+    if(o.texte && !o.titreMan) o.titre='';
+    delete o.texte; delete o.texteMan; delete o.titreMan;
+  });
   const vg=$('#rlvOibtVg'); if(vg) vg.checked = st.avecVg!==false;
   rlvOibtRender();
 }
@@ -5208,7 +5213,10 @@ function oibtZone(p, doc){
   doc=doc||OIBT;
   const t=oibtOrdre(doc), i=t.findIndex(q=>q===p);
   if(i<0 || !doc.vues.length) return [];
-  const suiv=t[i+1], MARGE=8;
+  /* MARGE_HAUT : petit dépassement au-dessus du repère pour ne pas raboter la première
+     ligne. En bas, AUCUNE marge : le repère suivant EST la fin du point, on coupe pile
+     dessus — sinon la dernière ligne du défaut sort tranchée dans l'extrait. */
+  const suiv=t[i+1], MARGE_HAUT=2;
   const B=doc.bandes||{haut:0, bas:1};
   const hautDe=pg=>(doc.vues[pg-1]||{h:842}).h;
   // sans point suivant, on s'arrête à la fin de la page suivante : de quoi attraper une
@@ -5218,8 +5226,8 @@ function oibtZone(p, doc){
   for(let pg=p.page; pg<=finPage && pg<=doc.vues.length; pg++){
     const H=hautDe(pg), basCorps=H*B.bas, hautCorps=H*B.haut;
     // Sur la page du point on part TOUJOURS du point lui-même : jamais rogné par l'en-tête.
-    const y0 = pg===p.page ? Math.max(0, p.y-MARGE) : hautCorps;
-    let  y1 = (suiv && suiv.page===pg) ? Math.max(y0+12, suiv.y-MARGE) : H;
+    const y0 = pg===p.page ? Math.max(0, p.y-MARGE_HAUT) : hautCorps;
+    let  y1 = (suiv && suiv.page===pg) ? Math.max(y0+12, suiv.y) : H;
     /* On évite le pied de page — mais JAMAIS au prix du contenu du point : si couper
        laissait moins de 40 pt, c'est que le « pied » détecté tombe dans la zone utile,
        donc on ne coupe pas. Un pied de page en trop vaut mieux qu'une photo perdue. */
@@ -6447,7 +6455,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v119-arbre — OIBT : personnes par défaut, heures-homme dans le temps global, main d\'œuvre facultative';
+const APP_VERSION='v120-arbre — Extrait coupé pile au repère suivant, titres hérités de l\'OCR effacés';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
