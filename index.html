@@ -196,6 +196,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .qunit.collapsed .qunit-body{display:none}
 .qunit-body{padding:10px}
 .qunit-est{margin-bottom:10px}
+.qunit-calc{display:flex; align-items:center; gap:8px; margin-top:5px}
+.qunit-calc .qunit-calc-txt{font-size:11.5px; font-weight:600; color:var(--mut)}
+.qunit-calc .qunit-calc-use{border:1px solid var(--line); background:#fff; color:var(--navy);
+  border-radius:7px; padding:4px 9px; font-size:11.5px; font-weight:700; cursor:pointer}
+.qest{margin-top:8px; font-size:11.5px; font-weight:600; color:var(--navy2)}
+.qest:empty{display:none}
 .qunit-est .qunit-h{width:100%}
 .qlocal{border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:10px; background:var(--bg)}
 .qlocal-hd{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap}
@@ -1680,11 +1686,70 @@ const QPASSAGE = ["Retirable dans le tube existant",
                   "\u00c0 faire \u00e0 neuf"];
 /* Modifications possibles sur un tableau. Un chantier peut en compter plusieurs :
    TAB des communs, TAB d'appartement, coffret de cuisine… chacun avec les siennes. */
-const QTAB = ["Disjoncteur 1P","Disjoncteur 3P","Disjoncteur diff\u00e9rentiel (FI)",
+const QTAB = ["Disjoncteur","Disjoncteur diff\u00e9rentiel (FI)",
               "Interrupteur diff\u00e9rentiel","Parafoudre","Coupe-surintensit\u00e9",
               "Borne / r\u00e9partiteur","Peigne d'alimentation","Contacteur","T\u00e9l\u00e9rupteur",
               "Minuterie","Horloge","Rep\u00e9rage / \u00e9tiquetage","Mise \u00e0 la terre",
               "Remplacement du tableau","D\u00e9pose d'appareil","Autre\u2026"];
+/* Temps par article, en heures, sous forme de fourchette [bas, haut].
+   Ce sont les taux qui se reportent d'un chantier a l'autre ; les totaux, eux,
+   se recalculent \u00e0 partir des quantit\u00e9s relev\u00e9es. Un poste absent de ce bar\u00e8me
+   n'est simplement pas estim\u00e9 (il apparait avec un tiret). */
+const QHPCE = {
+  "D\u00e9rivation":[0.4,0.6], "Prise":[0.8,1.2], "Interrupteur":[0.7,1.0],
+  "Inter / prise":[1.0,1.4], "Point lumineux":[0.6,0.9], "Armoire \u00e0 pharmacie":[0.8,1.2],
+  "Poussoir":[0.5,0.7], "Alimentation 16 A":[2.0,3.0],
+  "Lave-vaisselle":[1.0,1.5], "Plaque de cuisson":[1.0,1.5], "Four":[1.0,1.5], "Hotte":[1.0,1.5]
+};
+/* Un disjoncteur se chiffre sur son calibre et son nombre de p\u00f4les : un C16 3LN n'a
+   ni le prix ni le temps de pose d'un C13 1LN. Ces deux champs n'apparaissent que
+   pour l'appareillage de protection, pas pour un rep\u00e9rage ou une mise \u00e0 la terre. */
+const QTAB_DISJ = ["Disjoncteur","Disjoncteur diff\u00e9rentiel (FI)",
+                   "Interrupteur diff\u00e9rentiel","Coupe-surintensit\u00e9"];
+const QCALIBRE = ["C6","C10","C13","C16","C20","C25","C32","C40","C50","C63",
+                  "B10","B13","B16","B20","B25","B32","D16","D20","D32"];
+const QPOLES   = ["1L","1LN","2L","3L","3LN"];
+/* Libell\u00e9 complet d'une ligne de tableau : c'est lui qui distingue les articles
+   dans le r\u00e9capitulatif, donc un 1LN et un 3LN ne se cumulent jamais ensemble. */
+function qTabLabel(l){
+  const spec = [l.cal, l.pol].filter(Boolean).join(' ');
+  return l.poste + (spec ? ' \u2014 ' + spec : '');
+}
+function qFmtH(n){ return String(Math.round(n*10)/10).replace('.', ','); }
+function qPlage(min, max){
+  if(!min && !max) return '';
+  return (min===max ? qFmtH(min) : qFmtH(min)+'\u2013'+qFmtH(max)) + ' h';
+}
+/* Estimation d'une unit\u00e9 lue directement dans le DOM : collectQuantites() \u00e9carte
+   les unit\u00e9s vides, les index ne correspondraient plus. */
+function qEstUniteEl(u){
+  let min=0, max=0;
+  [...u.querySelectorAll('.qlignes .row')].forEach(r=>{
+    let p = G(r,'qposte')||'';
+    if(p==='Autre\u2026') p = (G(r,'qautre')||'').trim() || 'Autre poste';
+    const q = parseFloat(G(r,'qqte'))||0, t = QHPCE[p];
+    if(t && q){ min += q*t[0]; max += q*t[1]; }
+  });
+  return { min: Math.round(min*10)/10, max: Math.round(max*10)/10 };
+}
+/* Le tableau « Estimation par poste » : quantit\u00e9 relev\u00e9e x taux. */
+function qEstimationPostes(unites){
+  const out = [], rang = p => { const i = QPOSTES.indexOf(p); return i<0 ? 999 : i; };
+  (unites||[]).forEach(u=> u.locaux.forEach(lo=> lo.lignes.forEach(l=>{
+    const f = out.find(x=> x.poste===l.poste);
+    if(f) f.qte += l.qte; else out.push({poste:l.poste, qte:l.qte});
+  })));
+  out.forEach(x=>{ const t = QHPCE[x.poste];
+    x.taux = t || null;
+    x.totMin = t ? Math.round(x.qte*t[0]*10)/10 : 0;
+    x.totMax = t ? Math.round(x.qte*t[1]*10)/10 : 0; });
+  return out.sort((a,b)=> rang(a.poste)-rang(b.poste) || a.poste.localeCompare(b.poste));
+}
+function qEstimationTotale(unites){
+  const l = qEstimationPostes(unites);
+  return { min: Math.round(l.reduce((a,x)=> a+x.totMin, 0)*10)/10,
+           max: Math.round(l.reduce((a,x)=> a+x.totMax, 0)*10)/10 };
+}
 function qCourt(p){ return QCOURT[p] || p; }
 const el = (t,c)=>{const e=document.createElement(t); if(c)e.className=c; return e;};
 function opts(arr,sel){return arr.map(v=>`<option${v===sel?' selected':''}>${v}</option>`).join('')}
@@ -3018,7 +3083,8 @@ function applyCond(r){
   show('[data-c="dtype"]', val('dtype')==='Autre…');       // recherche de défaut : préciser
   show('[data-c="ctype"]', val('ctype')==='Autre…');
   show('[data-c="qposte"]', val('qposte')==='Autre…');   // relevé par quantités : préciser le poste
-  show('[data-c="tposte"]', val('tposte')==='Autre…');   // tableau : préciser la modification       // recherche de circuit : préciser
+  show('[data-c="tposte"]', val('tposte')==='Autre…');   // tableau : préciser la modification
+  show('[data-c="tdisj"]',  QTAB_DISJ.indexOf(val('tposte'))>=0);   // calibre + pôles       // recherche de circuit : préciser
   show('[data-c="amp"]',   val('amp')==='autre…');
   // câble : champ "Nombre" seulement pour un Fil ; "Phase" (mono/tri) pour un câble
   show('[data-c="filn"]',    val('type')==='Fil');
@@ -3330,7 +3396,9 @@ function addUnite(nom){
       <button type="button" class="qunit-rm" title="Supprimer l'unit\u00e9">\u00d7</button>
     </div>
     <div class="qunit-body">
-      <div class="qunit-est"><label class="fld">Estimation de temps pour cette unit\u00e9 (h)</label><input class="qunit-h" type="number" min="0" step="0.25" placeholder="ex : 16"></div>
+      <div class="qunit-est"><label class="fld">Estimation de temps pour cette unit\u00e9 (h)</label>
+        <input class="qunit-h" type="number" min="0" step="0.25" placeholder="ex : 16">
+        <div class="qunit-calc"><span class="qunit-calc-txt"></span><button type="button" class="qunit-calc-use" hidden>Reprendre</button></div></div>
       <div class="qlocaux"></div>
       <button type="button" class="add qadd-local" style="border-style:solid; font-size:13px">\uff0b Ajouter un local</button>
       <div class="qtabs"></div>
@@ -3346,6 +3414,11 @@ function addUnite(nom){
   };
   u.querySelector('.qunit-name').addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
   u.querySelector('.qunit-h').addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
+  u.querySelector('.qunit-calc-use').onclick = ()=>{
+    const e = qEstUniteEl(u);
+    u.querySelector('.qunit-h').value = Math.round((e.min+e.max)/2*4)/4;   // milieu de fourchette, au quart d'heure
+    updateQ(); scheduleSave();
+  };
   u.querySelector('.qadd-local').onclick = ()=>{ qFlash(addQLocal(u)); scheduleSave(); };
   u.querySelector('.qadd-tab').onclick   = ()=>{ qFlash(addQTab(u)); scheduleSave(); };
   $('#quantites').appendChild(u); updateQ();
@@ -3404,7 +3477,8 @@ function addQLigne(lo){
       <div><label class="fld">Tranche de longueur</label><select data-f="qtranche"><option value="">\u2014 non pr\u00e9cis\u00e9e \u2014</option>${opts(TRANCHES)}</select></div>
       <div><label class="fld">Passage</label><select data-f="qtube"><option value="">\u2014 non pr\u00e9cis\u00e9 \u2014</option>${opts(QPASSAGE)}</select></div>
     </div>
-    <div class="cond" data-c="qposte" style="margin-top:10px"><label class="fld">Pr\u00e9ciser le poste</label><input data-f="qautre" type="text" placeholder="ex : d\u00e9tecteur de mouvement"></div>`;
+    <div class="cond" data-c="qposte" style="margin-top:10px"><label class="fld">Pr\u00e9ciser le poste</label><input data-f="qautre" type="text" placeholder="ex : d\u00e9tecteur de mouvement"></div>
+    <div class="qest"></div>`;
   wire(r);
   // wire() rebranche updateDef/updateCirc : ici c'est le total des quantités qu'il faut refaire.
   r.querySelector('.rm').onclick   = ()=>{ r.remove(); updateQ(); scheduleSave(); };
@@ -3465,6 +3539,12 @@ function addQTabLigne(t){
       <div><label class="fld">Quantit\u00e9</label><input data-f="tqte" type="number" min="0" step="1" placeholder="ex : 4"></div>
       <div><label class="fld">Rep\u00e8re / d\u00e9part</label><input data-f="trep" type="text" placeholder="ex : F12, d\u00e9part cuisine"></div>
     </div>
+    <div class="cond" data-c="tdisj" style="margin-top:10px">
+      <div class="grid">
+        <div><label class="fld">Calibre</label><select data-f="tcal"><option value="">\u2014 non pr\u00e9cis\u00e9 \u2014</option>${opts(QCALIBRE)}</select></div>
+        <div><label class="fld">P\u00f4les</label><select data-f="tpol"><option value="">\u2014 non pr\u00e9cis\u00e9 \u2014</option>${opts(QPOLES)}</select></div>
+      </div>
+    </div>
     <div class="cond" data-c="tposte" style="margin-top:10px"><label class="fld">Pr\u00e9ciser la modification</label><input data-f="tautre" type="text" placeholder="ex : pose d'un compteur divisionnaire"></div>`;
   wire(r);
   r.querySelector('.rm').onclick   = ()=>{ r.remove(); updateQ(); scheduleSave(); };
@@ -3489,11 +3569,19 @@ function qTabState(t){
     collapsed: t.classList.contains('collapsed') ? 1 : 0,
     lignes: [...t.querySelectorAll('.qtlignes .row')].map(rowState) };
 }
+/* Anciens relev\u00e9s : « Disjoncteur 1P / 3P » devient « Disjoncteur » + p\u00f4les,
+   pour ne pas perdre l'information en changeant la liste. */
+function qTabLigneMigre(st){
+  const o = Object.assign({}, st);
+  if(o.tposte === 'Disjoncteur 1P'){ o.tposte = 'Disjoncteur'; if(!o.tpol) o.tpol = '1LN'; }
+  if(o.tposte === 'Disjoncteur 3P'){ o.tposte = 'Disjoncteur'; if(!o.tpol) o.tpol = '3LN'; }
+  return o;
+}
 function qTabFromState(u, st){
   const t = addQTab(u, st.nom);
   if(st.loc != null) t.querySelector('.qtab-loc').value = st.loc;
   if(st.rem != null) t.querySelector('.qtab-rem').value = st.rem;
-  (st.lignes||[]).forEach(x=> fillRow(addQTabLigne(t), x));
+  (st.lignes||[]).forEach(x=> fillRow(addQTabLigne(t), qTabLigneMigre(x)));
   if(st.collapsed) t.classList.add('collapsed');
   return t;
 }
@@ -3565,7 +3653,9 @@ function collectQuantites(){
       lignes: [...t.querySelectorAll('.qtlignes .row')].map(r=>{
         let p = G(r,'tposte')||'';
         if(p==='Autre\u2026') p = (G(r,'tautre')||'').trim() || 'Autre modification';
-        return {poste:p, qte:parseFloat(G(r,'tqte'))||0, rep:G(r,'trep')||''};
+        const disj = QTAB_DISJ.indexOf(G(r,'tposte'))>=0;
+        return {poste:p, qte:parseFloat(G(r,'tqte'))||0, rep:G(r,'trep')||'',
+                cal: disj ? (G(r,'tcal')||'') : '', pol: disj ? (G(r,'tpol')||'') : ''};
       }).filter(x=> x.poste && x.qte>0)
     })).filter(t=> t.nom || t.lignes.length || t.loc || t.rem)
   })).filter(u=> u.nom || u.locaux.length || u.tableaux.length);
@@ -3612,10 +3702,11 @@ function qHeuresTotal(unites){
 function qTabTotaux(unites){
   const out = [], rang = p => { const i = QTAB.indexOf(p); return i<0 ? 999 : i; };
   (unites||[]).forEach(u=> (u.tableaux||[]).forEach(t=> t.lignes.forEach(l=>{
-    const f = out.find(x=> x.poste===l.poste);
-    if(f) f.qte += l.qte; else out.push({poste:l.poste, qte:l.qte});
+    const lbl = qTabLabel(l);
+    const f = out.find(x=> x.label===lbl);
+    if(f) f.qte += l.qte; else out.push({poste:l.poste, label:lbl, qte:l.qte});
   })));
-  return out.sort((a,b)=> rang(a.poste)-rang(b.poste) || a.poste.localeCompare(b.poste));
+  return out.sort((a,b)=> rang(a.poste)-rang(b.poste) || a.label.localeCompare(b.label));
 }
 function qTousTableaux(unites){
   return (unites||[]).reduce((a,u)=> a.concat((u.tableaux||[]).filter(t=> t.lignes.length)), []);
@@ -3627,6 +3718,10 @@ function updateQ(){
     const nb = [...u.querySelectorAll('.qlignes .row')]
       .reduce((a,r)=> a + (parseFloat(G(r,'qqte'))||0), 0);
     const sp = u.querySelector('.qunit-sum');
+    const est = qEstUniteEl(u);
+    const ct = u.querySelector('.qunit-calc-txt'), cb = u.querySelector('.qunit-calc-use');
+    if(ct){ ct.textContent = est.max ? 'Calcul\u00e9 d\u2019apr\u00e8s le bar\u00e8me : '+qPlage(est.min, est.max) : ''; }
+    if(cb){ cb.hidden = !est.max; }
     const hu = parseFloat(u.querySelector('.qunit-h').value)||0;
     if(sp) sp.textContent = [nl ? nl+(nl>1?' locaux':' local') : '', nb ? nb+' art.' : '', hu ? hu+' h' : '']
       .filter(Boolean).join(' · ');
@@ -3647,7 +3742,10 @@ function updateQ(){
     if(p==='Autre\u2026') p = (G(r,'tautre')||'').trim() || 'Autre modification';
     const tag = r.querySelector('.tag'); if(tag) tag.textContent = p;
     const sum = r.querySelector('.row-name-sum');
-    if(sum) sum.textContent = [G(r,'tqte'), G(r,'trep')].filter(Boolean).join(' \u00b7 ');
+    const disj = QTAB_DISJ.indexOf(G(r,'tposte'))>=0;
+    if(sum) sum.textContent = [G(r,'tqte'),
+      disj ? [G(r,'tcal'), G(r,'tpol')].filter(Boolean).join(' ') : '',
+      G(r,'trep')].filter(Boolean).join(' \u00b7 ');
   });
   [...document.querySelectorAll('#quantites .qlignes .row')].forEach(r=>{
     let p = G(r,'qposte')||'';
@@ -3656,6 +3754,11 @@ function updateQ(){
     const sum = r.querySelector('.row-name-sum');
     if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube')]
       .filter(Boolean).join(' \u00b7 ');
+    const est = r.querySelector('.qest'), taux = QHPCE[p], q = parseFloat(G(r,'qqte'))||0;
+    if(est) est.textContent = taux
+      ? qFmtH(taux[0])+'\u2013'+qFmtH(taux[1])+' h/pce'
+        + (q ? '  \u2192  '+qPlage(q*taux[0], q*taux[1]) : '')
+      : '';
   });
   const e = $('#qTotal'); if(!e) return;
   const unites = collectQuantites();
@@ -3665,7 +3768,10 @@ function updateQ(){
   e.innerHTML = (postes.length
       ? '→ Total : ' + postes.map(p=> '<b>'+tot[p]+'</b> '+qCourt(p).toLowerCase()).join(' · ')
       : '→ Total : <b>—</b>')
-    + (h ? '<br>→ Estimation de temps : <b>'+h+' h</b>' : '');
+    + (h ? '<br>→ Estimation saisie : <b>'+h+' h</b>' : '')
+    + (qEstimationTotale(unites).max
+        ? '<br>→ Calculé d’après le barème : <b>'+qPlage(qEstimationTotale(unites).min, qEstimationTotale(unites).max)+'</b>'
+        : '');
 }
 /* ----- état (brouillon local et sauvegarde .SEVJ) ----- */
 function qUniteState(u){
@@ -3968,7 +4074,7 @@ function pushQuantites(L, d){
       L.push('<p class="obj" style="margin:10px 0 2px"><b>' + esc(t.nom || 'Tableau') + '</b>'
            + (t.loc ? ' <span style="color:#666">\u2014 ' + esc(t.loc) + '</span>' : '') + '</p>');
       L.push('<table><tr><th>Modification</th><th>Rep\u00e8re / d\u00e9part</th><th class="q">Qt\u00e9</th></tr>');
-      t.lignes.forEach(l=> L.push('<tr><td>' + esc(l.poste) + '</td><td>' + esc(l.rep || '\u2014')
+      t.lignes.forEach(l=> L.push('<tr><td>' + esc(qTabLabel(l)) + '</td><td>' + esc(l.rep || '\u2014')
                                 + '</td><td class="q">' + l.qte + '</td></tr>'));
       L.push('</table>');
       if(t.rem) L.push('<p class="obj" style="color:#666; margin:2px 0 0">' + esc(t.rem) + '</p>');
@@ -3992,11 +4098,26 @@ function pushQuantites(L, d){
       + '<td class="q">' + qHeuresTotal(unites) + '</td></tr>');
     L.push('</table>');
   }
+  const est = qEstimationPostes(unites).filter(x=> x.taux);
+  if(est.length){
+    const tot = qEstimationTotale(unites);
+    L.push('<h3>Estimation par poste</h3>');
+    L.push('<p class="obj" style="color:#666">Temps par article appliqu\u00e9 aux quantit\u00e9s relev\u00e9es. '
+         + 'Fourchette indicative, hors d\u00e9placement et hors travaux de tableau.</p>');
+    L.push('<table><tr><th>Poste</th><th class="q">Qt\u00e9</th><th class="q">h/pce</th><th class="q">Total (h)</th></tr>');
+    est.forEach(x=> L.push('<tr><td>' + esc(x.poste) + '</td>'
+      + '<td class="q">' + x.qte + '</td>'
+      + '<td class="q">' + qFmtH(x.taux[0]) + '\u2013' + qFmtH(x.taux[1]) + '</td>'
+      + '<td class="q">' + qFmtH(x.totMin) + '\u2013' + qFmtH(x.totMax) + '</td></tr>'));
+    L.push('<tr class="tot-row"><td>Total estim\u00e9</td><td class="q"></td><td class="q"></td>'
+         + '<td class="q">' + qFmtH(tot.min) + '\u2013' + qFmtH(tot.max) + '</td></tr>');
+    L.push('</table>');
+  }
   const tabs = qTousTableaux(unites);
   if(tabs.length > 1){
     L.push('<h3>Tableaux \u2014 r\u00e9capitulatif des modifications</h3>');
     L.push('<table><tr><th>Modification</th><th class="q">Qt\u00e9</th></tr>');
-    qTabTotaux(unites).forEach(x=> L.push('<tr><td>' + esc(x.poste) + '</td><td class="q">' + x.qte + '</td></tr>'));
+    qTabTotaux(unites).forEach(x=> L.push('<tr><td>' + esc(x.label) + '</td><td class="q">' + x.qte + '</td></tr>'));
     L.push('</table>');
   }
   const tr = qTranchesTotales(unites);
@@ -4493,7 +4614,7 @@ function buildPDFDoc(d, mode){
           headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
           columnStyles:{0:{cellWidth:CW-90}, 1:{cellWidth:66}, 2:{cellWidth:24, halign:'center'}},
           head:[['Modification','Rep\u00e8re / d\u00e9part','Qt\u00e9']],
-          body:t.lignes.map(l=> [l.poste, l.rep || '-', String(l.qte)]), didParseCell:sanitize });
+          body:t.lignes.map(l=> [qTabLabel(l), l.rep || '-', String(l.qte)]), didParseCell:sanitize });
         y = doc.lastAutoTable.finalY + (t.rem ? 1 : 5);
         if(t.rem){ doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(...CLR.mut);
           const rt = doc.splitTextToSize(pdfSafe(t.rem), CW); doc.text(rt, M, y+3); y += rt.length*3.9 + 4; }
@@ -4522,6 +4643,26 @@ function buildPDFDoc(d, mode){
         columnStyles:cs, body:corps, didParseCell:sanitize });
       y = doc.lastAutoTable.finalY + 5;
     }
+    const qEst = qEstimationPostes(qUn).filter(x=> x.taux);
+    if(qEst.length){
+      if(y > H-34){ doc.addPage(); y=16; }
+      heading('Estimation par poste');
+      const tot = qEstimationTotale(qUn);
+      const stE = {fontStyle:'bold', fillColor:CLR.bg, textColor:CLR.navy};
+      const corps = qEst.map(x=> [x.poste, String(x.qte),
+        qFmtH(x.taux[0])+'-'+qFmtH(x.taux[1]), qFmtH(x.totMin)+'-'+qFmtH(x.totMax)]);
+      corps.push([{content:'Total estim\u00e9', styles:stE}, {content:'', styles:stE},
+                  {content:'', styles:stE},
+                  {content:qFmtH(tot.min)+'-'+qFmtH(tot.max),
+                   styles:Object.assign({}, stE, {halign:'center'})}]);
+      doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+        styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
+        headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+        columnStyles:{0:{cellWidth:CW-84}, 1:{cellWidth:20, halign:'center'},
+                      2:{cellWidth:30, halign:'center'}, 3:{cellWidth:34, halign:'center'}},
+        head:[['Poste','Qt\u00e9','h/pce','Total (h)']], body:corps, didParseCell:sanitize });
+      y = doc.lastAutoTable.finalY + 5;
+    }
     if(qTabs.length > 1){
       if(y > H-34){ doc.addPage(); y=16; }
       heading('Tableaux \u2014 r\u00e9capitulatif des modifications');
@@ -4530,7 +4671,7 @@ function buildPDFDoc(d, mode){
         headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
         columnStyles:{0:{cellWidth:CW-30}, 1:{cellWidth:30, halign:'center'}},
         head:[['Modification','Qt\u00e9']],
-        body:qTabTotaux(qUn).map(x=> [x.poste, String(x.qte)]), didParseCell:sanitize });
+        body:qTabTotaux(qUn).map(x=> [x.label, String(x.qte)]), didParseCell:sanitize });
       y = doc.lastAutoTable.finalY + 5;
     }
     const qTr = qTranchesTotales(qUn);
