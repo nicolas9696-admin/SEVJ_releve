@@ -175,6 +175,11 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   border-bottom:1px solid var(--line); padding-bottom:5px}
 .sub>h4 .si{width:16px; height:16px; flex:0 0 auto}
 .sub .add{padding:9px; font-size:13px}
+/* Carte « Installation » : les boutons principaux des deux sous-sections gardent
+   leur taille pleine. La règle .sub .add ci-dessus ne doit réduire que les boutons
+   internes d'une pièce ; on ne cible donc que les enfants directs. */
+#installationCard > .body > .sub > .add,
+#installationCard > .body > .sub > div > .add{padding:12px; font-size:14px}
 /* ========== Arbre de départs ========== */
 .departs{display:flex; flex-direction:column; gap:12px}
 .depart{border:1px solid #eabf8e; border-radius:12px; overflow:hidden; background:#fffdfa}
@@ -864,69 +869,30 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     </div>
   </section>
 
-  <!-- Tableau — protections -->
-  <section class="card" id="tableauCard">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M12 7v5"/><circle cx="12" cy="16" r="1.3" fill="#fff"/></svg></span> Tableau — protections</h2>
+  <!-- Installation : tableau (protections) + pièces / zones, fusionnés en une carte -->
+  <section class="card" id="installationCard">
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M12 7v5"/><circle cx="12" cy="16" r="1.3" fill="#fff"/></svg></span> Installation</h2>
     <div class="body">
-      <p class="hint">Ajoute ici toutes les <b>protections</b> (disjoncteurs, fusibles). Chaque protection dit
-      <b>quelle pièce elle alimente</b> — le départ apparaîtra alors dans cette pièce, où tu construis l'arbre
-      (dérivation ou appareil). Coche <b>« selon DispoSuite »</b> pour joindre l'image du schéma.</p>
-      <div id="protections"></div>
-      <button class="add" id="addProtBtn" style="border-style:solid; margin-top:4px">＋ Ajouter une protection</button>
-    </div>
-  </section>
-
-  <!-- Pièces / zones -->
-  <section class="card" id="roomsCard">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-6h6v6"/></svg></span> Pièces / zones</h2>
-    <div class="body">
-      <p class="hint">Crée une <b>pièce</b> (ex : Cuisine, Salle de bain…), puis ajoute dedans ses cheminements,
-      câbles/fils, prises, boîtes et disjoncteurs. La longueur des câbles se calcule automatiquement
-      à partir des cheminements <b>de la même pièce</b>. Chaque article peut recevoir un <b>nom</b>
-      (affiché dans l'export détaillé).</p>
-      <div id="rooms"></div>
-      <div style="display:flex; gap:8px; margin-top:2px">
-        <button class="add" id="addRoomBtn" style="border-style:solid; margin:0; flex:1">🏠 Ajouter une pièce</button>
-        <button class="add" id="toggleAllBtn" style="border-style:solid; margin:0; flex:0 0 auto; width:auto; padding:12px 14px" title="Tout replier / déployer">⇕</button>
+      <div class="sub">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="si"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M12 7v5"/><circle cx="12" cy="16" r="1.3" fill="currentColor"/></svg> Tableau — protections</h4>
+        <p class="hint">Ajoute ici toutes les <b>protections</b> (disjoncteurs, fusibles). Chaque protection dit
+        <b>quelle pièce elle alimente</b> — le départ apparaîtra alors dans cette pièce, où tu construis l'arbre
+        (dérivation ou appareil). Coche <b>« selon DispoSuite »</b> pour joindre l'image du schéma.</p>
+        <div id="protections"></div>
+        <button class="add" id="addProtBtn" style="border-style:solid; margin-top:4px">＋ Ajouter une protection</button>
       </div>
-    </div>
-  </section>
-
-  <!-- Matériel supplémentaire (hors arbre) -->
-  <section class="card" id="materielCard">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/><path d="M12 12v8"/></svg></span> Matériel supplémentaire</h2>
-    <div class="body">
-      <p class="hint">Pour le matériel qui n'a <b>pas besoin d'être placé dans l'arbre</b> d'une pièce :
-      fournitures diverses, réserve, matériel de tableau… Même choix d'articles que dans l'arbre
-      (couleurs, ELDAS, statuts), mais sans pièce ni départ. Il apparaît dans le descriptif sous
-      <b>« Matériel supplémentaire »</b>.</p>
-      <div id="materiel"></div>
-      <div class="mat-add">
-        <button type="button" class="add" data-addmat="app">＋ Appareil</button>
-        <button type="button" class="add" data-addmat="boite">＋ Dérivation / boîte</button>
-        <button type="button" class="add" data-addmat="chem">＋ Cheminement</button>
-        <button type="button" class="add" data-addmat="cable">＋ Câble / fil</button>
-        <button type="button" class="add" data-addmat="disj">＋ Disjoncteur</button>
+      <div class="sub">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="si"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-6h6v6"/></svg> Pièces / zones</h4>
+        <p class="hint">Crée une <b>pièce</b> (ex : Cuisine, Salle de bain…), puis ajoute dedans ses cheminements,
+        câbles/fils, prises, boîtes et disjoncteurs. La longueur des câbles se calcule automatiquement
+        à partir des cheminements <b>de la même pièce</b>. Chaque article peut recevoir un <b>nom</b>
+        (affiché dans l'export détaillé).</p>
+        <div id="rooms"></div>
+        <div style="display:flex; gap:8px; margin-top:2px">
+          <button class="add" id="addRoomBtn" style="border-style:solid; margin:0; flex:1">🏠 Ajouter une pièce</button>
+          <button class="add" id="toggleAllBtn" style="border-style:solid; margin:0; flex:0 0 auto; width:auto; padding:12px 14px" title="Tout replier / déployer">⇕</button>
+        </div>
       </div>
-    </div>
-  </section>
-
-  <!-- 5. Temps -->
-  <section class="card req" data-req="temps">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span> Temps &amp; main d'œuvre</h2>
-    <div class="body">
-      <p class="hint">Indique le <b>nombre de personnes</b> et la <b>durée sur site</b> — en jours (1 jour = 8 h 30,
-      vendredi 7 h 45) <b>ou</b>, pour un petit travail, directement en heures. Le <b>total de main d'œuvre</b>
-      (heures-homme) se calcule tout seul : durée × personnes.</p>
-      <div class="grid-3">
-        <div><label class="fld" for="monteurs">Personnes</label><input id="monteurs" type="number" min="1" step="1" placeholder="ex : 2"></div>
-        <div><label class="fld" for="jours">Durée : jours</label><input id="jours" type="number" min="0" step="0.5" placeholder="ex : 1"></div>
-        <div><label class="fld" for="dureeH">ou heures sur site</label><input id="dureeH" type="number" min="0" step="0.25" placeholder="ex : 2"></div>
-      </div>
-      <div class="chk"><input id="vendredi" type="checkbox"><label for="vendredi">Journée(s) du vendredi (7 h 45)</label></div>
-      <div class="chk"><input id="apprenti" type="checkbox"><label for="apprenti">Apprenti possible sur ce chantier</label></div>
-      <div class="mo-total">→ Total main d'œuvre : <b id="moTotal">—</b></div>
-      <div class="mo-total" id="moAutres" hidden style="margin-top:8px"></div>
     </div>
   </section>
 
@@ -954,6 +920,25 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     </div>
   </section>
 
+  <!-- Matériel supplémentaire (hors arbre) -->
+  <section class="card" id="materielCard">
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/><path d="M12 12v8"/></svg></span> Matériel supplémentaire</h2>
+    <div class="body">
+      <p class="hint">Pour le matériel qui n'a <b>pas besoin d'être placé dans l'arbre</b> d'une pièce :
+      fournitures diverses, réserve, matériel de tableau… Même choix d'articles que dans l'arbre
+      (couleurs, ELDAS, statuts), mais sans pièce ni départ. Il apparaît dans le descriptif sous
+      <b>« Matériel supplémentaire »</b>.</p>
+      <div id="materiel"></div>
+      <div class="mat-add">
+        <button type="button" class="add" data-addmat="app">＋ Appareil</button>
+        <button type="button" class="add" data-addmat="boite">＋ Dérivation / boîte</button>
+        <button type="button" class="add" data-addmat="chem">＋ Cheminement</button>
+        <button type="button" class="add" data-addmat="cable">＋ Câble / fil</button>
+        <button type="button" class="add" data-addmat="disj">＋ Disjoncteur</button>
+      </div>
+    </div>
+  </section>
+
   <!-- 6. Remarques -->
   <section class="card">
     <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 16.5h6"/></svg></span> Remarques</h2>
@@ -963,6 +948,24 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     </div>
   </section>
 
+  <!-- 5. Temps -->
+  <section class="card req" data-req="temps">
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span> Temps &amp; main d'œuvre</h2>
+    <div class="body">
+      <p class="hint">Indique le <b>nombre de personnes</b> et la <b>durée sur site</b> — en jours (1 jour = 8 h 30,
+      vendredi 7 h 45) <b>ou</b>, pour un petit travail, directement en heures. Le <b>total de main d'œuvre</b>
+      (heures-homme) se calcule tout seul : durée × personnes.</p>
+      <div class="grid-3">
+        <div><label class="fld" for="monteurs">Personnes</label><input id="monteurs" type="number" min="1" step="1" placeholder="ex : 2"></div>
+        <div><label class="fld" for="jours">Durée : jours</label><input id="jours" type="number" min="0" step="0.5" placeholder="ex : 1"></div>
+        <div><label class="fld" for="dureeH">ou heures sur site</label><input id="dureeH" type="number" min="0" step="0.25" placeholder="ex : 2"></div>
+      </div>
+      <div class="chk"><input id="vendredi" type="checkbox"><label for="vendredi">Journée(s) du vendredi (7 h 45)</label></div>
+      <div class="chk"><input id="apprenti" type="checkbox"><label for="apprenti">Apprenti possible sur ce chantier</label></div>
+      <div class="mo-total">→ Total main d'œuvre : <b id="moTotal">—</b></div>
+      <div class="mo-total" id="moAutres" hidden style="margin-top:8px"></div>
+    </div>
+  </section>
   </div><!-- /#tabReleve -->
 
   <!-- ================= ONGLET BON DE RÉGIE ================= -->
@@ -7033,7 +7036,7 @@ function init(){
     const h=card.querySelector(':scope > h2'); if(!h) return;
     h.addEventListener('click',()=>card.classList.toggle('collapsed'));
     if(card.closest('#tabReleve') && !card.classList.contains('req')
-       && card.id!=='roomsCard' && card.id!=='tableauCard') card.classList.add('collapsed');
+       && card.id!=='installationCard') card.classList.add('collapsed');
   });
   $('#foldAllBtn').onclick=foldAllCards;
   const apb=$('#addProtBtn'); if(apb) apb.onclick=()=>{ addProtection(); scheduleSave(); };
