@@ -966,6 +966,19 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <button type="button" class="add" id="qFoldAll" style="border-style:solid; margin:0; flex:0 0 auto; width:auto; padding:12px 14px" title="Tout replier">⇕</button>
       </div>
       <div class="mo-total" id="qTotal" style="margin-top:12px">→ Total : <b>—</b></div>
+
+      <div class="sub" style="margin-top:16px">
+        <h4>Postes complémentaires</h4>
+        <p class="hint">Ce qui ne se compte pas à l'article : modification des tableaux, mesures et
+        mise en service, installation de chantier. Chacun avec sa fourchette d'heures.</p>
+        <div id="qcomp"></div>
+        <button type="button" class="add" id="addCompBtn" style="border-style:solid; font-size:13px">＋ Ajouter un poste complémentaire</button>
+        <div class="grid" style="margin-top:12px">
+          <div><label class="fld" for="qImprevus">Imprévus / adaptations (%)</label><input id="qImprevus" type="number" min="0" step="1" placeholder="10"></div>
+          <div><label class="fld" for="qRetenue">Valeur de travail retenue (h)</label><input id="qRetenue" type="number" min="0" step="1" placeholder="ex : 260"></div>
+        </div>
+        <div class="mo-total" id="qBilan" style="margin-top:12px">→ Bilan : <b>—</b></div>
+      </div>
     </div>
   </section>
 
@@ -1709,6 +1722,10 @@ const QTAB_DISJ = ["Disjoncteur","Disjoncteur diff\u00e9rentiel (FI)",
 const QCALIBRE = ["C6","C10","C13","C16","C20","C25","C32","C40","C50","C63",
                   "B10","B13","B16","B20","B25","B32","D16","D20","D32"];
 const QPOLES   = ["1L","1LN","2L","3L","3LN"];
+/* Intensité du circuit. Non précisée = 13 A, le standard : on ne fait saisir que
+   les exceptions, mais la valeur retenue est explicite partout à l’export. */
+const QAMP_DEFAUT = "13 A";
+const QAMP = ["10 A","13 A","16 A","20 A","25 A","32 A","40 A","50 A","63 A"];
 /* Libell\u00e9 complet d'une ligne de tableau : c'est lui qui distingue les articles
    dans le r\u00e9capitulatif, donc un 1LN et un 3LN ne se cumulent jamais ensemble. */
 function qTabLabel(l){
@@ -3081,10 +3098,11 @@ function applyCond(r){
   const show = (sel,on)=>{ const e=r.querySelector(sel); if(e) e.classList.toggle('on',!!on); };
   show('[data-c="mm2"]',   val('mm2')==='autre…');
   show('[data-c="dtype"]', val('dtype')==='Autre…');       // recherche de défaut : préciser
-  show('[data-c="ctype"]', val('ctype')==='Autre…');
+  show('[data-c="ctype"]', val('ctype')==='Autre…');       // recherche de circuit : préciser
   show('[data-c="qposte"]', val('qposte')==='Autre…');   // relevé par quantités : préciser le poste
   show('[data-c="tposte"]', val('tposte')==='Autre…');   // tableau : préciser la modification
-  show('[data-c="tdisj"]',  QTAB_DISJ.indexOf(val('tposte'))>=0);   // calibre + pôles       // recherche de circuit : préciser
+  show('[data-c="tdisj"]',  QTAB_DISJ.indexOf(val('tposte'))>=0);   // calibre + pôles, protections seules
+  show('[data-c="cdes"]',   val('cdes')==='Autre…');   // poste complémentaire : préciser
   show('[data-c="amp"]',   val('amp')==='autre…');
   // câble : champ "Nombre" seulement pour un Fil ; "Phase" (mono/tri) pour un câble
   show('[data-c="filn"]',    val('type')==='Fil');
@@ -3476,6 +3494,7 @@ function addQLigne(lo){
       <div><label class="fld">Quantit\u00e9</label><input data-f="qqte" type="number" min="0" step="1" placeholder="ex : 4"></div>
       <div><label class="fld">Tranche de longueur</label><select data-f="qtranche"><option value="">\u2014 non pr\u00e9cis\u00e9e \u2014</option>${opts(TRANCHES)}</select></div>
       <div><label class="fld">Passage</label><select data-f="qtube"><option value="">\u2014 non pr\u00e9cis\u00e9 \u2014</option>${opts(QPASSAGE)}</select></div>
+      <div><label class="fld">Intensit\u00e9</label><select data-f="qamp"><option value="">${QAMP_DEFAUT} (par d\u00e9faut)</option>${opts(QAMP)}</select></div>
     </div>
     <div class="cond" data-c="qposte" style="margin-top:10px"><label class="fld">Pr\u00e9ciser le poste</label><input data-f="qautre" type="text" placeholder="ex : d\u00e9tecteur de mouvement"></div>
     <div class="qest"></div>`;
@@ -3643,7 +3662,8 @@ function collectQuantites(){
       lignes: [...lo.querySelectorAll('.qlignes .row')].map(r=>{
         let p = G(r,'qposte')||'';
         if(p==='Autre…') p = (G(r,'qautre')||'').trim() || 'Autre poste';
-        return {poste:p, qte:parseFloat(G(r,'qqte'))||0, tranche:G(r,'qtranche')||'', passage:G(r,'qtube')||''};
+        return {poste:p, qte:parseFloat(G(r,'qqte'))||0, tranche:G(r,'qtranche')||'',
+                passage:G(r,'qtube')||'', amp:G(r,'qamp')||QAMP_DEFAUT};
       }).filter(x=> x.poste && x.qte>0)
     })).filter(lo=> lo.nom || lo.lignes.length || lo.rem),
     tableaux: [...u.querySelectorAll('.qtab')].map(t=>({
@@ -3684,14 +3704,17 @@ function qTotauxUnite(u){
 function qTranchesTotales(unites){
   const out = [];
   unites.forEach(u=> u.locaux.forEach(lo=> lo.lignes.forEach(l=>{
-    if(!l.tranche && !l.passage) return;
-    const f = out.find(x=> x.poste===l.poste && x.tranche===l.tranche && x.passage===l.passage);
+    if(!l.tranche && !l.passage && l.amp===QAMP_DEFAUT) return;
+    const f = out.find(x=> x.poste===l.poste && x.tranche===l.tranche
+                        && x.passage===l.passage && x.amp===l.amp);
     if(f) f.qte += l.qte;
-    else out.push({poste:l.poste, tranche:l.tranche, passage:l.passage||'', qte:l.qte});
+    else out.push({poste:l.poste, tranche:l.tranche, passage:l.passage||'',
+                   amp:l.amp||QAMP_DEFAUT, qte:l.qte});
   })));
   return out.sort((a,b)=> a.poste.localeCompare(b.poste)
     || TRANCHES.indexOf(a.tranche) - TRANCHES.indexOf(b.tranche)
-    || QPASSAGE.indexOf(a.passage) - QPASSAGE.indexOf(b.passage));
+    || QPASSAGE.indexOf(a.passage) - QPASSAGE.indexOf(b.passage)
+    || QAMP.indexOf(a.amp) - QAMP.indexOf(b.amp));
 }
 /* Somme des estimations saisies unité par unité. */
 function qHeuresTotal(unites){
@@ -3710,6 +3733,61 @@ function qTabTotaux(unites){
 }
 function qTousTableaux(unites){
   return (unites||[]).reduce((a,u)=> a.concat((u.tableaux||[]).filter(t=> t.lignes.length)), []);
+}
+/* Postes qui ne se chiffrent pas à l'article : ils s'ajoutent au calcul par poste. */
+const QCOMP = ["Modification des tableaux",
+               "Mesures, mise en service, rapport de s\u00e9curit\u00e9",
+               "Installation de chantier, protections, nettoyage",
+               "D\u00e9placements",
+               "\u00c9chafaudage / nacelle",
+               "Autre\u2026"];
+function addQComp(){
+  const r = el('div','row');
+  r.innerHTML = `<button class="rm" title="Supprimer">\u00d7</button>
+    <button type="button" class="dup" title="Dupliquer">\u29c9</button>
+    <div class="tag">Poste</div><span class="row-name-sum"></span>
+    <div class="grid">
+      <div><label class="fld">D\u00e9signation</label><select data-f="cdes">${opts(QCOMP)}</select></div>
+      <div><label class="fld">Heures \u2014 bas</label><input data-f="cmin" type="number" min="0" step="0.5" placeholder="ex : 25"></div>
+      <div><label class="fld">Heures \u2014 haut</label><input data-f="cmax" type="number" min="0" step="0.5" placeholder="ex : 48"></div>
+    </div>
+    <div class="cond" data-c="cdes" style="margin-top:10px"><label class="fld">Pr\u00e9ciser le poste</label><input data-f="cautre" type="text" placeholder="ex : reprise de la colonne montante"></div>`;
+  wire(r);
+  r.querySelector('.rm').onclick  = ()=>{ r.remove(); updateQ(); scheduleSave(); };
+  r.querySelector('.dup').onclick = ()=>{
+    const copie = addQComp(); fillRow(copie, rowState(r));
+    r.parentNode.insertBefore(copie, r.nextSibling);
+    qFlash(copie); updateQ(); scheduleSave();
+  };
+  r.querySelectorAll('select, input').forEach(i=>{
+    i.addEventListener('input',  ()=>{ updateQ(); scheduleSave(); });
+    i.addEventListener('change', ()=>{ updateQ(); scheduleSave(); });
+  });
+  $('#qcomp').appendChild(r); updateQ();
+  return r;
+}
+function collectQComp(){
+  return [...document.querySelectorAll('#qcomp .row')].map(r=>{
+    let d = G(r,'cdes')||'';
+    if(d==='Autre\u2026') d = (G(r,'cautre')||'').trim() || 'Autre poste';
+    return {des:d, min:parseFloat(G(r,'cmin'))||0, max:parseFloat(G(r,'cmax'))||0};
+  }).filter(x=> x.des && (x.min || x.max));
+}
+/* Bilan complet : estimation par poste + postes compl\u00e9mentaires, puis impr\u00e9vus.
+   La \u00ab valeur de travail retenue \u00bb reste saisie \u00e0 la main : c'est une d\u00e9cision, pas un calcul. */
+function qBilanHeures(unites){
+  const e = qEstimationTotale(unites);
+  const c = collectQComp().reduce((a,x)=> ({min:a.min+x.min, max:a.max+x.max}), {min:0, max:0});
+  const brutMin = e.min + c.min, brutMax = e.max + c.max;
+  const pctEl = $('#qImprevus');
+  const pct = pctEl && pctEl.value !== '' ? (parseFloat(pctEl.value)||0) : 10;
+  const k = pct/100, a1 = Math.round(brutMin*k*10)/10, a2 = Math.round(brutMax*k*10)/10;
+  const retEl = $('#qRetenue');
+  return { brutMin:Math.round(brutMin*10)/10, brutMax:Math.round(brutMax*10)/10,
+           pct, impMin:a1, impMax:a2,
+           totMin:Math.round((brutMin+a1)*10)/10, totMax:Math.round((brutMax+a2)*10)/10,
+           retenue: retEl ? (parseFloat(retEl.value)||0) : 0,
+           postes: collectQComp() };
 }
 /* ----- totaux affichés ----- */
 function updateQ(){
@@ -3752,13 +3830,20 @@ function updateQ(){
     if(p==='Autre\u2026') p = (G(r,'qautre')||'').trim() || 'Autre poste';
     const tag = r.querySelector('.tag'); if(tag) tag.textContent = qCourt(p);
     const sum = r.querySelector('.row-name-sum');
-    if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube')]
+    if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube'), G(r,'qamp')]
       .filter(Boolean).join(' \u00b7 ');
     const est = r.querySelector('.qest'), taux = QHPCE[p], q = parseFloat(G(r,'qqte'))||0;
     if(est) est.textContent = taux
       ? qFmtH(taux[0])+'\u2013'+qFmtH(taux[1])+' h/pce'
         + (q ? '  \u2192  '+qPlage(q*taux[0], q*taux[1]) : '')
       : '';
+  });
+  [...document.querySelectorAll('#qcomp .row')].forEach(r=>{
+    let d = G(r,'cdes')||'';
+    if(d==='Autre\u2026') d = (G(r,'cautre')||'').trim() || 'Autre poste';
+    const tag = r.querySelector('.tag'); if(tag) tag.textContent = d;
+    const sum = r.querySelector('.row-name-sum');
+    if(sum) sum.textContent = [G(r,'cmin'), G(r,'cmax')].filter(Boolean).join('\u2013') + (G(r,'cmin')||G(r,'cmax') ? ' h' : '');
   });
   const e = $('#qTotal'); if(!e) return;
   const unites = collectQuantites();
@@ -3772,6 +3857,15 @@ function updateQ(){
     + (qEstimationTotale(unites).max
         ? '<br>→ Calculé d’après le barème : <b>'+qPlage(qEstimationTotale(unites).min, qEstimationTotale(unites).max)+'</b>'
         : '');
+  const b = $('#qBilan');
+  if(b){
+    b.innerHTML = (b_ => b_.brutMax || b_.postes.length
+      ? '\u2192 Fourchette brute : <b>'+qPlage(b_.brutMin, b_.brutMax)+'</b>'
+        + '<br>\u2192 Impr\u00e9vus / adaptations ('+b_.pct+'\u202f%) : <b>'+qPlage(b_.impMin, b_.impMax)+'</b>'
+        + '<br>\u2192 Total estim\u00e9 : <b>'+qPlage(b_.totMin, b_.totMax)+'</b>'
+        + (b_.retenue ? '<br>\u2192 Valeur de travail retenue : <b>\u2248 '+b_.retenue+' h</b>' : '')
+      : '\u2192 Bilan : <b>\u2014</b>')(qBilanHeures(unites));
+  }
 }
 /* ----- état (brouillon local et sauvegarde .SEVJ) ----- */
 function qUniteState(u){
@@ -3859,7 +3953,7 @@ function collect(){
     vendredi:$('#vendredi').checked, apprenti:$('#apprenti').checked,
     tabAmiante:$('#tabAmiante').checked,
     protections, rooms, rem, defauts:collectDefauts(), circuits:collectCircuits(),
-    quantites:collectQuantites(),
+    quantites:collectQuantites(), qcomp:collectQComp(), qbilan:qBilanHeures(collectQuantites()),
     oibtRlv:collectOibtRlv(), user:currentUser
   };
 }
@@ -4113,6 +4207,29 @@ function pushQuantites(L, d){
          + '<td class="q">' + qFmtH(tot.min) + '\u2013' + qFmtH(tot.max) + '</td></tr>');
     L.push('</table>');
   }
+  const bil = d.qbilan;
+  if(bil && (bil.postes.length || bil.brutMax)){
+    if(bil.postes.length){
+      L.push('<h3>Postes compl\u00e9mentaires</h3>');
+      L.push('<table><tr><th>Poste</th><th class="q">Total (h)</th></tr>');
+      bil.postes.forEach(x=> L.push('<tr><td>' + esc(x.des) + '</td><td class="q">'
+        + qFmtH(x.min) + '\u2013' + qFmtH(x.max) + '</td></tr>'));
+      const sm = bil.postes.reduce((a,x)=> a+x.min, 0), sx = bil.postes.reduce((a,x)=> a+x.max, 0);
+      L.push('<tr class="tot-row"><td>Sous-total</td><td class="q">'
+        + qFmtH(sm) + '\u2013' + qFmtH(sx) + '</td></tr>');
+      L.push('</table>');
+    }
+    L.push('<h3>Total</h3>');
+    L.push('<table><tr><th></th><th class="q">Heures</th></tr>');
+    L.push('<tr><td>Fourchette brute</td><td class="q">' + qFmtH(bil.brutMin) + '\u2013' + qFmtH(bil.brutMax) + '</td></tr>');
+    L.push('<tr><td>Impr\u00e9vus / adaptations (' + bil.pct + ' %)</td><td class="q">'
+      + qFmtH(bil.impMin) + '\u2013' + qFmtH(bil.impMax) + '</td></tr>');
+    L.push('<tr class="tot-row"><td>Total estim\u00e9</td><td class="q">'
+      + qFmtH(bil.totMin) + '\u2013' + qFmtH(bil.totMax) + ' h</td></tr>');
+    if(bil.retenue) L.push('<tr class="tot-row"><td>Valeur de travail retenue</td><td class="q">\u2248 '
+      + bil.retenue + ' h</td></tr>');
+    L.push('</table>');
+  }
   const tabs = qTousTableaux(unites);
   if(tabs.length > 1){
     L.push('<h3>Tableaux \u2014 r\u00e9capitulatif des modifications</h3>');
@@ -4125,9 +4242,10 @@ function pushQuantites(L, d){
     L.push('<h3>Longueurs et passages</h3>');
     L.push('<p class="obj" style="color:#666">À reporter dans le programme d\'offre. '
          + 'Longueurs estimatives, les passages n\'ayant pas pu être mesurés.</p>');
-    L.push('<table><tr><th>Poste</th><th>Tranche</th><th>Passage</th><th class="q">Qté</th></tr>');
+    L.push('<table><tr><th>Poste</th><th>Tranche</th><th>Passage</th><th class="q">Intensité</th><th class="q">Qté</th></tr>');
     tr.forEach(x=> L.push('<tr><td>' + esc(x.poste) + '</td><td>' + esc(x.tranche || '—')
                         + '</td><td>' + esc(x.passage || '—')
+                        + '</td><td class="q">' + esc(x.amp || QAMP_DEFAUT)
                         + '</td><td class="q">' + x.qte + '</td></tr>'));
     L.push('</table>');
   }
@@ -4674,6 +4792,37 @@ function buildPDFDoc(d, mode){
         body:qTabTotaux(qUn).map(x=> [x.label, String(x.qte)]), didParseCell:sanitize });
       y = doc.lastAutoTable.finalY + 5;
     }
+    const bil = d.qbilan;
+    if(bil && (bil.postes.length || bil.brutMax)){
+      if(y > H-40){ doc.addPage(); y=16; }
+      const stB = {fontStyle:'bold', fillColor:CLR.bg, textColor:CLR.navy};
+      const cs2 = {0:{cellWidth:CW-40}, 1:{cellWidth:40, halign:'center'}};
+      if(bil.postes.length){
+        heading('Postes compl\u00e9mentaires');
+        const cps = bil.postes.map(x=> [x.des, qFmtH(x.min)+'-'+qFmtH(x.max)]);
+        const sm = bil.postes.reduce((a,x)=> a+x.min, 0), sx = bil.postes.reduce((a,x)=> a+x.max, 0);
+        cps.push([{content:'Sous-total', styles:stB},
+                  {content:qFmtH(sm)+'-'+qFmtH(sx), styles:Object.assign({}, stB, {halign:'center'})}]);
+        doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+          styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
+          headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+          columnStyles:cs2, head:[['Poste','Total (h)']], body:cps, didParseCell:sanitize });
+        y = doc.lastAutoTable.finalY + 5;
+      }
+      if(y > H-34){ doc.addPage(); y=16; }
+      heading('Total');
+      const tot = [['Fourchette brute', qFmtH(bil.brutMin)+'-'+qFmtH(bil.brutMax)],
+                   ['Impr\u00e9vus / adaptations ('+bil.pct+' %)', qFmtH(bil.impMin)+'-'+qFmtH(bil.impMax)],
+                   [{content:'Total estim\u00e9', styles:stB},
+                    {content:qFmtH(bil.totMin)+'-'+qFmtH(bil.totMax)+' h', styles:Object.assign({}, stB, {halign:'center'})}]];
+      if(bil.retenue) tot.push([{content:'Valeur de travail retenue', styles:stB},
+                                {content:'~ '+bil.retenue+' h', styles:Object.assign({}, stB, {halign:'center'})}]);
+      doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+        styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
+        headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+        columnStyles:cs2, head:[['','Heures']], body:tot, didParseCell:sanitize });
+      y = doc.lastAutoTable.finalY + 5;
+    }
     const qTr = qTranchesTotales(qUn);
     if(qTr.length){
       if(y > H-34){ doc.addPage(); y=16; }
@@ -4681,10 +4830,11 @@ function buildPDFDoc(d, mode){
       doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
         styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
         headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
-        columnStyles:{0:{cellWidth:CW-118}, 1:{cellWidth:34, halign:'center'},
-                      2:{cellWidth:64}, 3:{cellWidth:20, halign:'center'}},
-        head:[['Poste','Tranche','Passage','Qté']],
-        body:qTr.map(x=> [x.poste, x.tranche || '-', x.passage || '-', String(x.qte)]), didParseCell:sanitize });
+        columnStyles:{0:{cellWidth:CW-140}, 1:{cellWidth:32, halign:'center'},
+                      2:{cellWidth:62}, 3:{cellWidth:26, halign:'center'}, 4:{cellWidth:20, halign:'center'}},
+        head:[['Poste','Tranche','Passage','Intensité','Qté']],
+        body:qTr.map(x=> [x.poste, x.tranche || '-', x.passage || '-',
+                          x.amp || QAMP_DEFAUT, String(x.qte)]), didParseCell:sanitize });
       y = doc.lastAutoTable.finalY + 7;
     }
   }
@@ -7602,7 +7752,7 @@ const DRAFT='sevj_draft_arbre_v1', DRAFT_PHOTOS='sevj_draft_photos_arbre_v1', DR
 /* Extraits du rapport OIBT importé dans le relevé : lourds (base64), donc stockés à part
    du brouillon — comme les photos — pour ne pas faire exploser le quota localStorage. */
 const DRAFT_OIBTVG='sevj_draft_oibtvg_arbre_v1';
-const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#dureeH'];
+const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#dureeH','#qImprevus','#qRetenue'];
 const D_CHECK=['#vendredi','#apprenti','#tabAmiante'];
 let _saveT=null;
 function scheduleSave(){ clearTimeout(_saveT); _saveT=setTimeout(saveDraft,500); }
@@ -7657,6 +7807,7 @@ function draftObject(){
   // sans les extraits (base64) : ils vont dans leur propre clé, et hors du marqueur PDF
   d.oibtRlv=rlvOibtState();
   d.quantites=[...document.querySelectorAll('#quantites .qunit')].map(qUniteState);
+  d.qcomp=[...document.querySelectorAll('#qcomp .row')].map(rowState);
   d.protections=[...document.querySelectorAll('#protections .prot')].map(protState);
   d.rooms=[...document.querySelectorAll('#rooms .room')].map(roomState);
   return d;
@@ -7705,6 +7856,8 @@ function applyDraft(d){
     d.materiel.forEach(o=> addMateriel(o.t, o.s));
   }
   if(Array.isArray(d.quantites)) qApply(d.quantites);
+  if(Array.isArray(d.qcomp)){ $('#qcomp').innerHTML='';
+    d.qcomp.forEach(st=> fillRow(addQComp(), st)); updateQ(); }
   if(d.oibtRlv) rlvOibtApply(d.oibtRlv);
   updateDef(); updateCirc();
   // 1) pièces (rid conservé)
@@ -7877,6 +8030,9 @@ function init(){
   $('#foldAllBtn').onclick=foldAllCards;
   const aub=$('#addUniteBtn'); if(aub) aub.onclick=()=>{ qFlash(addUnite()); scheduleSave(); };
   const qfa=$('#qFoldAll');    if(qfa) qfa.onclick=qFoldAll;
+  const acb=$('#addCompBtn');  if(acb) acb.onclick=()=>{ qFlash(addQComp()); scheduleSave(); };
+  ['#qImprevus','#qRetenue'].forEach(sel=>{ const e=$(sel);
+    if(e) e.addEventListener('input', ()=>{ updateQ(); scheduleSave(); }); });
   updateQ();
   const apb=$('#addProtBtn'); if(apb) apb.onclick=()=>{ addProtection(); scheduleSave(); };
 
