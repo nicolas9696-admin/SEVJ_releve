@@ -203,6 +203,15 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .qlocal-hd .qlocal-rm{flex:0 0 auto; border:none; background:var(--line); color:var(--navy);
   width:30px; height:30px; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer}
 .qlocal .qlocal-rem{margin-top:8px}
+.qlocal.collapsed .qlocal-body{display:none}
+.qlocal.collapsed{margin-bottom:6px}
+.qlocal-hd .qlocal-sum{flex:0 0 auto; font-size:11px; font-weight:700; color:var(--navy2); white-space:nowrap}
+.qlocal-hd .qlocal-tog,.qlocal-hd .qlocal-dup{flex:0 0 auto; border:none; background:var(--line); color:var(--navy);
+  width:30px; height:30px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center}
+.qlocal-hd .qlocal-tog::before{content:''; width:7px; height:7px; border-right:2.2px solid currentColor;
+  border-bottom:2.2px solid currentColor; transform:rotate(45deg); margin-top:-3px; transition:transform .2s}
+.qlocal.collapsed .qlocal-hd .qlocal-tog::before{transform:rotate(-45deg); margin-top:3px}
 /* ========== Arbre de départs ========== */
 .departs{display:flex; flex-direction:column; gap:12px}
 .depart{border:1px solid #eabf8e; border-radius:12px; overflow:hidden; background:#fffdfa}
@@ -930,7 +939,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       une <b>unité</b> (appartement, étage, zone…) contient ses <b>locaux</b>. L'export produit un tableau par
       unité avec sa ligne TOTAL, un récapitulatif général et le détail des longueurs par tranche.</p>
       <div id="quantites"></div>
-      <button class="add" id="addUniteBtn" style="border-style:solid; margin-top:4px">＋ Ajouter une unité (appartement, étage, zone…)</button>
+      <div style="display:flex; gap:8px; margin-top:4px">
+        <button class="add" id="addUniteBtn" style="border-style:solid; margin:0; flex:1">＋ Ajouter une unité (appartement, étage, zone…)</button>
+        <button type="button" class="add" id="qFoldAll" style="border-style:solid; margin:0; flex:0 0 auto; width:auto; padding:12px 14px" title="Tout replier">⇕</button>
+      </div>
       <div class="mo-total" id="qTotal" style="margin-top:12px">→ Total : <b>—</b></div>
     </div>
   </section>
@@ -3280,64 +3292,133 @@ function parseProt(p){ let a=G(p,'amp'); if(a==='autre…') a=G(p,'ampautre')||'
 /* ===== Relevé par quantités : construction de l'interface =====
    Une unité = un appartement / étage / zone. Elle contient des locaux, chaque local
    des lignes « poste + quantité + tranche ». Rien n'est mesuré : tout est compté. */
+/* Petit clignotement sur l'élément créé : sur un immeuble on duplique beaucoup,
+   il faut voir immédiatement ce qui vient d'apparaître. */
+function qFlash(e){ e.classList.add('dup-flash'); setTimeout(()=> e.classList.remove('dup-flash'), 1400); }
+
 function addUnite(nom){
   const u = el('div','qunit');
   u.innerHTML = `<div class="qunit-hd">
-      <button type="button" class="qunit-tog" title="Replier / déployer"></button>
-      <input class="qunit-name" type="text" placeholder="ex : Rez — vent">
+      <button type="button" class="qunit-tog" title="Replier / d\u00e9ployer"></button>
+      <input class="qunit-name" type="text" placeholder="ex : Rez \u2014 vent">
       <span class="qunit-sum"></span>
-      <button type="button" class="qunit-rm" title="Supprimer l'unité">×</button>
+      <button type="button" class="qunit-dup" title="Dupliquer l'unit\u00e9">\u29c9</button>
+      <button type="button" class="qunit-rm" title="Supprimer l'unit\u00e9">\u00d7</button>
     </div>
     <div class="qunit-body">
-      <div class="qunit-est"><label class="fld" for="">Estimation de temps pour cette unité (h)</label><input class="qunit-h" type="number" min="0" step="0.25" placeholder="ex : 16"></div>
+      <div class="qunit-est"><label class="fld">Estimation de temps pour cette unit\u00e9 (h)</label><input class="qunit-h" type="number" min="0" step="0.25" placeholder="ex : 16"></div>
       <div class="qlocaux"></div>
-      <button type="button" class="add qadd-local" style="border-style:solid; font-size:13px">＋ Ajouter un local</button>
+      <button type="button" class="add qadd-local" style="border-style:solid; font-size:13px">\uff0b Ajouter un local</button>
     </div>`;
   u.querySelector('.qunit-name').value = nom || '';
   u.querySelector('.qunit-tog').onclick = ()=> u.classList.toggle('collapsed');
   u.querySelector('.qunit-rm').onclick  = ()=>{ u.remove(); updateQ(); scheduleSave(); };
+  u.querySelector('.qunit-dup').onclick = ()=>{
+    const copie = qUniteFromState(qUniteState(u));
+    u.parentNode.insertBefore(copie, u.nextSibling);
+    qFlash(copie); updateQ(); scheduleSave();
+  };
   u.querySelector('.qunit-name').addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
   u.querySelector('.qunit-h').addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
-  u.querySelector('.qadd-local').onclick = ()=>{ addQLocal(u); scheduleSave(); };
+  u.querySelector('.qadd-local').onclick = ()=>{ qFlash(addQLocal(u)); scheduleSave(); };
   $('#quantites').appendChild(u); updateQ();
   return u;
 }
 function addQLocal(u, nom){
   const lo = el('div','qlocal');
   lo.innerHTML = `<div class="qlocal-hd">
-      <input class="qlocal-name" type="text" placeholder="ex : Couloir, Chambre 1, Cuisine…">
-      <button type="button" class="qlocal-rm" title="Supprimer le local">×</button>
+      <button type="button" class="qlocal-tog" title="Replier / d\u00e9ployer"></button>
+      <input class="qlocal-name" type="text" placeholder="ex : Couloir, Chambre 1, Cuisine\u2026">
+      <span class="qlocal-sum"></span>
+      <button type="button" class="qlocal-dup" title="Dupliquer le local">\u29c9</button>
+      <button type="button" class="qlocal-rm" title="Supprimer le local">\u00d7</button>
     </div>
-    <div class="qlignes"></div>
-    <button type="button" class="add qadd-ligne" style="border-style:solid; font-size:13px">＋ Ajouter une ligne</button>
-    <input class="qlocal-rem" type="text" placeholder="Remarque sur ce local (optionnel)">`;
+    <div class="qlocal-body">
+      <div class="qlignes"></div>
+      <button type="button" class="add qadd-ligne" style="border-style:solid; font-size:13px">\uff0b Ajouter une ligne</button>
+      <input class="qlocal-rem" type="text" placeholder="Remarque sur ce local (optionnel)">
+    </div>`;
   lo.querySelector('.qlocal-name').value = nom || '';
-  lo.querySelector('.qlocal-rm').onclick = ()=>{ lo.remove(); updateQ(); scheduleSave(); };
-  lo.querySelector('.qadd-ligne').onclick = ()=>{ addQLigne(lo); scheduleSave(); };
-  lo.querySelectorAll(':scope > .qlocal-hd input, :scope > .qlocal-rem')
+  lo.querySelector('.qlocal-tog').onclick = ()=> lo.classList.toggle('collapsed');
+  lo.querySelector('.qlocal-rm').onclick  = ()=>{ lo.remove(); updateQ(); scheduleSave(); };
+  lo.querySelector('.qlocal-dup').onclick = ()=>{
+    const copie = qLocalFromState(u, qLocalState(lo));
+    lo.parentNode.insertBefore(copie, lo.nextSibling);
+    qFlash(copie); updateQ(); scheduleSave();
+  };
+  lo.querySelector('.qadd-ligne').onclick = ()=>{ qFlash(addQLigne(lo)); scheduleSave(); };
+  lo.querySelectorAll(':scope > .qlocal-hd .qlocal-name, :scope > .qlocal-body > .qlocal-rem')
     .forEach(i=> i.addEventListener('input', ()=>{ updateQ(); scheduleSave(); }));
   u.querySelector('.qlocaux').appendChild(lo); updateQ();
   return lo;
 }
 function addQLigne(lo){
   const r = el('div','row');
-  r.innerHTML = `<button class="rm" title="Supprimer">×</button>
+  r.innerHTML = `<button class="rm" title="Supprimer">\u00d7</button>
+    <button type="button" class="dup" title="Dupliquer la ligne">\u29c9</button>
+    <button type="button" class="fold" title="R\u00e9duire / d\u00e9ployer">\u25be</button>
+    <div class="tag">Ligne</div><span class="row-name-sum"></span>
     <div class="grid">
       <div><label class="fld">Poste</label><select data-f="qposte">${opts(QPOSTES)}</select></div>
-      <div><label class="fld">Quantité</label><input data-f="qqte" type="number" min="0" step="1" placeholder="ex : 4"></div>
-      <div><label class="fld">Tranche de longueur</label><select data-f="qtranche"><option value="">— non précisée —</option>${opts(TRANCHES)}</select></div>
-      <div><label class="fld">Passage</label><select data-f="qtube"><option value="">— non précisé —</option>${opts(QPASSAGE)}</select></div>
+      <div><label class="fld">Quantit\u00e9</label><input data-f="qqte" type="number" min="0" step="1" placeholder="ex : 4"></div>
+      <div><label class="fld">Tranche de longueur</label><select data-f="qtranche"><option value="">\u2014 non pr\u00e9cis\u00e9e \u2014</option>${opts(TRANCHES)}</select></div>
+      <div><label class="fld">Passage</label><select data-f="qtube"><option value="">\u2014 non pr\u00e9cis\u00e9 \u2014</option>${opts(QPASSAGE)}</select></div>
     </div>
-    <div class="cond" data-c="qposte" style="margin-top:10px"><label class="fld">Préciser le poste</label><input data-f="qautre" type="text" placeholder="ex : détecteur de mouvement"></div>`;
+    <div class="cond" data-c="qposte" style="margin-top:10px"><label class="fld">Pr\u00e9ciser le poste</label><input data-f="qautre" type="text" placeholder="ex : d\u00e9tecteur de mouvement"></div>`;
   wire(r);
   // wire() rebranche updateDef/updateCirc : ici c'est le total des quantités qu'il faut refaire.
-  r.querySelector('.rm').onclick = ()=>{ r.remove(); updateQ(); scheduleSave(); };
+  r.querySelector('.rm').onclick   = ()=>{ r.remove(); updateQ(); scheduleSave(); };
+  r.querySelector('.fold').onclick = ()=> r.classList.toggle('folded');
+  r.querySelector('.tag').onclick  = ()=> r.classList.toggle('folded');
+  r.querySelector('.dup').onclick  = ()=>{
+    const copie = addQLigne(lo); fillRow(copie, rowState(r));
+    r.parentNode.insertBefore(copie, r.nextSibling);
+    qFlash(copie); updateQ(); scheduleSave();
+  };
   r.querySelectorAll('select, input').forEach(i=>{
     i.addEventListener('input',  ()=>{ updateQ(); scheduleSave(); });
     i.addEventListener('change', ()=>{ updateQ(); scheduleSave(); });
   });
   lo.querySelector('.qlignes').appendChild(r); updateQ();
   return r;
+}
+/* ----- état d'un local / d'une unité, et reconstruction à l'identique -----
+   Sert à la fois à la duplication et à la restauration du brouillon. */
+function qLocalState(lo){
+  return { nom: lo.querySelector('.qlocal-name').value,
+    rem: lo.querySelector('.qlocal-rem').value,
+    collapsed: lo.classList.contains('collapsed') ? 1 : 0,
+    lignes: [...lo.querySelectorAll('.qlignes .row')].map(rowState) };
+}
+function qLocalFromState(u, st){
+  const lo = addQLocal(u, st.nom);
+  if(st.rem != null) lo.querySelector('.qlocal-rem').value = st.rem;
+  (st.lignes||[]).forEach(x=> fillRow(addQLigne(lo), x));
+  if(st.collapsed) lo.classList.add('collapsed');
+  return lo;
+}
+function qUniteFromState(st){
+  const u = addUnite(st.nom);
+  if(st.heures != null) u.querySelector('.qunit-h').value = st.heures;
+  (st.locaux||[]).forEach(ls=> qLocalFromState(u, ls));
+  if(st.collapsed) u.classList.add('collapsed');
+  return u;
+}
+/* Tout replier d'un coup : sur un immeuble la liste devient interminable.
+   S'il reste quoi que ce soit d'ouvert on ferme tout, sinon on rouvre tout. */
+function qFoldAll(){
+  const box = $('#quantites'); if(!box) return;
+  const unites = [...box.querySelectorAll('.qunit')];
+  const locaux = [...box.querySelectorAll('.qlocal')];
+  const lignes = [...box.querySelectorAll('.qlignes .row')];
+  if(!unites.length) return;
+  const ouvert = unites.some(e=> !e.classList.contains('collapsed'))
+              || locaux.some(e=> !e.classList.contains('collapsed'))
+              || lignes.some(e=> !e.classList.contains('folded'));
+  unites.forEach(e=> e.classList.toggle('collapsed', ouvert));
+  locaux.forEach(e=> e.classList.toggle('collapsed', ouvert));
+  lignes.forEach(e=> e.classList.toggle('folded',    ouvert));
+  const b = $('#qFoldAll'); if(b) b.title = ouvert ? 'Tout d\u00e9ployer' : 'Tout replier';
 }
 /* ----- lecture ----- */
 function collectQuantites(){
@@ -3403,6 +3484,20 @@ function updateQ(){
     if(sp) sp.textContent = [nl ? nl+(nl>1?' locaux':' local') : '', nb ? nb+' art.' : '', hu ? hu+' h' : '']
       .filter(Boolean).join(' · ');
   });
+  /* résumé d'un local et libellé d'une ligne : visibles une fois repliés */
+  [...document.querySelectorAll('#quantites .qlocal')].forEach(lo=>{
+    const n = [...lo.querySelectorAll('.qlignes .row')].reduce((a,r)=> a+(parseFloat(G(r,'qqte'))||0), 0);
+    const sp = lo.querySelector('.qlocal-sum');
+    if(sp) sp.textContent = n ? n+' art.' : '';
+  });
+  [...document.querySelectorAll('#quantites .qlignes .row')].forEach(r=>{
+    let p = G(r,'qposte')||'';
+    if(p==='Autre\u2026') p = (G(r,'qautre')||'').trim() || 'Autre poste';
+    const tag = r.querySelector('.tag'); if(tag) tag.textContent = qCourt(p);
+    const sum = r.querySelector('.row-name-sum');
+    if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube')]
+      .filter(Boolean).join(' \u00b7 ');
+  });
   const e = $('#qTotal'); if(!e) return;
   const unites = collectQuantites();
   const postes = qPostesUtilises(unites);
@@ -3418,25 +3513,12 @@ function qUniteState(u){
   return { nom: u.querySelector('.qunit-name').value,
     heures: u.querySelector('.qunit-h').value,
     collapsed: u.classList.contains('collapsed') ? 1 : 0,
-    locaux: [...u.querySelectorAll('.qlocal')].map(lo=>({
-      nom: lo.querySelector('.qlocal-name').value,
-      rem: lo.querySelector('.qlocal-rem').value,
-      lignes: [...lo.querySelectorAll('.qlignes .row')].map(rowState)
-    })) };
+    locaux: [...u.querySelectorAll('.qlocal')].map(qLocalState) };
 }
 function qApply(list){
   const box = $('#quantites'); if(!box) return;
   box.innerHTML = '';
-  (list||[]).forEach(us=>{
-    const u = addUnite(us.nom);
-    if(us.heures != null) u.querySelector('.qunit-h').value = us.heures;
-    (us.locaux||[]).forEach(ls=>{
-      const lo = addQLocal(u, ls.nom);
-      if(ls.rem != null) lo.querySelector('.qlocal-rem').value = ls.rem;
-      (ls.lignes||[]).forEach(st=> fillRow(addQLigne(lo), st));
-    });
-    if(us.collapsed) u.classList.add('collapsed');
-  });
+  (list||[]).forEach(us=> qUniteFromState(us));
   updateQ();
 }
 function collect(){
@@ -7444,7 +7526,8 @@ function init(){
        && card.id!=='installationCard') card.classList.add('collapsed');
   });
   $('#foldAllBtn').onclick=foldAllCards;
-  const aub=$('#addUniteBtn'); if(aub) aub.onclick=()=>{ addUnite(); scheduleSave(); };
+  const aub=$('#addUniteBtn'); if(aub) aub.onclick=()=>{ qFlash(addUnite()); scheduleSave(); };
+  const qfa=$('#qFoldAll');    if(qfa) qfa.onclick=qFoldAll;
   updateQ();
   const apb=$('#addProtBtn'); if(apb) apb.onclick=()=>{ addProtection(); scheduleSave(); };
 
