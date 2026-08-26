@@ -180,6 +180,27 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
    internes d'une pièce ; on ne cible donc que les enfants directs. */
 #installationCard > .body > .sub > .add,
 #installationCard > .body > .sub > div > .add{padding:12px; font-size:14px}
+/* ===== Relevé par quantités : unité (appartement/zone) > local > lignes ===== */
+.qunit{border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:10px; background:#fff}
+.qunit-hd{display:flex; align-items:center; gap:8px; padding:8px 10px; background:var(--navy)}
+.qunit-hd .qunit-name{flex:1; min-width:0; border:none; border-radius:8px; padding:8px 10px;
+  font-size:15px; font-weight:700; background:rgba(255,255,255,.16); color:#fff}
+.qunit-hd .qunit-name::placeholder{color:rgba(255,255,255,.6)}
+.qunit-hd .qunit-sum{color:rgba(255,255,255,.85); font-size:11px; font-weight:600; white-space:nowrap}
+.qunit-hd button{flex:0 0 auto; border:none; background:rgba(255,255,255,.16); color:#fff;
+  width:34px; height:34px; border-radius:9px; font-size:18px; font-weight:700; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center}
+.qunit-hd .qunit-tog::before{content:''; width:8px; height:8px; border-right:2.4px solid #fff;
+  border-bottom:2.4px solid #fff; transform:rotate(45deg); margin-top:-3px; transition:transform .2s}
+.qunit.collapsed .qunit-hd .qunit-tog::before{transform:rotate(-45deg); margin-top:3px}
+.qunit.collapsed .qunit-body{display:none}
+.qunit-body{padding:10px}
+.qlocal{border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:10px; background:var(--bg)}
+.qlocal-hd{display:flex; gap:8px; align-items:center; margin-bottom:8px}
+.qlocal-hd .qlocal-name{flex:1; min-width:0}
+.qlocal-hd .qlocal-rm{flex:0 0 auto; border:none; background:var(--line); color:var(--navy);
+  width:30px; height:30px; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer}
+.qlocal .qlocal-rem{margin-top:8px}
 /* ========== Arbre de départs ========== */
 .departs{display:flex; flex-direction:column; gap:12px}
 .depart{border:1px solid #eabf8e; border-radius:12px; overflow:hidden; background:#fffdfa}
@@ -871,7 +892,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 
   <!-- Installation : tableau (protections) + pièces / zones, fusionnés en une carte -->
   <section class="card" id="installationCard">
-    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M12 7v5"/><circle cx="12" cy="16" r="1.3" fill="#fff"/></svg></span> Installation</h2>
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M12 7v5"/><circle cx="12" cy="16" r="1.3" fill="#fff"/></svg></span> Installation (arbre)</h2>
     <div class="body">
       <div class="sub">
         <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="si"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M12 7v5"/><circle cx="12" cy="16" r="1.3" fill="currentColor"/></svg> Tableau — protections</h4>
@@ -893,6 +914,20 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
           <button class="add" id="toggleAllBtn" style="border-style:solid; margin:0; flex:0 0 auto; width:auto; padding:12px 14px" title="Tout replier / déployer">⇕</button>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Relevé par quantités (gros chantier) : compter au lieu de mesurer -->
+  <section class="card" id="quantitesCard">
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg></span> Relevé par quantités</h2>
+    <div class="body">
+      <p class="hint">Pour un <b>gros chantier</b>, où l'on ne peut pas mesurer prise par prise : on compte les
+      postes <b>local par local</b> et on donne une <b>tranche de longueur</b> au lieu d'une mesure. Deux niveaux :
+      une <b>unité</b> (appartement, étage, zone…) contient ses <b>locaux</b>. L'export produit un tableau par
+      unité avec sa ligne TOTAL, un récapitulatif général et le détail des longueurs par tranche.</p>
+      <div id="quantites"></div>
+      <button class="add" id="addUniteBtn" style="border-style:solid; margin-top:4px">＋ Ajouter une unité (appartement, étage, zone…)</button>
+      <div class="mo-total" id="qTotal" style="margin-top:12px">→ Total : <b>—</b></div>
     </div>
   </section>
 
@@ -1591,6 +1626,18 @@ function hexToRgb(h){ const n=parseInt(h.slice(1),16); return [(n>>16)&255,(n>>8
 
 /* ---------- helpers ---------- */
 const $  = s => document.querySelector(s);
+/* ===== Relevé par quantités (gros chantier) =====
+   Sur un immeuble on ne mesure pas prise par prise : on compte les postes local par
+   local et on donne une tranche de longueur, comme le fait le programme d'offre. */
+const QPOSTES = ["Dérivation","Prise","Interrupteur","Inter / prise","Point lumineux",
+                 "Armoire à pharmacie","Poussoir","Alimentation 16 A",
+                 "Lave-vaisselle","Plaque de cuisson","Four","Hotte","Autre…"];
+/* Libellés courts : les colonnes du PDF ne tiennent pas avec les noms complets. */
+const QCOURT = {"Dérivation":"Dériv.","Prise":"Prises","Interrupteur":"Inter",
+  "Inter / prise":"Inter/prise","Point lumineux":"Pt lum.","Armoire à pharmacie":"Pharmacie",
+  "Poussoir":"Pouss.","Alimentation 16 A":"Alim. 16 A","Lave-vaisselle":"Lave-vais.",
+  "Plaque de cuisson":"Plaque","Four":"Four","Hotte":"Hotte"};
+function qCourt(p){ return QCOURT[p] || p; }
 const el = (t,c)=>{const e=document.createElement(t); if(c)e.className=c; return e;};
 function opts(arr,sel){return arr.map(v=>`<option${v===sel?' selected':''}>${v}</option>`).join('')}
 async function hashPw(pw){
@@ -2921,7 +2968,8 @@ function applyCond(r){
   const show = (sel,on)=>{ const e=r.querySelector(sel); if(e) e.classList.toggle('on',!!on); };
   show('[data-c="mm2"]',   val('mm2')==='autre…');
   show('[data-c="dtype"]', val('dtype')==='Autre…');       // recherche de défaut : préciser
-  show('[data-c="ctype"]', val('ctype')==='Autre…');       // recherche de circuit : préciser
+  show('[data-c="ctype"]', val('ctype')==='Autre…');
+  show('[data-c="qposte"]', val('qposte')==='Autre…');   // relevé par quantités : préciser le poste       // recherche de circuit : préciser
   show('[data-c="amp"]',   val('amp')==='autre…');
   // câble : champ "Nombre" seulement pour un Fil ; "Phase" (mono/tri) pour un câble
   show('[data-c="filn"]',    val('type')==='Fil');
@@ -3215,6 +3263,151 @@ function parseProt(p){ let a=G(p,'amp'); if(a==='autre…') a=G(p,'ampautre')||'
           existant: !!G(p,'existant') || ptype==='Fusible',      // fusible : forcément existant
           dispo:!!G(p,'dispo'), images:(p._images||[]).slice(), alimente:G(p,'alimente')}; }
 
+/* ===== Relevé par quantités : construction de l'interface =====
+   Une unité = un appartement / étage / zone. Elle contient des locaux, chaque local
+   des lignes « poste + quantité + tranche ». Rien n'est mesuré : tout est compté. */
+function addUnite(nom){
+  const u = el('div','qunit');
+  u.innerHTML = `<div class="qunit-hd">
+      <button type="button" class="qunit-tog" title="Replier / déployer"></button>
+      <input class="qunit-name" type="text" placeholder="ex : Rez — vent">
+      <span class="qunit-sum"></span>
+      <button type="button" class="qunit-rm" title="Supprimer l'unité">×</button>
+    </div>
+    <div class="qunit-body">
+      <div class="qlocaux"></div>
+      <button type="button" class="add qadd-local" style="border-style:solid; font-size:13px">＋ Ajouter un local</button>
+    </div>`;
+  u.querySelector('.qunit-name').value = nom || '';
+  u.querySelector('.qunit-tog').onclick = ()=> u.classList.toggle('collapsed');
+  u.querySelector('.qunit-rm').onclick  = ()=>{ u.remove(); updateQ(); scheduleSave(); };
+  u.querySelector('.qunit-name').addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
+  u.querySelector('.qadd-local').onclick = ()=>{ addQLocal(u); scheduleSave(); };
+  $('#quantites').appendChild(u); updateQ();
+  return u;
+}
+function addQLocal(u, nom){
+  const lo = el('div','qlocal');
+  lo.innerHTML = `<div class="qlocal-hd">
+      <input class="qlocal-name" type="text" placeholder="ex : Couloir, Chambre 1, Cuisine…">
+      <button type="button" class="qlocal-rm" title="Supprimer le local">×</button>
+    </div>
+    <div class="qlignes"></div>
+    <button type="button" class="add qadd-ligne" style="border-style:solid; font-size:13px">＋ Ajouter une ligne</button>
+    <input class="qlocal-rem" type="text" placeholder="Remarque sur ce local (optionnel)">`;
+  lo.querySelector('.qlocal-name').value = nom || '';
+  lo.querySelector('.qlocal-rm').onclick = ()=>{ lo.remove(); updateQ(); scheduleSave(); };
+  lo.querySelector('.qadd-ligne').onclick = ()=>{ addQLigne(lo); scheduleSave(); };
+  lo.querySelectorAll(':scope > .qlocal-hd input, :scope > .qlocal-rem')
+    .forEach(i=> i.addEventListener('input', ()=>{ updateQ(); scheduleSave(); }));
+  u.querySelector('.qlocaux').appendChild(lo); updateQ();
+  return lo;
+}
+function addQLigne(lo){
+  const r = el('div','row');
+  r.innerHTML = `<button class="rm" title="Supprimer">×</button>
+    <div class="grid">
+      <div><label class="fld">Poste</label><select data-f="qposte">${opts(QPOSTES)}</select></div>
+      <div><label class="fld">Quantité</label><input data-f="qqte" type="number" min="0" step="1" placeholder="ex : 4"></div>
+      <div><label class="fld">Tranche de longueur</label><select data-f="qtranche"><option value="">— non précisée —</option>${opts(TRANCHES)}</select></div>
+    </div>
+    <div class="cond" data-c="qposte" style="margin-top:10px"><label class="fld">Préciser le poste</label><input data-f="qautre" type="text" placeholder="ex : détecteur de mouvement"></div>`;
+  wire(r);
+  // wire() rebranche updateDef/updateCirc : ici c'est le total des quantités qu'il faut refaire.
+  r.querySelector('.rm').onclick = ()=>{ r.remove(); updateQ(); scheduleSave(); };
+  r.querySelectorAll('select, input').forEach(i=>{
+    i.addEventListener('input',  ()=>{ updateQ(); scheduleSave(); });
+    i.addEventListener('change', ()=>{ updateQ(); scheduleSave(); });
+  });
+  lo.querySelector('.qlignes').appendChild(r); updateQ();
+  return r;
+}
+/* ----- lecture ----- */
+function collectQuantites(){
+  return [...document.querySelectorAll('#quantites .qunit')].map(u=>({
+    nom: (u.querySelector('.qunit-name').value||'').trim(),
+    locaux: [...u.querySelectorAll('.qlocal')].map(lo=>({
+      nom: (lo.querySelector('.qlocal-name').value||'').trim(),
+      rem: (lo.querySelector('.qlocal-rem').value||'').trim(),
+      lignes: [...lo.querySelectorAll('.qlignes .row')].map(r=>{
+        let p = G(r,'qposte')||'';
+        if(p==='Autre…') p = (G(r,'qautre')||'').trim() || 'Autre poste';
+        return {poste:p, qte:parseFloat(G(r,'qqte'))||0, tranche:G(r,'qtranche')||''};
+      }).filter(x=> x.poste && x.qte>0)
+    })).filter(lo=> lo.nom || lo.lignes.length || lo.rem)
+  })).filter(u=> u.nom || u.locaux.length);
+}
+/* Colonnes du tableau : seulement les postes réellement utilisés, dans l'ordre de
+   QPOSTES, les postes libres (« Autre… ») à la fin par ordre alphabétique. */
+function qPostesUtilises(unites){
+  const vus = new Set();
+  unites.forEach(u=> u.locaux.forEach(lo=> lo.lignes.forEach(l=> vus.add(l.poste))));
+  const base  = QPOSTES.filter(p=> p!=='Autre…' && vus.has(p));
+  const extra = [...vus].filter(p=> QPOSTES.indexOf(p)<0).sort((a,b)=> a.localeCompare(b));
+  return base.concat(extra);
+}
+function qTotauxLocal(lo){
+  const m = {};
+  (lo.lignes||[]).forEach(l=> m[l.poste] = (m[l.poste]||0) + l.qte);
+  return m;
+}
+function qTotauxUnite(u){
+  const m = {};
+  (u.locaux||[]).forEach(lo=> (lo.lignes||[]).forEach(l=> m[l.poste] = (m[l.poste]||0) + l.qte));
+  return m;
+}
+/* Longueurs : ce que l'on reporte dans le programme d'offre (X prises en 0 à 5 m). */
+function qTranchesTotales(unites){
+  const out = [];
+  unites.forEach(u=> u.locaux.forEach(lo=> lo.lignes.forEach(l=>{
+    if(!l.tranche) return;
+    const f = out.find(x=> x.poste===l.poste && x.tranche===l.tranche);
+    if(f) f.qte += l.qte; else out.push({poste:l.poste, tranche:l.tranche, qte:l.qte});
+  })));
+  return out.sort((a,b)=> a.poste.localeCompare(b.poste)
+    || TRANCHES.indexOf(a.tranche) - TRANCHES.indexOf(b.tranche));
+}
+/* ----- totaux affichés ----- */
+function updateQ(){
+  [...document.querySelectorAll('#quantites .qunit')].forEach(u=>{
+    const nl = u.querySelectorAll('.qlocal').length;
+    const nb = [...u.querySelectorAll('.qlignes .row')]
+      .reduce((a,r)=> a + (parseFloat(G(r,'qqte'))||0), 0);
+    const sp = u.querySelector('.qunit-sum');
+    if(sp) sp.textContent = nl ? nl+(nl>1?' locaux':' local')+(nb?' · '+nb+' art.':'') : '';
+  });
+  const e = $('#qTotal'); if(!e) return;
+  const unites = collectQuantites();
+  const postes = qPostesUtilises(unites);
+  const tot    = qTotauxUnite({locaux: unites.reduce((a,u)=> a.concat(u.locaux), [])});
+  e.innerHTML = postes.length
+    ? '→ Total : ' + postes.map(p=> '<b>'+tot[p]+'</b> '+qCourt(p).toLowerCase()).join(' · ')
+    : '→ Total : <b>—</b>';
+}
+/* ----- état (brouillon local et sauvegarde .SEVJ) ----- */
+function qUniteState(u){
+  return { nom: u.querySelector('.qunit-name').value,
+    collapsed: u.classList.contains('collapsed') ? 1 : 0,
+    locaux: [...u.querySelectorAll('.qlocal')].map(lo=>({
+      nom: lo.querySelector('.qlocal-name').value,
+      rem: lo.querySelector('.qlocal-rem').value,
+      lignes: [...lo.querySelectorAll('.qlignes .row')].map(rowState)
+    })) };
+}
+function qApply(list){
+  const box = $('#quantites'); if(!box) return;
+  box.innerHTML = '';
+  (list||[]).forEach(us=>{
+    const u = addUnite(us.nom);
+    (us.locaux||[]).forEach(ls=>{
+      const lo = addQLocal(u, ls.nom);
+      if(ls.rem != null) lo.querySelector('.qlocal-rem').value = ls.rem;
+      (ls.lignes||[]).forEach(st=> fillRow(addQLigne(lo), st));
+    });
+    if(us.collapsed) u.classList.add('collapsed');
+  });
+  updateQ();
+}
 function collect(){
   const g=G;
   const protEls=[...document.querySelectorAll('#protections .prot')];
@@ -3287,6 +3480,7 @@ function collect(){
     vendredi:$('#vendredi').checked, apprenti:$('#apprenti').checked,
     tabAmiante:$('#tabAmiante').checked,
     protections, rooms, rem, defauts:collectDefauts(), circuits:collectCircuits(),
+    quantites:collectQuantites(),
     oibtRlv:collectOibtRlv(), user:currentUser
   };
 }
@@ -3351,6 +3545,9 @@ function buildFiche(d, mode){
 
   /* ---- Remise en conformité OIBT (rapport de contrôle importé) ---- */
   pushOibtRlv(L, d);
+
+  /* ---- Relevé par quantités (gros chantier) ---- */
+  pushQuantites(L, d);
 
   /* ---- Temps (global, une seule fois) ---- */
   pushTemps(L, d);
@@ -3460,6 +3657,59 @@ function pushOibtRlv(L,d){
       vgs.forEach(x=>{ L.push('<div class="room-title" style="color:var(--navy); border-bottom-color:var(--navy)">Défaut N° '+esc(String(x.n))+' — page '+esc(String(x.page))+'</div>');
         L.push('<div class="fiche-photos"><img src="'+x.vg+'"></div>'); });
     }
+  }
+}
+/* Relevé par quantités : un tableau par unité (locaux x postes) avec sa ligne TOTAL,
+   puis le récapitulatif croisé et le détail des longueurs à reporter dans l'offre. */
+function pushQuantites(L, d){
+  const unites = d.quantites || [];
+  const postes = qPostesUtilises(unites);
+  if(!postes.length) return;
+  L.push('<h3>Relevé par quantités</h3>');
+  L.push('<p class="obj" style="color:#666">Relevé compté local par local, sans mesure de détail. '
+       + 'Les longueurs sont données par tranches et restent estimatives.</p>');
+  unites.forEach(u=>{
+    L.push('<div class="room-block" style="border-left:5px solid #1F3B5B; padding-left:10px; margin:14px 0 4px">');
+    L.push('<div class="room-title" style="color:#1F3B5B; border-bottom-color:#1F3B5B">'
+         + esc(u.nom || 'Unité') + '</div>');
+    L.push('<table><tr><th>Local</th>'
+         + postes.map(p=> '<th class="q">' + esc(qCourt(p)) + '</th>').join('')
+         + '<th>Remarques</th></tr>');
+    u.locaux.forEach(lo=>{
+      const t = qTotauxLocal(lo);
+      L.push('<tr><td>' + esc(lo.nom || '—') + '</td>'
+           + postes.map(p=> '<td class="q">' + (t[p] ? t[p] : '—') + '</td>').join('')
+           + '<td>' + esc(lo.rem || '') + '</td></tr>');
+    });
+    const tu = qTotauxUnite(u);
+    L.push('<tr class="tot-row"><td>TOTAL</td>'
+         + postes.map(p=> '<td class="q">' + (tu[p] || 0) + '</td>').join('')
+         + '<td></td></tr>');
+    L.push('</table></div>');
+  });
+  if(unites.length > 1){
+    const tots = unites.map(qTotauxUnite);
+    L.push('<h3>Récapitulatif général</h3>');
+    L.push('<table><tr><th>Poste</th>'
+         + unites.map(u=> '<th class="q">' + esc(u.nom || '—') + '</th>').join('')
+         + '<th class="q">Total</th></tr>');
+    postes.forEach(p=>{
+      const vals = tots.map(t=> t[p] || 0);
+      L.push('<tr><td>' + esc(p) + '</td>'
+           + vals.map(v=> '<td class="q">' + (v || '—') + '</td>').join('')
+           + '<td class="q"><b>' + vals.reduce((a,b)=> a+b, 0) + '</b></td></tr>');
+    });
+    L.push('</table>');
+  }
+  const tr = qTranchesTotales(unites);
+  if(tr.length){
+    L.push('<h3>Longueurs par tranche</h3>');
+    L.push('<p class="obj" style="color:#666">À reporter dans le programme d\'offre. '
+         + 'Longueurs estimatives, les passages n\'ayant pas pu être mesurés.</p>');
+    L.push('<table><tr><th>Poste</th><th>Tranche</th><th class="q">Qté</th></tr>');
+    tr.forEach(x=> L.push('<tr><td>' + esc(x.poste) + '</td><td>' + esc(x.tranche)
+                        + '</td><td class="q">' + x.qte + '</td></tr>'));
+    L.push('</table>');
   }
 }
 function pushTemps(L,d){
@@ -3885,6 +4135,76 @@ function buildPDFDoc(d, mode){
         y+=ih+gap;
       });
       y+=2;
+    }
+  }
+
+  /* Relevé par quantités (gros chantier) */
+  const qUn   = d.quantites || [];
+  const qPost = qPostesUtilises(qUn);
+  if(qPost.length){
+    if(y > H-40){ doc.addPage(); y=16; }
+    heading('Relevé par quantités');
+    doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(...CLR.mut);
+    const qIntro = doc.splitTextToSize(pdfSafe("Relevé compté local par local, sans mesure de détail. Les longueurs sont données par tranches et restent estimatives."), CW);
+    doc.text(qIntro, M, y); y += qIntro.length*3.9 + 3;
+    const stQ = {fontStyle:'bold', fillColor:CLR.bg, textColor:CLR.navy};
+    /* largeurs calculées : avec 12 postes, des colonnes fixes déborderaient de la page */
+    const qCols = nb => {
+      const wLoc=28, wRem=30, wP=Math.max(9,(CW-wLoc-wRem)/nb), cs={0:{cellWidth:wLoc}};
+      for(let i=1;i<=nb;i++) cs[i]={cellWidth:wP, halign:'center'};
+      cs[nb+1]={cellWidth:wRem};
+      return cs;
+    };
+    qUn.forEach(u=>{
+      if(y > H-34){ doc.addPage(); y=16; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...CLR.navy);
+      doc.text(pdfSafe(u.nom || 'Unité'), M, y+3); y+=5;
+      const corps = u.locaux.map(lo=>{
+        const t = qTotauxLocal(lo);
+        return [lo.nom || '-'].concat(qPost.map(p=> t[p] ? String(t[p]) : '-')).concat([lo.rem || '']);
+      });
+      const tu = qTotauxUnite(u);
+      corps.push([{content:'TOTAL', styles:stQ}]
+        .concat(qPost.map(p=> ({content:String(tu[p]||0), styles:Object.assign({}, stQ, {halign:'center'})})))
+        .concat([{content:'', styles:stQ}]));
+      doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+        styles:{fontSize:7.5, cellPadding:1.3, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top'},
+        headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+        head:[['Local'].concat(qPost.map(qCourt)).concat(['Remarques'])],
+        columnStyles:qCols(qPost.length), body:corps, didParseCell:sanitize });
+      y = doc.lastAutoTable.finalY + 5;
+    });
+    if(qUn.length > 1){
+      if(y > H-34){ doc.addPage(); y=16; }
+      heading('Récapitulatif général');
+      const tots = qUn.map(qTotauxUnite);
+      const corps = qPost.map(p=>{
+        const vals = tots.map(t=> t[p] || 0);
+        return [p].concat(vals.map(v=> v ? String(v) : '-'))
+                  .concat([{content:String(vals.reduce((a,b)=> a+b, 0)),
+                            styles:{fontStyle:'bold', halign:'center'}}]);
+      });
+      const wCol = Math.max(11, (CW-42)/(qUn.length+1));
+      const cs = {0:{cellWidth:42}};
+      for(let i=1;i<=qUn.length+1;i++) cs[i]={cellWidth:wCol, halign:'center'};
+      doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+        styles:{fontSize:8, cellPadding:1.4, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
+        headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+        head:[['Poste'].concat(qUn.map(u=> u.nom || '-')).concat(['Total'])],
+        columnStyles:cs, body:corps, didParseCell:sanitize });
+      y = doc.lastAutoTable.finalY + 5;
+    }
+    const qTr = qTranchesTotales(qUn);
+    if(qTr.length){
+      if(y > H-34){ doc.addPage(); y=16; }
+      heading('Longueurs par tranche');
+      doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+        styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
+        headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+        columnStyles:{0:{cellWidth:CW-70}, 1:{cellWidth:40, halign:'center'}, 2:{cellWidth:30, halign:'center'}},
+        head:[['Poste','Tranche','Qté']],
+        body:qTr.map(x=> [x.poste, x.tranche, String(x.qte)]), didParseCell:sanitize });
+      y = doc.lastAutoTable.finalY + 7;
     }
   }
 
@@ -6822,6 +7142,7 @@ function draftObject(){
   d.materiel=[...document.querySelectorAll('#materiel > .row')].map(r=>({t:r.dataset.mt, s:rowState(r)}));
   // sans les extraits (base64) : ils vont dans leur propre clé, et hors du marqueur PDF
   d.oibtRlv=rlvOibtState();
+  d.quantites=[...document.querySelectorAll('#quantites .qunit')].map(qUniteState);
   d.protections=[...document.querySelectorAll('#protections .prot')].map(protState);
   d.rooms=[...document.querySelectorAll('#rooms .room')].map(roomState);
   return d;
@@ -6869,6 +7190,7 @@ function applyDraft(d){
     $('#materiel').innerHTML='';
     d.materiel.forEach(o=> addMateriel(o.t, o.s));
   }
+  if(Array.isArray(d.quantites)) qApply(d.quantites);
   if(d.oibtRlv) rlvOibtApply(d.oibtRlv);
   updateDef(); updateCirc();
   // 1) pièces (rid conservé)
@@ -7039,6 +7361,8 @@ function init(){
        && card.id!=='installationCard') card.classList.add('collapsed');
   });
   $('#foldAllBtn').onclick=foldAllCards;
+  const aub=$('#addUniteBtn'); if(aub) aub.onclick=()=>{ addUnite(); scheduleSave(); };
+  updateQ();
   const apb=$('#addProtBtn'); if(apb) apb.onclick=()=>{ addProtection(); scheduleSave(); };
 
   document.querySelectorAll('.add[data-add]').forEach(b=>{
