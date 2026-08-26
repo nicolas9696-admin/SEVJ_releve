@@ -1692,7 +1692,6 @@ const $  = s => document.querySelector(s);
    local et on donne une tranche de longueur, comme le fait le programme d'offre. */
 const QPOSTES = ["Dérivation","Prise","Interrupteur","Inter / prise","Point lumineux",
                  "Armoire à pharmacie","Poussoir","Alimentation 16 A",
-                 "Disjoncteur","Disjoncteur différentiel (FI)","Parafoudre","Modification de tableau",
                  "Lave-vaisselle","Plaque de cuisson","Four","Hotte","Autre…"];
 /* Libellés courts : les colonnes du PDF ne tiennent pas avec les noms complets. */
 const QCOURT = {"Dérivation":"Dériv.","Prise":"Prises","Interrupteur":"Inter",
@@ -3654,6 +3653,19 @@ function qLocalNom(lo){
   const c = lo.querySelector('.qlocal-name-custom');
   return ((c && c.value) || '').trim();
 }
+/* Ces postes ont quitté la liste des locaux : ils vivent désormais dans le bloc TAB.
+   Un relevé qui en contient déjà les garde en saisie libre plutôt que de les perdre
+   au rechargement — un <select> à qui on donne une option inexistante se vide. */
+const QPOSTES_RETIRES = ["Disjoncteur","Disjoncteur différentiel (FI)",
+                         "Parafoudre","Modification de tableau"];
+function qLigneMigre(st){
+  const o = Object.assign({}, st);
+  if(QPOSTES_RETIRES.indexOf(o.qposte) >= 0){
+    if(!o.qautre) o.qautre = o.qposte;
+    o.qposte = 'Autre…';
+  }
+  return o;
+}
 function qLocalState(lo){
   return { nom: qLocalNom(lo),
     rem: lo.querySelector('.qlocal-rem').value,
@@ -3663,7 +3675,7 @@ function qLocalState(lo){
 function qLocalFromState(u, st){
   const lo = addQLocal(u, st.nom);
   if(st.rem != null) lo.querySelector('.qlocal-rem').value = st.rem;
-  (st.lignes||[]).forEach(x=> fillRow(addQLigne(lo), x));
+  (st.lignes||[]).forEach(x=> fillRow(addQLigne(lo), qLigneMigre(x)));
   if(st.collapsed) lo.classList.add('collapsed');
   return lo;
 }
