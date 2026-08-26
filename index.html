@@ -204,6 +204,21 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   width:30px; height:30px; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer}
 .qlocal .qlocal-rem{margin-top:8px}
 .qlocal.collapsed .qlocal-body{display:none}
+.qtab{border:1px solid var(--line); border-left:5px solid #8a6d1f; border-radius:10px;
+  padding:10px; margin-bottom:10px; background:#fdfaf2}
+.qtab-hd{display:flex; gap:8px; align-items:center}
+.qtab-hd .qtab-name{flex:1; min-width:0}
+.qtab-hd .qtab-sum{flex:0 0 auto; font-size:11px; font-weight:700; color:#8a6d1f; white-space:nowrap}
+.qtab-hd button{flex:0 0 auto; border:none; background:#efe4c8; color:#6b5417;
+  width:30px; height:30px; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center}
+.qtab-hd .qtab-tog::before{content:''; width:7px; height:7px; border-right:2.2px solid currentColor;
+  border-bottom:2.2px solid currentColor; transform:rotate(45deg); margin-top:-3px; transition:transform .2s}
+.qtab.collapsed .qtab-hd .qtab-tog::before{transform:rotate(-45deg); margin-top:3px}
+.qtab.collapsed .qtab-body{display:none}
+.qtab-body{margin-top:10px}
+.qtab-body .qtab-loc{margin-bottom:10px}
+.qtab-body .qtab-rem{margin-top:8px}
 .qlocal.collapsed{margin-bottom:6px}
 .qlocal-hd .qlocal-sum{flex:0 0 auto; font-size:11px; font-weight:700; color:var(--navy2); white-space:nowrap}
 .qlocal-hd .qlocal-tog,.qlocal-hd .qlocal-dup{flex:0 0 auto; border:none; background:var(--line); color:var(--navy);
@@ -1662,6 +1677,13 @@ const QCOURT = {"Dérivation":"Dériv.","Prise":"Prises","Interrupteur":"Inter",
 const QPASSAGE = ["Retirable dans le tube existant",
                   "Tube Bergmann \u2014 tirage difficile",
                   "\u00c0 faire \u00e0 neuf"];
+/* Modifications possibles sur un tableau. Un chantier peut en compter plusieurs :
+   TAB des communs, TAB d'appartement, coffret de cuisine… chacun avec les siennes. */
+const QTAB = ["Disjoncteur 1P","Disjoncteur 3P","Disjoncteur diff\u00e9rentiel (FI)",
+              "Interrupteur diff\u00e9rentiel","Parafoudre","Coupe-surintensit\u00e9",
+              "Borne / r\u00e9partiteur","Peigne d'alimentation","Contacteur","T\u00e9l\u00e9rupteur",
+              "Minuterie","Horloge","Rep\u00e9rage / \u00e9tiquetage","Mise \u00e0 la terre",
+              "Remplacement du tableau","D\u00e9pose d'appareil","Autre\u2026"];
 function qCourt(p){ return QCOURT[p] || p; }
 const el = (t,c)=>{const e=document.createElement(t); if(c)e.className=c; return e;};
 function opts(arr,sel){return arr.map(v=>`<option${v===sel?' selected':''}>${v}</option>`).join('')}
@@ -2994,7 +3016,8 @@ function applyCond(r){
   show('[data-c="mm2"]',   val('mm2')==='autre…');
   show('[data-c="dtype"]', val('dtype')==='Autre…');       // recherche de défaut : préciser
   show('[data-c="ctype"]', val('ctype')==='Autre…');
-  show('[data-c="qposte"]', val('qposte')==='Autre…');   // relevé par quantités : préciser le poste       // recherche de circuit : préciser
+  show('[data-c="qposte"]', val('qposte')==='Autre…');   // relevé par quantités : préciser le poste
+  show('[data-c="tposte"]', val('tposte')==='Autre…');   // tableau : préciser la modification       // recherche de circuit : préciser
   show('[data-c="amp"]',   val('amp')==='autre…');
   // câble : champ "Nombre" seulement pour un Fil ; "Phase" (mono/tri) pour un câble
   show('[data-c="filn"]',    val('type')==='Fil');
@@ -3309,6 +3332,8 @@ function addUnite(nom){
       <div class="qunit-est"><label class="fld">Estimation de temps pour cette unit\u00e9 (h)</label><input class="qunit-h" type="number" min="0" step="0.25" placeholder="ex : 16"></div>
       <div class="qlocaux"></div>
       <button type="button" class="add qadd-local" style="border-style:solid; font-size:13px">\uff0b Ajouter un local</button>
+      <div class="qtabs"></div>
+      <button type="button" class="add qadd-tab" style="border-style:solid; font-size:13px">\uff0b Ajouter un tableau (TAB)</button>
     </div>`;
   u.querySelector('.qunit-name').value = nom || '';
   u.querySelector('.qunit-tog').onclick = ()=> u.classList.toggle('collapsed');
@@ -3321,6 +3346,7 @@ function addUnite(nom){
   u.querySelector('.qunit-name').addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
   u.querySelector('.qunit-h').addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
   u.querySelector('.qadd-local').onclick = ()=>{ qFlash(addQLocal(u)); scheduleSave(); };
+  u.querySelector('.qadd-tab').onclick   = ()=>{ qFlash(addQTab(u)); scheduleSave(); };
   $('#quantites').appendChild(u); updateQ();
   return u;
 }
@@ -3382,6 +3408,81 @@ function addQLigne(lo){
   lo.querySelector('.qlignes').appendChild(r); updateQ();
   return r;
 }
+/* ----- Tableau (TAB) -----
+   Un tableau n'est pas un local : il porte des modifications d'appareillage, pas des
+   points à tirer. Une unité peut en contenir plusieurs (communs, appartement, coffret). */
+function addQTab(u, nom){
+  const t = el('div','qtab');
+  t.innerHTML = `<div class="qtab-hd">
+      <button type="button" class="qtab-tog" title="Replier / d\u00e9ployer"></button>
+      <input class="qtab-name" type="text" placeholder="ex : TAB appartement, TAB communs">
+      <span class="qtab-sum"></span>
+      <button type="button" class="qtab-dup" title="Dupliquer le tableau">\u29c9</button>
+      <button type="button" class="qtab-rm" title="Supprimer le tableau">\u00d7</button>
+    </div>
+    <div class="qtab-body">
+      <input class="qtab-loc" type="text" placeholder="Emplacement (ex : sous-sol, couloir, cuisine\u2026)">
+      <div class="qtlignes"></div>
+      <button type="button" class="add qadd-tligne" style="border-style:solid; font-size:13px">\uff0b Ajouter une modification</button>
+      <input class="qtab-rem" type="text" placeholder="Remarque sur ce tableau (optionnel)">
+    </div>`;
+  t.querySelector('.qtab-name').value = nom || '';
+  t.querySelector('.qtab-tog').onclick = ()=> t.classList.toggle('collapsed');
+  t.querySelector('.qtab-rm').onclick  = ()=>{ t.remove(); updateQ(); scheduleSave(); };
+  t.querySelector('.qtab-dup').onclick = ()=>{
+    const copie = qTabFromState(u, qTabState(t));
+    t.parentNode.insertBefore(copie, t.nextSibling);
+    qFlash(copie); updateQ(); scheduleSave();
+  };
+  t.querySelector('.qadd-tligne').onclick = ()=>{ qFlash(addQTabLigne(t)); scheduleSave(); };
+  t.querySelectorAll(':scope > .qtab-hd .qtab-name, :scope > .qtab-body > .qtab-loc, :scope > .qtab-body > .qtab-rem')
+    .forEach(i=> i.addEventListener('input', ()=>{ updateQ(); scheduleSave(); }));
+  u.querySelector('.qtabs').appendChild(t); updateQ();
+  return t;
+}
+function addQTabLigne(t){
+  const r = el('div','row');
+  r.innerHTML = `<button class="rm" title="Supprimer">\u00d7</button>
+    <button type="button" class="dup" title="Dupliquer la modification">\u29c9</button>
+    <button type="button" class="fold" title="R\u00e9duire / d\u00e9ployer">\u25be</button>
+    <div class="tag">Modification</div><span class="row-name-sum"></span>
+    <div class="grid">
+      <div><label class="fld">Modification</label><select data-f="tposte">${opts(QTAB)}</select></div>
+      <div><label class="fld">Quantit\u00e9</label><input data-f="tqte" type="number" min="0" step="1" placeholder="ex : 4"></div>
+      <div><label class="fld">Rep\u00e8re / d\u00e9part</label><input data-f="trep" type="text" placeholder="ex : F12, d\u00e9part cuisine"></div>
+    </div>
+    <div class="cond" data-c="tposte" style="margin-top:10px"><label class="fld">Pr\u00e9ciser la modification</label><input data-f="tautre" type="text" placeholder="ex : pose d'un compteur divisionnaire"></div>`;
+  wire(r);
+  r.querySelector('.rm').onclick   = ()=>{ r.remove(); updateQ(); scheduleSave(); };
+  r.querySelector('.fold').onclick = ()=> r.classList.toggle('folded');
+  r.querySelector('.tag').onclick  = ()=> r.classList.toggle('folded');
+  r.querySelector('.dup').onclick  = ()=>{
+    const copie = addQTabLigne(t); fillRow(copie, rowState(r));
+    r.parentNode.insertBefore(copie, r.nextSibling);
+    qFlash(copie); updateQ(); scheduleSave();
+  };
+  r.querySelectorAll('select, input').forEach(i=>{
+    i.addEventListener('input',  ()=>{ updateQ(); scheduleSave(); });
+    i.addEventListener('change', ()=>{ updateQ(); scheduleSave(); });
+  });
+  t.querySelector('.qtlignes').appendChild(r); updateQ();
+  return r;
+}
+function qTabState(t){
+  return { nom: t.querySelector('.qtab-name').value,
+    loc: t.querySelector('.qtab-loc').value,
+    rem: t.querySelector('.qtab-rem').value,
+    collapsed: t.classList.contains('collapsed') ? 1 : 0,
+    lignes: [...t.querySelectorAll('.qtlignes .row')].map(rowState) };
+}
+function qTabFromState(u, st){
+  const t = addQTab(u, st.nom);
+  if(st.loc != null) t.querySelector('.qtab-loc').value = st.loc;
+  if(st.rem != null) t.querySelector('.qtab-rem').value = st.rem;
+  (st.lignes||[]).forEach(x=> fillRow(addQTabLigne(t), x));
+  if(st.collapsed) t.classList.add('collapsed');
+  return t;
+}
 /* ----- état d'un local / d'une unité, et reconstruction à l'identique -----
    Sert à la fois à la duplication et à la restauration du brouillon. */
 function qLocalState(lo){
@@ -3401,6 +3502,7 @@ function qUniteFromState(st){
   const u = addUnite(st.nom);
   if(st.heures != null) u.querySelector('.qunit-h').value = st.heures;
   (st.locaux||[]).forEach(ls=> qLocalFromState(u, ls));
+  (st.tableaux||[]).forEach(ts=> qTabFromState(u, ts));
   if(st.collapsed) u.classList.add('collapsed');
   return u;
 }
@@ -3409,8 +3511,8 @@ function qUniteFromState(st){
 function qFoldAll(){
   const box = $('#quantites'); if(!box) return;
   const unites = [...box.querySelectorAll('.qunit')];
-  const locaux = [...box.querySelectorAll('.qlocal')];
-  const lignes = [...box.querySelectorAll('.qlignes .row')];
+  const locaux = [...box.querySelectorAll('.qlocal, .qtab')];
+  const lignes = [...box.querySelectorAll('.qlignes .row, .qtlignes .row')];
   if(!unites.length) return;
   const ouvert = unites.some(e=> !e.classList.contains('collapsed'))
               || locaux.some(e=> !e.classList.contains('collapsed'))
@@ -3433,8 +3535,18 @@ function collectQuantites(){
         if(p==='Autre…') p = (G(r,'qautre')||'').trim() || 'Autre poste';
         return {poste:p, qte:parseFloat(G(r,'qqte'))||0, tranche:G(r,'qtranche')||'', passage:G(r,'qtube')||''};
       }).filter(x=> x.poste && x.qte>0)
-    })).filter(lo=> lo.nom || lo.lignes.length || lo.rem)
-  })).filter(u=> u.nom || u.locaux.length);
+    })).filter(lo=> lo.nom || lo.lignes.length || lo.rem),
+    tableaux: [...u.querySelectorAll('.qtab')].map(t=>({
+      nom: (t.querySelector('.qtab-name').value||'').trim(),
+      loc: (t.querySelector('.qtab-loc').value||'').trim(),
+      rem: (t.querySelector('.qtab-rem').value||'').trim(),
+      lignes: [...t.querySelectorAll('.qtlignes .row')].map(r=>{
+        let p = G(r,'tposte')||'';
+        if(p==='Autre\u2026') p = (G(r,'tautre')||'').trim() || 'Autre modification';
+        return {poste:p, qte:parseFloat(G(r,'tqte'))||0, rep:G(r,'trep')||''};
+      }).filter(x=> x.poste && x.qte>0)
+    })).filter(t=> t.nom || t.lignes.length || t.loc || t.rem)
+  })).filter(u=> u.nom || u.locaux.length || u.tableaux.length);
 }
 /* Colonnes du tableau : seulement les postes réellement utilisés, dans l'ordre de
    QPOSTES, les postes libres (« Autre… ») à la fin par ordre alphabétique. */
@@ -3473,6 +3585,19 @@ function qTranchesTotales(unites){
 function qHeuresTotal(unites){
   return Math.round((unites||[]).reduce((a,u)=> a + (parseFloat(u.heures)||0), 0)*100)/100;
 }
+/* Toutes les modifications de tableau, tous tableaux et toutes unités confondus :
+   c'est ce qui sert à commander l'appareillage. */
+function qTabTotaux(unites){
+  const out = [], rang = p => { const i = QTAB.indexOf(p); return i<0 ? 999 : i; };
+  (unites||[]).forEach(u=> (u.tableaux||[]).forEach(t=> t.lignes.forEach(l=>{
+    const f = out.find(x=> x.poste===l.poste);
+    if(f) f.qte += l.qte; else out.push({poste:l.poste, qte:l.qte});
+  })));
+  return out.sort((a,b)=> rang(a.poste)-rang(b.poste) || a.poste.localeCompare(b.poste));
+}
+function qTousTableaux(unites){
+  return (unites||[]).reduce((a,u)=> a.concat((u.tableaux||[]).filter(t=> t.lignes.length)), []);
+}
 /* ----- totaux affichés ----- */
 function updateQ(){
   [...document.querySelectorAll('#quantites .qunit')].forEach(u=>{
@@ -3489,6 +3614,18 @@ function updateQ(){
     const n = [...lo.querySelectorAll('.qlignes .row')].reduce((a,r)=> a+(parseFloat(G(r,'qqte'))||0), 0);
     const sp = lo.querySelector('.qlocal-sum');
     if(sp) sp.textContent = n ? n+' art.' : '';
+  });
+  [...document.querySelectorAll('#quantites .qtab')].forEach(t=>{
+    const n = [...t.querySelectorAll('.qtlignes .row')].reduce((a,r)=> a+(parseFloat(G(r,'tqte'))||0), 0);
+    const sp = t.querySelector('.qtab-sum');
+    if(sp) sp.textContent = n ? n+' modif.' : '';
+  });
+  [...document.querySelectorAll('#quantites .qtlignes .row')].forEach(r=>{
+    let p = G(r,'tposte')||'';
+    if(p==='Autre\u2026') p = (G(r,'tautre')||'').trim() || 'Autre modification';
+    const tag = r.querySelector('.tag'); if(tag) tag.textContent = p;
+    const sum = r.querySelector('.row-name-sum');
+    if(sum) sum.textContent = [G(r,'tqte'), G(r,'trep')].filter(Boolean).join(' \u00b7 ');
   });
   [...document.querySelectorAll('#quantites .qlignes .row')].forEach(r=>{
     let p = G(r,'qposte')||'';
@@ -3513,7 +3650,8 @@ function qUniteState(u){
   return { nom: u.querySelector('.qunit-name').value,
     heures: u.querySelector('.qunit-h').value,
     collapsed: u.classList.contains('collapsed') ? 1 : 0,
-    locaux: [...u.querySelectorAll('.qlocal')].map(qLocalState) };
+    locaux: [...u.querySelectorAll('.qlocal')].map(qLocalState),
+    tableaux: [...u.querySelectorAll('.qtab')].map(qTabState) };
 }
 function qApply(list){
   const box = $('#quantites'); if(!box) return;
@@ -3777,7 +3915,8 @@ function pushOibtRlv(L,d){
 function pushQuantites(L, d){
   const unites = d.quantites || [];
   const postes = qPostesUtilises(unites);
-  if(!postes.length) return;
+  /* un relevé peut ne contenir que des tableaux (immeuble où seul le TAB est repris) */
+  if(!postes.length && !qTousTableaux(unites).length) return;
   L.push('<h3>Relevé par quantités</h3>');
   L.push('<p class="obj" style="color:#666">Relevé compté local par local, sans mesure de détail. '
        + 'Les longueurs sont données par tranches et restent estimatives.</p>');
@@ -3787,6 +3926,7 @@ function pushQuantites(L, d){
          + esc(u.nom || 'Unité') + '</div>');
     if(u.heures) L.push('<p class="obj" style="color:#666; margin:2px 0 6px">Estimation de temps : <b>'
          + u.heures + ' h</b></p>');
+    if(u.locaux.length){
     L.push('<table><tr><th>Local</th>'
          + postes.map(p=> '<th class="q">' + esc(qCourt(p)) + '</th>').join('')
          + '<th>Remarques</th></tr>');
@@ -3800,7 +3940,18 @@ function pushQuantites(L, d){
     L.push('<tr class="tot-row"><td>TOTAL</td>'
          + postes.map(p=> '<td class="q">' + (tu[p] || 0) + '</td>').join('')
          + '<td></td></tr>');
-    L.push('</table></div>');
+    L.push('</table>');
+    }
+    (u.tableaux||[]).filter(t=> t.lignes.length).forEach(t=>{
+      L.push('<p class="obj" style="margin:10px 0 2px"><b>' + esc(t.nom || 'Tableau') + '</b>'
+           + (t.loc ? ' <span style="color:#666">\u2014 ' + esc(t.loc) + '</span>' : '') + '</p>');
+      L.push('<table><tr><th>Modification</th><th>Rep\u00e8re / d\u00e9part</th><th class="q">Qt\u00e9</th></tr>');
+      t.lignes.forEach(l=> L.push('<tr><td>' + esc(l.poste) + '</td><td>' + esc(l.rep || '\u2014')
+                                + '</td><td class="q">' + l.qte + '</td></tr>'));
+      L.push('</table>');
+      if(t.rem) L.push('<p class="obj" style="color:#666; margin:2px 0 0">' + esc(t.rem) + '</p>');
+    });
+    L.push('</div>');
   });
   if(unites.length > 1){
     const tots = unites.map(qTotauxUnite);
@@ -3817,6 +3968,13 @@ function pushQuantites(L, d){
     if(qHeuresTotal(unites)) L.push('<tr class="tot-row"><td>Estimation de temps (h)</td>'
       + unites.map(u=> '<td class="q">' + (u.heures || '—') + '</td>').join('')
       + '<td class="q">' + qHeuresTotal(unites) + '</td></tr>');
+    L.push('</table>');
+  }
+  const tabs = qTousTableaux(unites);
+  if(tabs.length > 1){
+    L.push('<h3>Tableaux \u2014 r\u00e9capitulatif des modifications</h3>');
+    L.push('<table><tr><th>Modification</th><th class="q">Qt\u00e9</th></tr>');
+    qTabTotaux(unites).forEach(x=> L.push('<tr><td>' + esc(x.poste) + '</td><td class="q">' + x.qte + '</td></tr>'));
     L.push('</table>');
   }
   const tr = qTranchesTotales(unites);
@@ -4266,7 +4424,8 @@ function buildPDFDoc(d, mode){
   /* Relevé par quantités (gros chantier) */
   const qUn   = d.quantites || [];
   const qPost = qPostesUtilises(qUn);
-  if(qPost.length){
+  const qTabs = qTousTableaux(qUn);
+  if(qPost.length || qTabs.length){
     if(y > H-40){ doc.addPage(); y=16; }
     heading('Relevé par quantités');
     doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(...CLR.mut);
@@ -4295,12 +4454,28 @@ function buildPDFDoc(d, mode){
       corps.push([{content:'TOTAL', styles:stQ}]
         .concat(qPost.map(p=> ({content:String(tu[p]||0), styles:Object.assign({}, stQ, {halign:'center'})})))
         .concat([{content:'', styles:stQ}]));
-      doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
-        styles:{fontSize:7.5, cellPadding:1.3, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top'},
-        headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
-        head:[['Local'].concat(qPost.map(qCourt)).concat(['Remarques'])],
-        columnStyles:qCols(qPost.length), body:corps, didParseCell:sanitize });
-      y = doc.lastAutoTable.finalY + 5;
+      if(qPost.length && u.locaux.length){
+        doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+          styles:{fontSize:7.5, cellPadding:1.3, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top'},
+          headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+          head:[['Local'].concat(qPost.map(qCourt)).concat(['Remarques'])],
+          columnStyles:qCols(qPost.length), body:corps, didParseCell:sanitize });
+        y = doc.lastAutoTable.finalY + 5;
+      }
+      (u.tableaux||[]).filter(t=> t.lignes.length).forEach(t=>{
+        if(y > H-30){ doc.addPage(); y=16; }
+        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
+        doc.text(pdfSafe((t.nom || 'Tableau') + (t.loc ? ' - ' + t.loc : '')), M, y+3); y+=5;
+        doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+          styles:{fontSize:8, cellPadding:1.4, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
+          headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+          columnStyles:{0:{cellWidth:CW-90}, 1:{cellWidth:66}, 2:{cellWidth:24, halign:'center'}},
+          head:[['Modification','Rep\u00e8re / d\u00e9part','Qt\u00e9']],
+          body:t.lignes.map(l=> [l.poste, l.rep || '-', String(l.qte)]), didParseCell:sanitize });
+        y = doc.lastAutoTable.finalY + (t.rem ? 1 : 5);
+        if(t.rem){ doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(...CLR.mut);
+          const rt = doc.splitTextToSize(pdfSafe(t.rem), CW); doc.text(rt, M, y+3); y += rt.length*3.9 + 4; }
+      });
     });
     if(qUn.length > 1){
       if(y > H-34){ doc.addPage(); y=16; }
@@ -4323,6 +4498,17 @@ function buildPDFDoc(d, mode){
         headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
         head:[['Poste'].concat(qUn.map(u=> u.nom || '-')).concat(['Total'])],
         columnStyles:cs, body:corps, didParseCell:sanitize });
+      y = doc.lastAutoTable.finalY + 5;
+    }
+    if(qTabs.length > 1){
+      if(y > H-34){ doc.addPage(); y=16; }
+      heading('Tableaux \u2014 r\u00e9capitulatif des modifications');
+      doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
+        styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
+        headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
+        columnStyles:{0:{cellWidth:CW-30}, 1:{cellWidth:30, halign:'center'}},
+        head:[['Modification','Qt\u00e9']],
+        body:qTabTotaux(qUn).map(x=> [x.poste, String(x.qte)]), didParseCell:sanitize });
       y = doc.lastAutoTable.finalY + 5;
     }
     const qTr = qTranchesTotales(qUn);
