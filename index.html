@@ -195,6 +195,11 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .qunit.collapsed .qunit-hd .qunit-tog::before{transform:rotate(-45deg); margin-top:3px}
 .qunit.collapsed .qunit-body{display:none}
 .qunit-body{padding:10px}
+.mo-reprise{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;
+  padding:9px 11px; border-radius:9px; background:#eef4fb; border:1px solid #cfe0f2; font-size:12.5px}
+.mo-reprise #moRepriseTxt{flex:1; min-width:180px; color:var(--navy)}
+.mo-reprise #moRepriseBtn{flex:0 0 auto; border:1px solid var(--navy2); background:#fff; color:var(--navy);
+  border-radius:8px; padding:6px 12px; font-size:12.5px; font-weight:700; cursor:pointer}
 .qunit-est{margin-bottom:10px}
 .qunit-calc{display:flex; align-items:center; gap:8px; margin-top:5px}
 .qunit-calc .qunit-calc-txt{font-size:11.5px; font-weight:600; color:var(--mut)}
@@ -1050,6 +1055,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <div class="chk"><input id="apprenti" type="checkbox"><label for="apprenti">Apprenti possible sur ce chantier</label></div>
       <div class="mo-total">→ Total main d'œuvre : <b id="moTotal">—</b></div>
       <div class="mo-total" id="moAutres" hidden style="margin-top:8px"></div>
+      <div class="mo-reprise" id="moReprise" hidden>
+        <span id="moRepriseTxt"></span>
+        <button type="button" id="moRepriseBtn">Reprendre</button>
+      </div>
     </div>
   </section>
   </div><!-- /#tabReleve -->
@@ -3295,11 +3304,42 @@ function autresHeures(){
   try{ t+=qHeuresTotal(collectQuantites()); }catch(e){}
   return Math.round(t*100)/100;
 }
+/* Report de l'estimation du relevé par quantités dans les heures finales.
+   Attention à l'unité : l'estimation est en heures-homme, alors que la carte Temps
+   demande une durée SUR SITE, qu'elle multiplie ensuite par le nombre de personnes.
+   On divise donc avant de reporter, sinon le total ferait le double. */
+function qValeurRetenue(){
+  let b; try{ b = qBilanHeures(collectQuantites()); }catch(e){ return null; }
+  if(b.retenue) return { h:b.retenue, src:'valeur de travail retenue' };
+  if(b.totMax)  return { h:Math.round((b.totMin+b.totMax)/2*10)/10, src:'milieu du total estim\u00e9' };
+  return null;
+}
+function updateReprise(){
+  const box = $('#moReprise'), txt = $('#moRepriseTxt');
+  if(!box || !txt) return;
+  const v = qValeurRetenue();
+  if(!v){ box.hidden = true; return; }
+  const pers = parseFloat($('#monteurs').value) || 1;
+  const surSite = Math.round(v.h/pers*4)/4;
+  box.hidden = false;
+  txt.innerHTML = 'Relev\u00e9 par quantit\u00e9s : <b>' + qFmtH(v.h) + ' h</b> (' + v.src + ')'
+    + ' \u2192 <b>' + qFmtH(surSite) + ' h</b> sur site pour ' + pers
+    + ' personne' + (pers > 1 ? 's' : '');
+}
+function reprendreEstimation(){
+  const v = qValeurRetenue(); if(!v) return;
+  const pers = parseFloat($('#monteurs').value) || 1;
+  /* on vide les jours : sinon ils s'ajouteraient aux heures et le total serait faux */
+  $('#jours').value  = '';
+  $('#dureeH').value = Math.round(v.h/pers*4)/4;
+  updateMO(); scheduleSave();
+}
 /* Met à jour l'affichage du total de main d'œuvre + validation */
 function updateMO(){
   const d={jours:$('#jours').value, dureeH:$('#dureeH').value, monteurs:$('#monteurs').value, vendredi:$('#vendredi').checked};
   const t=totalHeures(d);
   $('#moTotal').textContent = t? t+' h' : '—';
+  updateReprise();
   // Détail des heures chiffrées ailleurs : elles comptent dans le total et suffisent à
   // valider cette carte, sinon on croirait la main d'œuvre obligatoire.
   const a=$('#moAutres');
@@ -3857,6 +3897,7 @@ function updateQ(){
     + (qEstimationTotale(unites).max
         ? '<br>→ Calculé d’après le barème : <b>'+qPlage(qEstimationTotale(unites).min, qEstimationTotale(unites).max)+'</b>'
         : '');
+  updateReprise();
   const b = $('#qBilan');
   if(b){
     b.innerHTML = (b_ => b_.brutMax || b_.postes.length
@@ -8031,6 +8072,7 @@ function init(){
   const aub=$('#addUniteBtn'); if(aub) aub.onclick=()=>{ qFlash(addUnite()); scheduleSave(); };
   const qfa=$('#qFoldAll');    if(qfa) qfa.onclick=qFoldAll;
   const acb=$('#addCompBtn');  if(acb) acb.onclick=()=>{ qFlash(addQComp()); scheduleSave(); };
+  const mrb=$('#moRepriseBtn'); if(mrb) mrb.onclick=reprendreEstimation;
   ['#qImprevus','#qRetenue'].forEach(sel=>{ const e=$(sel);
     if(e) e.addEventListener('input', ()=>{ updateQ(); scheduleSave(); }); });
   updateQ();
