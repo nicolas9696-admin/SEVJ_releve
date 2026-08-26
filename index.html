@@ -320,29 +320,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .tile-oibt   .ic{background:linear-gradient(135deg,#1c8f7a,#0e5c4e)}
 .tile-listing .ic{background:linear-gradient(135deg,#c79a2e,#8a6410)}
 .tile-ft     .ic{background:linear-gradient(135deg,#3d7ea6,#1d4a66)}
-/* ---------- Fiche de travail : aperçu en direct ---------- */
-#ftApercu{overflow:hidden; border:1px solid var(--line); border-radius:10px; background:#fff}
-.ftdoc{width:1040px; transform-origin:top left; background:#fff; color:#222;
-  font:12px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; padding:14px}
-.ftdoc *{box-sizing:border-box}
-.ftdoc .ft-grid{display:flex; gap:14px; align-items:flex-start}
-.ftdoc .ft-l{width:430px; flex:0 0 430px}
-.ftdoc .ft-r{flex:1; min-width:0}
-.ftdoc h1{font-size:19px; margin:0 0 2px; color:#1F3B5B; letter-spacing:.4px}
-.ftdoc h2{font-size:12.5px; margin:10px 0 3px; color:#fff; background:#1F3B5B; padding:3px 7px; border-radius:3px}
-.ftdoc table{width:100%; border-collapse:collapse; font-size:10.5px}
-.ftdoc th,.ftdoc td{border:1px solid #b9c6d4; padding:2px 4px; vertical-align:top}
-.ftdoc th{background:#eaf0f6; color:#1F3B5B; font-weight:700; text-align:left; font-size:9.5px; line-height:1.15}
-.ftdoc .lbl{background:#f4f7fb; font-weight:700; color:#1F3B5B; width:38%}
-.ftdoc .zone{min-height:52px; white-space:pre-wrap}
-.ftdoc .zone.big{min-height:96px}
-.ftdoc .num{text-align:right}
-.ftdoc .ft-note{font-size:9.5px; color:#666; margin-top:3px}
-.ftdoc td.vide{height:15px}
-.ftdoc .ft-sig{height:52px}
-.ftdoc .ft-sig img{max-height:46px; max-width:100%; display:block}
-.ftdoc .ft-hd{display:flex; align-items:flex-start; gap:12px; border-bottom:2px solid #1F3B5B; padding-bottom:6px}
-.ftdoc .ft-hd img{height:42px; width:auto}
+/* ---------- Fiche de travail : aperçu (image du PDF rempli) ---------- */
+#ftApercu{border:1px solid var(--line); border-radius:10px; background:#fff; padding:6px; text-align:center}
+#ftApercu canvas{max-width:100%; height:auto; display:block; margin:0 auto}
+#ftApercu .att{font-size:12px; color:var(--mut); padding:18px}
 /* ---------- Rapport OIBT : points importés ---------- */
 .oibt-pt{border:1px solid var(--line); border-left:5px solid var(--navy2); border-radius:12px;
   padding:12px; margin:0 0 14px; background:#fbfdff; box-shadow:0 1px 4px rgba(31,59,91,.06)}
@@ -1138,7 +1119,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     <section class="card" id="ftApercuCard">
       <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span> Aperçu en direct</h2>
       <div class="body">
-        <p class="hint">La fiche se redessine à chaque saisie. <b>Générer la fiche</b> l'ouvre en grand et permet de l'exporter en PDF.</p>
+        <p class="hint">C'est <b>ton document d'origine</b> qui s'affiche, rempli au fur et à mesure.
+        <b>Générer la fiche</b> l'ouvre en grand (2 pages) et permet de l'exporter en PDF.</p>
         <div id="ftApercu"></div>
       </div>
     </section>
@@ -1153,6 +1135,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <div style="height:10px"></div>
         <label class="fld" for="ftChantier">Chantier</label>
         <input id="ftChantier" type="text" placeholder="ex : Villa L'Orient" autocomplete="off">
+        <div class="chk" style="margin-top:8px"><input id="ftTermine" type="checkbox"><label for="ftTermine">Chantier terminé</label></div>
+        <div class="chk"><input id="ftEnCours" type="checkbox"><label for="ftEnCours">Chantier en cours</label></div>
         <div style="display:flex; gap:8px; margin-top:12px">
           <button class="add" id="ftBackupExport" style="border-style:solid; margin:0; flex:1">💾 Sauvegarder (.SEVJ)</button>
           <input id="ftBackupImport" type="file" accept=".sevj,application/json,.json" style="display:none">
@@ -1189,13 +1173,15 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <h2><span class="n"><svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6v1H4z"/></svg></span> Informations</h2>
       <div class="body">
         <div class="grid">
-          <div><label class="fld">Chef de projet</label><input id="ftChef" type="text" autocomplete="off"></div>
-          <div><label class="fld">Nom du monteur</label><input id="ftMonteur" type="text" autocomplete="off"></div>
+          <div><label class="fld">Chef de projet</label><select id="ftChef"></select></div>
+          <div><label class="fld">Nom du monteur</label><select id="ftMonteur"></select></div>
         </div>
         <div class="grid" style="margin-top:10px">
-          <div><label class="fld">Nom de l'apprenti</label><input id="ftAppr" type="text" autocomplete="off"></div>
+          <div><label class="fld">Nom de l'apprenti</label><select id="ftAppr"></select></div>
           <div><label class="fld">Déplacement en km</label><input id="ftKm" type="number" min="0" step="1" placeholder="ex : 24"></div>
         </div>
+        <div class="chk" style="margin-top:10px"><input id="ftAvecOffre" type="checkbox"><label for="ftAvecOffre">Avec offre</label></div>
+        <div class="chk"><input id="ftSansOffre" type="checkbox"><label for="ftSansOffre">Sans offre</label></div>
       </div>
     </section>
 
@@ -1231,8 +1217,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     <section class="card">
       <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16"/></svg></span> Contrôle de l'installation</h2>
       <div class="body">
-        <p class="hint">La grille de contrôle (circuits et appareils) sort <b>vide</b> sur la fiche, telle qu'à l'origine :
-        elle se remplit à la main sur place. Rien à saisir ici.</p>
+        <p class="hint">La grille de contrôle est la <b>page 2</b> de la fiche : elle sort vide, telle qu'à l'origine,
+        et se remplit à la main sur place. Rien à saisir ici.</p>
       </div>
     </section>
 
@@ -3750,7 +3736,10 @@ function downloadPDF(){
   if(window._lastDoc==='regie'){ const d=window._lastData||collectRegie(); downloadBlob(buildRegiePDF(d).output('blob'), regieFileName(d)); return; }
   if(window._lastDoc==='proto'){ const d=window._lastData||collectProto(); downloadBlob(buildProtoPDF(d).output('blob'), protoFileName(d)); return; }
   if(window._lastDoc==='rm'){ const d=window._lastData||collectRM(); downloadBlob(buildRMPDF(d).output('blob'), rmFileName(d)); return; }
-  if(window._lastDoc==='ft'){ const d=window._lastData||collectFt(); downloadBlob(buildFtPDF(d).output('blob'), ftFileName(d)); return; }
+  if(window._lastDoc==='ft'){ const d=window._lastData||collectFt();
+    buildFtPdfBytes(d).then(b=>downloadBlob(new Blob([b],{type:'application/pdf'}), ftFileName(d)))
+      .catch(e=>alert("Fiche indisponible : "+e.message));
+    return; }
   const d = window._lastData || collect();
   const doc = buildPDFDoc(d, EXPORT_MODE);
   const suffix = EXPORT_MODE==='global'?'_global':'_detail';
@@ -3974,7 +3963,7 @@ async function sharePDF(){
   } else if(window._lastDoc==='ft'){
     d = window._lastData || collectFt();
     name = ftFileName(d);
-    blob = buildFtPDF(d).output('blob');
+    blob = new Blob([await buildFtPdfBytes(d)], {type:'application/pdf'});
   } else if(window._lastDoc==='rm'){
     d = window._lastData || collectRM();
     name = rmFileName(d);
@@ -4901,6 +4890,8 @@ function collectFt(){
     ch, fac, idem,
     chef:$('#ftChef').value.trim(), monteur:$('#ftMonteur').value.trim(),
     appr:$('#ftAppr').value.trim(), km:$('#ftKm').value.trim(),
+    avecOffre:$('#ftAvecOffre').checked, sansOffre:$('#ftSansOffre').checked,
+    termine:$('#ftTermine').checked, enCours:$('#ftEnCours').checked,
     desc:$('#ftDesc').value, trav:$('#ftTrav').value,
     jours, mat,
     totH:jours.reduce((a,o)=>a+nb(o.h),0),
@@ -4909,83 +4900,147 @@ function collectFt(){
   };
 }
 
-/* --- rendu HTML : sert À LA FOIS l'aperçu en direct et l'export --- */
-function buildFtHTML(d){
-  const e=esc, L=[];
-  const adr=a=>[a.cli,a.dem,a.rue,a.npa].filter(Boolean).map(e).join('<br>')||'&nbsp;';
-  L.push('<div class="ftdoc">');
-  L.push('<div class="ft-hd"><img src="'+LOGO+'" alt="SEVJ">'
-    +'<div style="flex:1"><h1>Fiche de travail</h1>'
-    +'<div style="font-size:11px;color:#555">'+e(d.chantier||'')+'</div></div>'
-    +'<table style="width:250px"><tr><td class="lbl">Date</td><td>'+e(frDate(d.date))+'</td></tr>'
-    +'<tr><td class="lbl">N° d\'affaire</td><td>'+e(d.affaire)+'</td></tr></table></div>');
-  L.push('<div class="ft-grid">');
+/* ---- Remplissage du GABARIT d'origine ----------------------------------------
+   fiche-travail.pdf = le classeur SEVJ exporté en PDF (2 pages 612×792). On n'en
+   redessine rien : pdf-lib écrit les valeurs par-dessus. Les repères ci-dessous ont été
+   relevés sur les filets du PDF lui-même.
+   Colonnes B..K : 66 114 161 209 256 304 351 399 446 499 547                          */
+const FT_COL={B:66,C:114,D:161,E:209,F:256,G:304,H:351,I:399,J:446,K:499,fin:547};
+const FT_LIG={                       // bas de chaque zone (coords PDF, origine en bas)
+  valTete:[686,712], adresses:[606,672], chef:[579,592], depl:[566,579],
+  offre:[552,566], desc:[513,539], trav:[393,500], dates:[380,393], heures:[367,380],
+  matHaut:340, matPas:13.35, matNb:11, chantier:[179,193], sig:[126,153]
+};
+const FT_CASE={ avec:[79,555,88,563], sans:[315,555,324,563],
+                termine:[364,183,373,191], encours:[458,183,467,191] };
+let _ftGabarit=null;
+async function ftGabarit(){
+  if(_ftGabarit) return _ftGabarit.slice(0);
+  const r=await fetch('fiche-travail.pdf');
+  if(!r.ok) throw new Error('gabarit fiche-travail.pdf introuvable');
+  _ftGabarit=await r.arrayBuffer();
+  return _ftGabarit.slice(0);
+}
+/* Date compacte pour les colonnes étroites de la ligne « Dates » (47 pt) */
+function ftDateCourte(iso){
+  if(!iso) return '';
+  const [a,m,j]=String(iso).split('-');
+  return (a&&m&&j) ? j+'.'+m+'.'+a.slice(2) : '';
+}
+/* Construit le PDF rempli — c'est l'original, avec les valeurs écrites dessus. */
+async function buildFtPdfBytes(d){
+  const {PDFDocument, StandardFonts, rgb}=PDFLib;
+  const pdf=await PDFDocument.load(await ftGabarit());
+  const font=await pdf.embedFont(StandardFonts.Helvetica);
+  const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+  const pg=pdf.getPages()[0];
+  const INK=rgb(0.08,0.08,0.08), BLANC=rgb(1,1,1);
+  const larg=(t,f,s)=>{ try{ return f.widthOfTextAtSize(t,s); }catch(e){ return String(t).length*s*0.5; } };
+  const T=(txt,x,y,s,f)=>{ const t=winAnsi(txt); if(!t) return;
+    pg.drawText(t,{x, y, size:s||8.5, font:f||font, color:INK}); };
+  /* texte coupé à la largeur du cadre */
+  const Tmax=(txt,x,y,maxW,s,f)=>{ let t=winAnsi(txt); if(!t) return; s=s||8.5; f=f||font;
+    while(t && larg(t,f,s)>maxW) t=t.slice(0,-1);
+    pg.drawText(t,{x,y,size:s,font:f,color:INK}); };
+  /* bloc multiligne dans un cadre */
+  const Zone=(txt,x0,x1,yBas,yHaut,s)=>{ if(!txt) return; s=s||8.5;
+    const lignes=[]; String(txt).split(/\n/).forEach(par=>{
+      const w=wrapText(winAnsi(par), font, s, x1-x0-6);
+      if(!w.length) lignes.push(''); else lignes.push(...w); });
+    let y=yHaut-s-2;
+    for(const ln of lignes){ if(y<yBas+1) break; pg.drawText(ln,{x:x0+3,y,size:s,font,color:INK}); y-=s+2.2; } };
+  /* coche : deux traits dans la case du formulaire */
+  const Coche=c=>{ const [x0,y0,x1,y1]=c;
+    pg.drawLine({start:{x:x0+1.5,y:(y0+y1)/2}, end:{x:x0+3.6,y:y0+1.6}, thickness:1.3, color:INK});
+    pg.drawLine({start:{x:x0+3.6,y:y0+1.6}, end:{x:x1-1,y:y1-1.2}, thickness:1.3, color:INK}); };
 
-  /* ----- colonne gauche : la fiche ----- */
-  L.push('<div class="ft-l">');
-  L.push('<table style="margin-top:8px"><tr><th style="width:50%">Adresse du chantier</th><th>Adresse de facturation</th></tr>'
-    +'<tr><td>'+adr(d.ch)+'</td><td>'+adr(d.fac)+'</td></tr></table>');
-  L.push('<h2>Informations</h2>');
-  L.push('<table><tr><td class="lbl">Chef de projet</td><td>'+e(d.chef)+'</td>'
-    +'<td class="lbl">Nom du monteur</td><td>'+e(d.monteur)+'</td></tr>'
-    +'<tr><td class="lbl">Déplacement en km</td><td>'+e(d.km)+'</td>'
-    +'<td class="lbl">Nom de l\'apprenti</td><td>'+e(d.appr)+'</td></tr></table>');
-  L.push('<h2>Description du travail à effectuer</h2><div class="zone" style="border:1px solid #b9c6d4;padding:4px">'+e(d.desc)+'</div>');
-  L.push('<h2>Travaux effectués</h2><div class="zone big" style="border:1px solid #b9c6d4;padding:4px">'+e(d.trav)+'</div>');
-  L.push('<h2>Dates &amp; heures</h2><table><tr><th>Date</th>'
-    +(d.jours.length?d.jours.map(j=>'<th>'+e(frDate(j.date)||'—')+'</th>').join(''):'<th>&nbsp;</th>')
-    +'<th>Total</th></tr><tr><td class="lbl">Heures</td>'
-    +(d.jours.length?d.jours.map(j=>'<td class="num">'+e(j.h)+'</td>').join(''):'<td>&nbsp;</td>')
-    +'<td class="num"><b>'+(d.totH?fr2(d.totH):'')+'</b></td></tr></table>');
-  L.push('<h2>Matériel</h2><table><tr><th style="width:18%">Numéro</th><th>Désignation</th>'
-    +'<th style="width:12%">Qté</th><th style="width:16%">Prix unit.</th><th style="width:16%">Total</th></tr>');
-  const nlig=Math.max(d.mat.length,3);
-  for(let i=0;i<nlig;i++){ const m=d.mat[i]||{};
-    L.push('<tr><td>'+e(m.num||'')+'</td><td>'+e(m.desig||'')+'</td><td class="num">'+e(m.qte||'')
-      +'</td><td class="num">'+(m.prix?fr2(nb(m.prix)):'')+'</td><td class="num">'+(m.total!==''&&m.total!=null?fr2(m.total):'')+'</td></tr>'); }
-  L.push('<tr><td colspan="4" class="lbl" style="text-align:right">Total matériel</td><td class="num"><b>'
-    +(d.totMat?fr2(d.totMat):'')+'</b></td></tr></table>');
-  L.push('<div class="ft-note">La 1ʳᵉ heure d\'intervention est forfaitaire.</div>');
-  L.push('<h2>Signatures</h2><table><tr><th style="width:34%">Date</th><th>Visa monteur</th><th>Visa client</th></tr>'
-    +'<tr><td>'+e(frDate(d.date))+'</td>'
-    +'<td class="ft-sig">'+(d.sigMonteur?'<img src="'+d.sigMonteur+'">':'&nbsp;')+'</td>'
-    +'<td class="ft-sig">'+(d.sigClient?'<img src="'+d.sigClient+'">':'&nbsp;')+'</td></tr></table>');
-  L.push('</div>');
+  /* en-tête : date et n° d'affaire */
+  T(frDate(d.date), FT_COL.D+4, 694, 9);
+  T(d.affaire,      FT_COL.G+4, 694, 9);
 
-  /* ----- colonne droite : les contrôles ----- */
-  L.push('<div class="ft-r">');
-  L.push('<h2>Contrôle de l\'installation</h2>');
-  L.push('<table><tr>'
-    +'<th rowspan="2">N°</th><th rowspan="2">Lieu / partie d\'inst.</th>'
-    +'<th colspan="2">Canalisation / câble</th><th colspan="2">Coupe-surintensité</th>'
-    +'<th colspan="4">Mesures</th><th colspan="3">DDR</th></tr>'
-    +'<tr><th>Genre / type</th><th>Nb. cond. et section</th><th>Genre / type</th><th>In [A]</th>'
-    +'<th>Icc déb. [A]*</th><th>Icc fin [A]*</th><th>Riso [MΩ]</th><th>Continu. PE</th>'
-    +'<th>In [A]</th><th>I∆n [mA]</th><th>Temps décl. [ms]</th></tr>');
-  for(let i=0;i<11;i++) L.push('<tr>'+'<td class="vide">&nbsp;</td>'.repeat(13)+'</tr>');
-  L.push('</table>');
-  L.push('<div class="ft-note">* facteur de correction × 0.66 appliqué aux mesures d\'ICC (valeur corrigée entre parenthèses)</div>');
-  L.push('<table style="margin-top:6px; width:60%"><tr><td class="lbl">Tension L-PE / L-N [V]</td><td class="vide">&nbsp;</td></tr>'
-    +'<tr><td class="lbl">N° de compteur</td><td class="vide">&nbsp;</td></tr>'
-    +'<tr><td class="lbl">CSG existant [A]</td><td class="vide">&nbsp;</td></tr></table>');
-  L.push('<h2>Contrôle des appareils</h2>');
-  L.push('<table><tr><th>Appareil / marque</th><th>Type</th><th>N° de série</th>'
-    +'<th>I fuite [mA]</th><th>Cont. PE [Ω]</th><th>Riso [MΩ]</th></tr>');
-  for(let i=0;i<5;i++) L.push('<tr>'+'<td class="vide">&nbsp;</td>'.repeat(6)+'</tr>');
-  L.push('</table>');
-  L.push('</div></div>');
-  L.push('<div class="ft-note" style="margin-top:6px">Fiche établie par : <b>'+e(d.user?d.user.name:'—')+'</b></div>');
-  L.push('</div>');
-  return L.join('');
+  /* adresses — la colonne chantier porte déjà ses libellés, on écrit à leur droite */
+  const yAdr=[662,649,635,622];
+  const decal=[ larg('Client',font,8.5), larg('Demandeur, tel, ...',font,8.5),
+                larg('Rue N°',font,8.5), larg('Code postale, Ville',font,8.5) ];
+  [d.ch.cli,d.ch.dem,d.ch.rue,d.ch.npa].forEach((v,i)=>{
+    Tmax(v, FT_COL.B+4+decal[i]+8, yAdr[i], FT_COL.G-FT_COL.B-14-decal[i]); });
+  [d.fac.cli,d.fac.dem,d.fac.rue,d.fac.npa].forEach((v,i)=>{
+    Tmax(v, FT_COL.G+4, yAdr[i], FT_COL.fin-FT_COL.G-8); });
+
+  /* informations */
+  Tmax(d.chef, FT_COL.D+4, 582, FT_COL.G-FT_COL.D-8);
+  Tmax(d.km,   FT_COL.D+4, 569, FT_COL.G-FT_COL.D-8);
+  Tmax(d.appr, FT_COL.I+4, 569, FT_COL.fin-FT_COL.I-8);
+  /* le monteur est pré-imprimé dans le modèle : on masque avant d'écrire */
+  pg.drawRectangle({x:FT_COL.I+1.5, y:579.2, width:FT_COL.fin-FT_COL.I-3, height:11, color:BLANC});
+  Tmax(d.monteur, FT_COL.I+4, 582, FT_COL.fin-FT_COL.I-8);
+  if(d.avecOffre) Coche(FT_CASE.avec);
+  if(d.sansOffre) Coche(FT_CASE.sans);
+
+  /* description et travaux */
+  Zone(d.desc, FT_COL.B, FT_COL.fin, FT_LIG.desc[0], FT_LIG.desc[1]);
+  Zone(d.trav, FT_COL.B, FT_COL.fin, FT_LIG.trav[0], FT_LIG.trav[1]);
+
+  /* dates et heures : 9 colonnes de C à K */
+  const colJ=[FT_COL.C,FT_COL.D,FT_COL.E,FT_COL.F,FT_COL.G,FT_COL.H,FT_COL.I,FT_COL.J,FT_COL.K,FT_COL.fin];
+  d.jours.slice(0,9).forEach((j,i)=>{
+    const x0=colJ[i], w=colJ[i+1]-x0;
+    const dt=ftDateCourte(j.date);
+    const c=(t,y,s)=>{ t=winAnsi(t); if(!t) return; s=s||7;
+      pg.drawText(t,{x:x0+(w-larg(t,font,s))/2, y, size:s, font, color:INK}); };
+    c(dt, 383, 6.5); c(j.h, 370, 8);
+  });
+
+  /* matériel : 11 lignes */
+  d.mat.slice(0,FT_LIG.matNb).forEach((m,i)=>{
+    const y=FT_LIG.matHaut-FT_LIG.matPas*i-9.5;
+    Tmax(m.num,   FT_COL.B+3, y, FT_COL.C-FT_COL.B-6, 7.5);
+    Tmax(m.desig, FT_COL.C+3, y, FT_COL.G-FT_COL.C-6, 8);
+    const dr=(t,xa,xb)=>{ t=winAnsi(t); if(!t) return;
+      pg.drawText(t,{x:xb-4-larg(t,font,8), y, size:8, font, color:INK}); };
+    dr(m.qte, FT_COL.G, FT_COL.H);
+    dr(m.prix!==''? fr2(nb(m.prix)):'', FT_COL.H, FT_COL.J);
+    dr(m.total!==''&&m.total!=null? fr2(m.total):'', FT_COL.J, FT_COL.fin);
+  });
+
+  /* chantier + état */
+  Tmax(d.chantier, 234, 183, 110);
+  if(d.termine) Coche(FT_CASE.termine);
+  if(d.enCours) Coche(FT_CASE.encours);
+
+  /* signatures */
+  T(frDate(d.date), FT_COL.B+5, 136, 8.5);
+  const pose=async (img,x0,x1)=>{ if(!img) return;
+    try{ const im=await pdf.embedPng(img);
+      const mw=x1-x0-10, mh=FT_LIG.sig[1]-FT_LIG.sig[0]-6;
+      const k=Math.min(mw/im.width, mh/im.height);
+      pg.drawImage(im,{x:x0+5, y:FT_LIG.sig[0]+3, width:im.width*k, height:im.height*k});
+    }catch(e){} };
+  await pose(d.sigMonteur, FT_COL.D, FT_COL.H);
+  await pose(d.sigClient,  FT_COL.H, FT_COL.fin);
+
+  return await pdf.save();
+}
+/* Rend une page du PDF rempli dans un canvas (aperçu et fenêtre d'aperçu) */
+async function ftRendPage(bytes, noPage, largeurMax){
+  const doc=await pdfjsLib.getDocument({data:bytes.slice(0)}).promise;
+  const pg=await doc.getPage(noPage);
+  const v0=pg.getViewport({scale:1});
+  const k=Math.min(2.2, Math.max(1, (largeurMax||900)/v0.width));
+  const vp=pg.getViewport({scale:k});
+  const c=document.createElement('canvas');
+  c.width=Math.round(vp.width); c.height=Math.round(vp.height);
+  const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+  const t=pg.render({canvasContext:ctx, viewport:vp, intent:'print'}); t.onContinue=s=>s();
+  await t.promise;
+  return c;
 }
 
 /* --- aperçu en direct : même rendu, mis à l'échelle de la carte --- */
-let _ftT=null;
-function ftMaj(){ clearTimeout(_ftT); _ftT=setTimeout(ftMajNow, 120); }
+let _ftT=null, _ftEnCours=false, _ftRefaire=false;
+function ftMaj(){ clearTimeout(_ftT); _ftT=setTimeout(ftMajNow, 250); }
 function ftMajNow(){
-  const box=$('#ftApercu'); if(!box) return;
   const d=collectFt();
-  // totaux à l'écran
   const th=$('#ftTotH'); if(th) th.textContent = d.totH? fr2(d.totH)+' h' : '—';
   const tm=$('#ftTotMat'); if(tm) tm.textContent = d.totMat? fr2(d.totMat)+' CHF' : '—';
   document.querySelectorAll('#ftMat .row').forEach(r=>{
@@ -4993,21 +5048,36 @@ function ftMajNow(){
     const q=FT_G(r,'qte'), pr=FT_G(r,'prix');
     t.textContent = (q!=='' && pr!=='') ? fr2(nb(q)*nb(pr))+' CHF' : '—';
   });
-  box.innerHTML=buildFtHTML(d);
-  ftEchelle();
-  updateFtReq();
-  ftSave();
+  updateFtReq(); ftSave();
+  ftApercu(d);
 }
-function ftEchelle(){
-  const box=$('#ftApercu'), doc=box&&box.firstElementChild;
-  if(!box||!doc) return;
-  const k=Math.min(1, (box.clientWidth||1040)/1040);
-  doc.style.transform='scale('+k+')';
-  box.style.height=Math.ceil(doc.offsetHeight*k)+'px';
+/* Aperçu : le PDF réellement produit, page 1. Une seule génération à la fois — la
+   dernière demande arrivée pendant un rendu est rejouée à la fin. */
+async function ftApercu(d){
+  const box=$('#ftApercu'); if(!box) return;
+  if(_ftEnCours){ _ftRefaire=true; return; }
+  _ftEnCours=true;
+  try{
+    const bytes=await buildFtPdfBytes(d||collectFt());
+    const c=await ftRendPage(bytes, 1, Math.max(700, box.clientWidth*2));
+    box.innerHTML=''; box.appendChild(c);
+  }catch(e){
+    box.innerHTML='<div class="att">Aperçu indisponible : '+esc(e.message)+'</div>';
+  }finally{
+    _ftEnCours=false;
+    if(_ftRefaire){ _ftRefaire=false; ftMaj(); }
+  }
+}
+/* Chef de projet / monteur / apprenti : choix libre parmi TOUS les collaborateurs */
+function ftRemplitListes(){
+  const opts='<option value=""></option>'+COLLABORATORS.map(c=>'<option>'+esc(c.name)+'</option>').join('');
+  ['#ftChef','#ftMonteur','#ftAppr'].forEach(k=>{ const e=$(k); if(e && !e.options.length) e.innerHTML=opts; });
 }
 function updateFtMonteur(){
+  ftRemplitListes();
   const p=$('#ftMonteurName'); if(p) p.textContent=currentUser?currentUser.name:'—';
-  const m=$('#ftMonteur'); if(m && !m.value && currentUser) m.value=currentUser.name;
+  const m=$('#ftMonteur');
+  if(m && !m.value && currentUser && [...m.options].some(o=>o.value===currentUser.name)) m.value=currentUser.name;
 }
 function updateFtReq(){
   const c=document.querySelector('.card.req[data-reqf="tete"]');
@@ -5020,115 +5090,33 @@ function ftFileName(d){
     .filter(Boolean).join('_') || 'fiche_travail';
   return base.replace(/[^\wÀ-ſ.-]/g,'_')+'.pdf';
 }
-function generateFt(){
+async function generateFt(){
   const d=collectFt();
   window._lastData=d; window._lastDoc='ft';
   $('#modeSwitch').hidden=true;
-  $('#fiche').innerHTML=buildFtHTML(d);
+  $('#fiche').innerHTML='<p class="empty">Préparation de la fiche…</p>';
   $('#outputOverlay').classList.add('on');
-}
-
-/* --- PDF : A4 paysage, deux colonnes comme le classeur --- */
-function buildFtPDF(d){
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({unit:'mm', format:'a4', orientation:'landscape'});
-  const W=297, H=210, M=8, GAP=4;
-  const sanitize = data => { if(data.cell) data.cell.text = data.cell.text.map(pdfSafe); };
-  const LW=118, RX=M+LW+GAP, RW=W-RX-M;
-  let yL=M, yR=M;
-  const st={fontSize:6.6, cellPadding:0.9, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top', overflow:'linebreak'};
-  const hs={fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', fontSize:6, lineColor:CLR.line, lineWidth:0.1};
-  const titre=(x,w,t,y)=>{ doc.setFillColor(...CLR.navy); doc.rect(x,y,w,4.6,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
-    doc.text(pdfSafe(t), x+1.6, y+3.2); doc.setTextColor(...CLR.ink); return y+5.4; };
-  const tbl=(x,w,head,body,cols,y)=>{ doc.autoTable({startY:y, margin:{left:x, right:W-x-w}, tableWidth:w,
-      theme:'grid', styles:st, headStyles:hs, columnStyles:cols||{}, head, body, didParseCell:sanitize});
-    return doc.lastAutoTable.finalY+1.5; };
-
-  /* en-tête */
-  try{ doc.addImage(LOGO,'PNG',M,yL,30,13); }catch(e){}
-  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...CLR.navy);
-  doc.text('FICHE DE TRAVAIL', M+34, yL+7);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...CLR.mut);
-  doc.text(pdfSafe(d.chantier||''), M+34, yL+12);
-  doc.setFontSize(9); doc.setTextColor(...CLR.ink);
-  doc.text(pdfSafe('Date : '+(frDate(d.date)||'—')), W-M-70, yL+6);
-  doc.text(pdfSafe("N° d'affaire : "+(d.affaire||'—')), W-M-70, yL+11);
-  doc.setDrawColor(...CLR.navy); doc.setLineWidth(0.5); doc.line(M, yL+15, W-M, yL+15);
-  yL=yR=yL+18;
-
-  /* ---- colonne gauche ---- */
-  const adr=a=>[a.cli,a.dem,a.rue,a.npa].filter(Boolean).join('\n');
-  yL=tbl(M,LW,[['Adresse du chantier','Adresse de facturation']],[[adr(d.ch),adr(d.fac)]],
-    {0:{cellWidth:LW/2},1:{cellWidth:LW/2}},yL);
-  yL=titre(M,LW,'Informations',yL);
-  yL=tbl(M,LW,[],[['Chef de projet',d.chef,'Monteur',d.monteur],['Déplacement (km)',d.km,'Apprenti',d.appr]],
-    {0:{cellWidth:26,fontStyle:'bold'},1:{cellWidth:33},2:{cellWidth:22,fontStyle:'bold'},3:{cellWidth:LW-81}},yL);
-  yL=titre(M,LW,'Description du travail à effectuer',yL);
-  yL=tbl(M,LW,[],[[{content:d.desc||' ', styles:{minCellHeight:11}}]],{0:{cellWidth:LW}},yL);
-  yL=titre(M,LW,'Travaux effectués',yL);
-  yL=tbl(M,LW,[],[[{content:d.trav||' ', styles:{minCellHeight:22}}]],{0:{cellWidth:LW}},yL);
-  yL=titre(M,LW,'Dates & heures',yL);
-  const jh=['Date'].concat(d.jours.length?d.jours.map(j=>frDate(j.date)||'—'):['—']).concat(['Total']);
-  const jb=['Heures'].concat(d.jours.length?d.jours.map(j=>String(j.h||'')):['']).concat([d.totH?fr2(d.totH):'']);
-  yL=tbl(M,LW,[jh],[jb],null,yL);
-  yL=titre(M,LW,'Matériel',yL);
-  const mb=[]; for(let i=0;i<Math.max(d.mat.length,3);i++){ const m=d.mat[i]||{};
-    mb.push([m.num||'', m.desig||'', m.qte||'', m.prix?fr2(nb(m.prix)):'', (m.total!==''&&m.total!=null)?fr2(m.total):'']); }
-  mb.push([{content:'Total matériel', colSpan:4, styles:{fontStyle:'bold', halign:'right'}},
-           {content:d.totMat?fr2(d.totMat):'', styles:{fontStyle:'bold', halign:'right'}}]);
-  yL=tbl(M,LW,[['Numéro','Désignation','Qté','Prix unit.','Total']],mb,
-    {0:{cellWidth:20},1:{cellWidth:LW-74},2:{cellWidth:14,halign:'right'},3:{cellWidth:20,halign:'right'},4:{cellWidth:20,halign:'right'}},yL);
-  doc.setFont('helvetica','italic'); doc.setFontSize(6.5); doc.setTextColor(...CLR.mut);
-  doc.text(pdfSafe("La 1re heure d'intervention est forfaitaire."), M, yL+2.5); yL+=5;
-  yL=titre(M,LW,'Signatures',yL);
-  const ys=yL, hSig=17;
-  doc.setDrawColor(...CLR.line); doc.setLineWidth(0.1);
-  [0,1,2].forEach(i=>{ const w=LW/3; doc.rect(M+i*w, ys, w, hSig); });
-  doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(...CLR.navy);
-  ['Date','Visa monteur','Visa client'].forEach((t,i)=> doc.text(pdfSafe(t), M+i*(LW/3)+1.5, ys+3));
-  doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink); doc.setFontSize(7.5);
-  doc.text(pdfSafe(frDate(d.date)||''), M+2, ys+9);
-  const pose=(img,i)=>{ if(!img) return; try{ const pr=doc.getImageProperties(img);
-      const mw=LW/3-4, mh=hSig-6, k=Math.min(mw/pr.width, mh/pr.height);
-      doc.addImage(img,'PNG', M+i*(LW/3)+2, ys+4, pr.width*k, pr.height*k); }catch(e){} };
-  pose(d.sigMonteur,1); pose(d.sigClient,2);
-  yL=ys+hSig+2;
-
-  /* ---- colonne droite ---- */
-  yR=titre(RX,RW,"Contrôle de l'installation",yR);
-  const cb=[]; for(let i=0;i<11;i++) cb.push(new Array(13).fill(''));   // grille vide, remplie à la main
-  yR=tbl(RX,RW,[
-      [{content:'N°',rowSpan:2},{content:"Lieu / partie d'inst.",rowSpan:2},
-       {content:'Canalisation / câble',colSpan:2},{content:'Coupe-surintensité',colSpan:2},
-       {content:'Mesures',colSpan:4},{content:'DDR',colSpan:3}],
-      ['Genre / type','Nb. cond. et section','Genre / type','In [A]',
-       'Icc deb. [A] *','Icc fin [A] *','Riso [MOhm]','Continu. PE','In [A]','IdN [mA]','Temps decl. [ms]']
-    ], cb, {0:{cellWidth:8},1:{cellWidth:24},2:{cellWidth:16},3:{cellWidth:15},4:{cellWidth:18},5:{cellWidth:9}}, yR);
-  doc.setFont('helvetica','italic'); doc.setFontSize(6.3); doc.setTextColor(...CLR.mut);
-  doc.text(pdfSafe("* facteur de correction x 0.66 applique aux mesures d'ICC (valeur corrigee entre parentheses)"), RX, yR+2.4); yR+=5;
-  yR=tbl(RX,60,[],[['Tension L-PE / L-N [V]',''],["N° de compteur",''],['CSG existant [A]','']],
-    {0:{cellWidth:34,fontStyle:'bold'},1:{cellWidth:26}},yR);
-  yR=titre(RX,RW,'Contrôle des appareils',yR);
-  const ab=[]; for(let i=0;i<5;i++) ab.push(new Array(6).fill(''));      // grille vide, remplie à la main
-  yR=tbl(RX,RW,[['Appareil / marque','Type','N° de série','I fuite [mA]','Cont. PE [Ohm]','Riso [MOhm]']],ab,
-    {3:{halign:'right'},4:{halign:'right'},5:{halign:'right'}},yR);
-
-  /* pied */
-  const pc=doc.internal.getNumberOfPages();
-  for(let i=1;i<=pc;i++){ doc.setPage(i);
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...CLR.mut);
-    doc.text(pdfSafe('SEVJ · Fiche de travail — établie par '+(d.user?d.user.name:'—')), M, H-4);
-    doc.text(i+' / '+pc, W-M, H-4, {align:'right'}); }
-  return doc;
+  try{
+    const bytes=await buildFtPdfBytes(d);
+    window._ftBytes=bytes;
+    const w=document.createElement('div');
+    for(let i=1;i<=2;i++){
+      const c=await ftRendPage(bytes, i, 1100);
+      c.style.cssText='max-width:100%;height:auto;display:block;margin:0 auto 14px;border:1px solid #ccc';
+      w.appendChild(c);
+    }
+    $('#fiche').innerHTML=''; $('#fiche').appendChild(w);
+  }catch(e){ $('#fiche').innerHTML='<p class="empty">Fiche indisponible : '+esc(e.message)+'</p>'; }
 }
 
 /* --- persistance (sans les données client ni les signatures) --- */
 const FT_SIMPLE=['#ftDate','#ftAffaire','#ftChantier','#ftChef','#ftMonteur','#ftAppr','#ftKm',
                  '#ftDesc','#ftTrav'];
+const FT_CHK=['#ftAvecOffre','#ftSansOffre','#ftTermine','#ftEnCours'];
 function ftState(){
-  const o={simple:{}, jours:[], mat:[]};
+  const o={simple:{}, chk:{}, jours:[], mat:[]};
   FT_SIMPLE.forEach(k=>{ const e=$(k); if(e) o.simple[k]=e.value; });
+  FT_CHK.forEach(k=>{ const e=$(k); if(e) o.chk[k]=e.checked; });
   const grab=(sel,keys)=>[...document.querySelectorAll(sel+' .row')].map(r=>{
     const x={}; keys.forEach(k=>{ const e=r.querySelector('[data-f="'+k+'"]');
       if(e) x[k]= e.type==='checkbox'? e.checked : e.value; }); return x; });
@@ -5141,7 +5129,9 @@ function ftSave(){ clearTimeout(_ftSaveT); _ftSaveT=setTimeout(()=>{
   try{ localStorage.setItem(FT_DRAFT, JSON.stringify(ftState())); }catch(e){} }, 400); }
 function ftApply(o){
   if(!o) return;
+  ftRemplitListes();
   FT_SIMPLE.forEach(k=>{ const e=$(k); if(e && o.simple && o.simple[k]!=null) e.value=o.simple[k]; });
+  FT_CHK.forEach(k=>{ const e=$(k); if(e && o.chk && o.chk[k]!=null) e.checked=!!o.chk[k]; });
   $('#ftJours').innerHTML=''; (o.jours||[]).forEach(addFtJour);
   $('#ftMat').innerHTML='';   (o.mat||[]).forEach(addFtMat);
   ftMajNow();
@@ -5151,6 +5141,7 @@ function resetFt(){
   if(!confirm('Vider la fiche de travail ?')) return;
   try{ localStorage.removeItem(FT_DRAFT); }catch(e){}
   FT_SIMPLE.forEach(k=>{ const e=$(k); if(e) e.value=''; });
+  FT_CHK.forEach(k=>{ const e=$(k); if(e) e.checked=false; });
   ['#ftChCli','#ftChDem','#ftChRue','#ftChNpa','#ftFacCli','#ftFacDem','#ftFacRue','#ftFacNpa']
     .forEach(k=>{ const e=$(k); if(e) e.value=''; });
   $('#ftFacIdem').checked=false; $('#ftFacBloc').style.display='';
@@ -7016,7 +7007,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v125-arbre — Fiche de travail : saisie des infos, grille de contrôle imprimée vide (format d\'origine)';
+const APP_VERSION='v126-arbre — Fiche de travail : le document d\'origine est rempli tel quel (gabarit PDF)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -7218,12 +7209,16 @@ function init(){
   $('#ftGenBtn').onclick=generateFt;
   $('#ftResetBtn').onclick=resetFt;
   $('#ftFacIdem').addEventListener('change',e=>{ $('#ftFacBloc').style.display=e.target.checked?'none':''; ftMaj(); });
+  // les deux paires de cases s'excluent, comme sur la fiche papier
+  const paire=(a,b)=>{ $(a).addEventListener('change',()=>{ if($(a).checked) $(b).checked=false; ftMaj(); });
+                       $(b).addEventListener('change',()=>{ if($(b).checked) $(a).checked=false; ftMaj(); }); };
+  paire('#ftAvecOffre','#ftSansOffre'); paire('#ftTermine','#ftEnCours');
+  ftRemplitListes();
   $('#ftBackupExport').onclick=exportFtBackup;
   $('#ftBackupImportBtn').onclick=()=>$('#ftBackupImport').click();
   $('#ftBackupImport').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) importFtBackup(f); e.target.value=''; });
   // l'aperçu suit la frappe
   ['input','change'].forEach(ev=> $('#tabFt').addEventListener(ev, ftMaj));
-  window.addEventListener('resize', ftEchelle);
   if(!$('#ftDate').value) $('#ftDate').value=todayISO();
   if(!ftRestore()){ addFtJour(); addFtMat(); }
   updateFtMonteur(); ftMajNow();

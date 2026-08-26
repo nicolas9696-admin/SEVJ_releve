@@ -1,12 +1,13 @@
 /* SEVJ · Relevé chantier — service worker (mode hors-ligne)
    ⚠ Après chaque mise à jour de l'app, incrémente la version (CACHE) ci-dessous
    pour forcer le rafraîchissement du cache sur les téléphones. */
-const CACHE = 'sevj-v125-arbre';
+const CACHE = 'sevj-v126-arbre';
 const DELAI_RESEAU = 2500;   // ms d'attente du réseau avant de servir le cache (chantier mal couvert)
 const ASSETS = [
   './',
   './index.html',
   './materiel.js',
+  './fiche-travail.pdf',            // gabarit de la fiche de travail (rempli par-dessus)
   './manifest.webmanifest',
   './logo.png',
   './icon-192.png',
