@@ -338,6 +338,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .ftdoc .zone.big{min-height:96px}
 .ftdoc .num{text-align:right}
 .ftdoc .ft-note{font-size:9.5px; color:#666; margin-top:3px}
+.ftdoc td.vide{height:15px}
 .ftdoc .ft-sig{height:52px}
 .ftdoc .ft-sig img{max-height:46px; max-width:100%; display:block}
 .ftdoc .ft-hd{display:flex; align-items:flex-start; gap:12px; border-bottom:2px solid #1F3B5B; padding-bottom:6px}
@@ -1230,22 +1231,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     <section class="card">
       <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16"/></svg></span> Contrôle de l'installation</h2>
       <div class="body">
-        <div class="grid-3">
-          <div><label class="fld">Tension L-PE / L-N [V]</label><input id="ftTension" type="text" class="num" inputmode="decimal"></div>
-          <div><label class="fld">N° de compteur</label><input id="ftCompteur" type="text" autocomplete="off"></div>
-          <div><label class="fld">CSG existant [A]</label><input id="ftCsg" type="text" class="num" inputmode="decimal"></div>
-        </div>
-        <div id="ftCircs" style="margin-top:10px"></div>
-        <button class="add" id="ftAddCirc" style="border-style:solid; margin-top:4px">＋ Ajouter un circuit</button>
-        <p class="hint" style="margin-top:6px">* facteur de correction × 0.66 appliqué aux mesures d'ICC — coche la case sur la ligne concernée.</p>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z"/></svg></span> Contrôle des appareils</h2>
-      <div class="body">
-        <div id="ftApps"></div>
-        <button class="add" id="ftAddApp" style="border-style:solid; margin-top:4px">＋ Ajouter un appareil</button>
+        <p class="hint">La grille de contrôle (circuits et appareils) sort <b>vide</b> sur la fiche, telle qu'à l'origine :
+        elle se remplit à la main sur place. Rien à saisir ici.</p>
       </div>
     </section>
 
@@ -4891,58 +4878,6 @@ function addFtMat(st){
   if(st) Object.entries(st).forEach(([k,v])=>{ const e=r.querySelector('[data-f="'+k+'"]'); if(e) e.value=v; });
   $('#ftMat').appendChild(r); ftMaj(); return r;
 }
-/* --- circuit contrôlé --- */
-function addFtCirc(st){
-  const r=el('div','row');
-  r.innerHTML=`<button class="rm" title="Supprimer">×</button>
-    <div class="tag">Circuit</div>
-    <div class="grid-3">
-      <div><label class="fld">N°</label><input data-f="n" type="text"></div>
-      <div><label class="fld">Lieu / partie d'inst.</label><input data-f="lieu" type="text"></div>
-      <div><label class="fld">In [A] protection</label><input data-f="in" type="text" class="num" inputmode="decimal"></div>
-    </div>
-    <div class="grid" style="margin-top:8px">
-      <div><label class="fld">Canalisation — genre / type</label><input data-f="cangenre" type="text"></div>
-      <div><label class="fld">Nb. cond. et section</label><input data-f="section" type="text" placeholder="ex : 3×1.5"></div>
-    </div>
-    <div style="margin-top:8px"><label class="fld">Coupe-surintensité — genre / type</label><input data-f="protgenre" type="text" placeholder="ex : DII 16A / LS B16"></div>
-    <div class="grid-3" style="margin-top:8px">
-      <div><label class="fld">Icc début [A]</label><input data-f="iccd" type="text" class="num" inputmode="decimal"></div>
-      <div><label class="fld">Icc fin [A]</label><input data-f="iccf" type="text" class="num" inputmode="decimal"></div>
-      <div><label class="fld">Riso [MΩ]</label><input data-f="riso" type="text" class="num" inputmode="decimal"></div>
-    </div>
-    <div class="grid-3" style="margin-top:8px">
-      <div><label class="fld">Continuité PE</label><input data-f="pe" type="text" class="num" inputmode="decimal"></div>
-      <div><label class="fld">DDR In [A]</label><input data-f="ddrin" type="text" class="num" inputmode="decimal"></div>
-      <div><label class="fld">I∆n [mA]</label><input data-f="idn" type="text" class="num" inputmode="decimal"></div>
-    </div>
-    <div class="grid" style="margin-top:8px">
-      <div><label class="fld">Temps décl. [ms]</label><input data-f="tdecl" type="text" class="num" inputmode="decimal"></div>
-      <div class="chk" style="align-self:end"><input type="checkbox" data-f="c066"><label>Facteur × 0.66 sur les Icc</label></div>
-    </div>`;
-  r.querySelector('.rm').onclick=()=>{ r.remove(); ftMaj(); };
-  if(st) Object.entries(st).forEach(([k,v])=>{ const e=r.querySelector('[data-f="'+k+'"]'); if(e){ if(e.type==='checkbox') e.checked=!!v; else e.value=v; } });
-  $('#ftCircs').appendChild(r); ftMaj(); return r;
-}
-/* --- appareil contrôlé --- */
-function addFtApp(st){
-  const r=el('div','row');
-  r.innerHTML=`<button class="rm" title="Supprimer">×</button>
-    <div class="tag">Appareil</div>
-    <div class="grid-3">
-      <div><label class="fld">Appareil / marque</label><input data-f="marque" type="text"></div>
-      <div><label class="fld">Type</label><input data-f="type" type="text"></div>
-      <div><label class="fld">N° de série</label><input data-f="serie" type="text"></div>
-    </div>
-    <div class="grid-3" style="margin-top:8px">
-      <div><label class="fld">I fuite [mA]</label><input data-f="ifuite" type="text" class="num" inputmode="decimal"></div>
-      <div><label class="fld">Cont. PE [Ω]</label><input data-f="contpe" type="text" class="num" inputmode="decimal"></div>
-      <div><label class="fld">Riso [MΩ]</label><input data-f="riso" type="text" class="num" inputmode="decimal"></div>
-    </div>`;
-  r.querySelector('.rm').onclick=()=>{ r.remove(); ftMaj(); };
-  if(st) Object.entries(st).forEach(([k,v])=>{ const e=r.querySelector('[data-f="'+k+'"]'); if(e) e.value=v; });
-  $('#ftApps').appendChild(r); ftMaj(); return r;
-}
 
 /* --- collecte --- */
 function collectFt(){
@@ -4959,16 +4894,7 @@ function collectFt(){
               o.total = (o.qte!=='' && o.prix!=='') ? Math.round(nb(o.qte)*nb(o.prix)*100)/100 : '';
               return o; })
     .filter(o=>o.num||o.desig||o.qte||o.prix);
-  const circs=[...document.querySelectorAll('#ftCircs .row')].map(r=>({
-    n:FT_G(r,'n'), lieu:FT_G(r,'lieu'), cangenre:FT_G(r,'cangenre'), section:FT_G(r,'section'),
-    protgenre:FT_G(r,'protgenre'), in:FT_G(r,'in'), iccd:FT_G(r,'iccd'), iccf:FT_G(r,'iccf'),
-    riso:FT_G(r,'riso'), pe:FT_G(r,'pe'), ddrin:FT_G(r,'ddrin'), idn:FT_G(r,'idn'),
-    tdecl:FT_G(r,'tdecl'), c066:!!FT_G(r,'c066')
-  })).filter(o=>Object.keys(o).some(k=>k!=='c066'&&o[k]));
-  const apps=[...document.querySelectorAll('#ftApps .row')].map(r=>({
-    marque:FT_G(r,'marque'), type:FT_G(r,'type'), serie:FT_G(r,'serie'),
-    ifuite:FT_G(r,'ifuite'), contpe:FT_G(r,'contpe'), riso:FT_G(r,'riso')
-  })).filter(o=>o.marque||o.type||o.serie||o.ifuite||o.contpe||o.riso);
+  // la grille de contrôle sort vide : elle se remplit à la main sur la fiche imprimée
   const sig=c=>{ const p=document.querySelector('.sigpad[data-sig="'+c+'"]'); return (p&&p._sig)?p._sig.data():null; };   // data() rend null si vide
   return {
     date:$('#ftDate').value, affaire:$('#ftAffaire').value.trim(), chantier:$('#ftChantier').value.trim(),
@@ -4976,16 +4902,12 @@ function collectFt(){
     chef:$('#ftChef').value.trim(), monteur:$('#ftMonteur').value.trim(),
     appr:$('#ftAppr').value.trim(), km:$('#ftKm').value.trim(),
     desc:$('#ftDesc').value, trav:$('#ftTrav').value,
-    jours, mat, circs, apps,
-    tension:$('#ftTension').value.trim(), compteur:$('#ftCompteur').value.trim(), csg:$('#ftCsg').value.trim(),
+    jours, mat,
     totH:jours.reduce((a,o)=>a+nb(o.h),0),
     totMat:mat.reduce((a,o)=>a+(o.total===''?0:o.total),0),
     sigMonteur:sig('ftmonteur'), sigClient:sig('ftclient'), user:currentUser
   };
 }
-/* Icc avec le facteur 0,66 quand la ligne le demande */
-function ftIcc(v, on){ const s=String(v||'').trim(); if(!s) return '';
-  if(!on) return s; const n=nb(s); return n? s+' ('+Math.round(n*0.66*100)/100+')' : s; }
 
 /* --- rendu HTML : sert À LA FOIS l'aperçu en direct et l'export --- */
 function buildFtHTML(d){
@@ -5040,25 +4962,16 @@ function buildFtHTML(d){
     +'<tr><th>Genre / type</th><th>Nb. cond. et section</th><th>Genre / type</th><th>In [A]</th>'
     +'<th>Icc déb. [A]*</th><th>Icc fin [A]*</th><th>Riso [MΩ]</th><th>Continu. PE</th>'
     +'<th>In [A]</th><th>I∆n [mA]</th><th>Temps décl. [ms]</th></tr>');
-  const nc=Math.max(d.circs.length,4);
-  for(let i=0;i<nc;i++){ const c=d.circs[i]||{};
-    L.push('<tr><td>'+e(c.n||'')+'</td><td>'+e(c.lieu||'')+'</td><td>'+e(c.cangenre||'')+'</td><td>'+e(c.section||'')
-      +'</td><td>'+e(c.protgenre||'')+'</td><td class="num">'+e(c.in||'')+'</td>'
-      +'<td class="num">'+e(ftIcc(c.iccd,c.c066))+'</td><td class="num">'+e(ftIcc(c.iccf,c.c066))+'</td>'
-      +'<td class="num">'+e(c.riso||'')+'</td><td class="num">'+e(c.pe||'')+'</td>'
-      +'<td class="num">'+e(c.ddrin||'')+'</td><td class="num">'+e(c.idn||'')+'</td><td class="num">'+e(c.tdecl||'')+'</td></tr>'); }
+  for(let i=0;i<11;i++) L.push('<tr>'+'<td class="vide">&nbsp;</td>'.repeat(13)+'</tr>');
   L.push('</table>');
   L.push('<div class="ft-note">* facteur de correction × 0.66 appliqué aux mesures d\'ICC (valeur corrigée entre parenthèses)</div>');
-  L.push('<table style="margin-top:6px; width:60%"><tr><td class="lbl">Tension L-PE / L-N [V]</td><td>'+e(d.tension)+'</td></tr>'
-    +'<tr><td class="lbl">N° de compteur</td><td>'+e(d.compteur)+'</td></tr>'
-    +'<tr><td class="lbl">CSG existant [A]</td><td>'+e(d.csg)+'</td></tr></table>');
+  L.push('<table style="margin-top:6px; width:60%"><tr><td class="lbl">Tension L-PE / L-N [V]</td><td class="vide">&nbsp;</td></tr>'
+    +'<tr><td class="lbl">N° de compteur</td><td class="vide">&nbsp;</td></tr>'
+    +'<tr><td class="lbl">CSG existant [A]</td><td class="vide">&nbsp;</td></tr></table>');
   L.push('<h2>Contrôle des appareils</h2>');
   L.push('<table><tr><th>Appareil / marque</th><th>Type</th><th>N° de série</th>'
     +'<th>I fuite [mA]</th><th>Cont. PE [Ω]</th><th>Riso [MΩ]</th></tr>');
-  const na=Math.max(d.apps.length,3);
-  for(let i=0;i<na;i++){ const a=d.apps[i]||{};
-    L.push('<tr><td>'+e(a.marque||'')+'</td><td>'+e(a.type||'')+'</td><td>'+e(a.serie||'')
-      +'</td><td class="num">'+e(a.ifuite||'')+'</td><td class="num">'+e(a.contpe||'')+'</td><td class="num">'+e(a.riso||'')+'</td></tr>'); }
+  for(let i=0;i<5;i++) L.push('<tr>'+'<td class="vide">&nbsp;</td>'.repeat(6)+'</tr>');
   L.push('</table>');
   L.push('</div></div>');
   L.push('<div class="ft-note" style="margin-top:6px">Fiche établie par : <b>'+e(d.user?d.user.name:'—')+'</b></div>');
@@ -5184,9 +5097,7 @@ function buildFtPDF(d){
 
   /* ---- colonne droite ---- */
   yR=titre(RX,RW,"Contrôle de l'installation",yR);
-  const cb=[]; for(let i=0;i<Math.max(d.circs.length,4);i++){ const c=d.circs[i]||{};
-    cb.push([c.n||'', c.lieu||'', c.cangenre||'', c.section||'', c.protgenre||'', c.in||'',
-             ftIcc(c.iccd,c.c066), ftIcc(c.iccf,c.c066), c.riso||'', c.pe||'', c.ddrin||'', c.idn||'', c.tdecl||'']); }
+  const cb=[]; for(let i=0;i<11;i++) cb.push(new Array(13).fill(''));   // grille vide, remplie à la main
   yR=tbl(RX,RW,[
       [{content:'N°',rowSpan:2},{content:"Lieu / partie d'inst.",rowSpan:2},
        {content:'Canalisation / câble',colSpan:2},{content:'Coupe-surintensité',colSpan:2},
@@ -5196,11 +5107,10 @@ function buildFtPDF(d){
     ], cb, {0:{cellWidth:8},1:{cellWidth:24},2:{cellWidth:16},3:{cellWidth:15},4:{cellWidth:18},5:{cellWidth:9}}, yR);
   doc.setFont('helvetica','italic'); doc.setFontSize(6.3); doc.setTextColor(...CLR.mut);
   doc.text(pdfSafe("* facteur de correction x 0.66 applique aux mesures d'ICC (valeur corrigee entre parentheses)"), RX, yR+2.4); yR+=5;
-  yR=tbl(RX,60,[],[['Tension L-PE / L-N [V]',d.tension],["N° de compteur",d.compteur],['CSG existant [A]',d.csg]],
+  yR=tbl(RX,60,[],[['Tension L-PE / L-N [V]',''],["N° de compteur",''],['CSG existant [A]','']],
     {0:{cellWidth:34,fontStyle:'bold'},1:{cellWidth:26}},yR);
   yR=titre(RX,RW,'Contrôle des appareils',yR);
-  const ab=[]; for(let i=0;i<Math.max(d.apps.length,3);i++){ const a=d.apps[i]||{};
-    ab.push([a.marque||'', a.type||'', a.serie||'', a.ifuite||'', a.contpe||'', a.riso||'']); }
+  const ab=[]; for(let i=0;i<5;i++) ab.push(new Array(6).fill(''));      // grille vide, remplie à la main
   yR=tbl(RX,RW,[['Appareil / marque','Type','N° de série','I fuite [mA]','Cont. PE [Ohm]','Riso [MOhm]']],ab,
     {3:{halign:'right'},4:{halign:'right'},5:{halign:'right'}},yR);
 
@@ -5215,17 +5125,15 @@ function buildFtPDF(d){
 
 /* --- persistance (sans les données client ni les signatures) --- */
 const FT_SIMPLE=['#ftDate','#ftAffaire','#ftChantier','#ftChef','#ftMonteur','#ftAppr','#ftKm',
-                 '#ftDesc','#ftTrav','#ftTension','#ftCompteur','#ftCsg'];
+                 '#ftDesc','#ftTrav'];
 function ftState(){
-  const o={simple:{}, jours:[], mat:[], circs:[], apps:[]};
+  const o={simple:{}, jours:[], mat:[]};
   FT_SIMPLE.forEach(k=>{ const e=$(k); if(e) o.simple[k]=e.value; });
   const grab=(sel,keys)=>[...document.querySelectorAll(sel+' .row')].map(r=>{
     const x={}; keys.forEach(k=>{ const e=r.querySelector('[data-f="'+k+'"]');
       if(e) x[k]= e.type==='checkbox'? e.checked : e.value; }); return x; });
   o.jours=grab('#ftJours',['date','h']);
   o.mat  =grab('#ftMat',['num','desig','qte','prix']);
-  o.circs=grab('#ftCircs',['n','lieu','cangenre','section','protgenre','in','iccd','iccf','riso','pe','ddrin','idn','tdecl','c066']);
-  o.apps =grab('#ftApps',['marque','type','serie','ifuite','contpe','riso']);
   return o;
 }
 let _ftSaveT=null;
@@ -5236,8 +5144,6 @@ function ftApply(o){
   FT_SIMPLE.forEach(k=>{ const e=$(k); if(e && o.simple && o.simple[k]!=null) e.value=o.simple[k]; });
   $('#ftJours').innerHTML=''; (o.jours||[]).forEach(addFtJour);
   $('#ftMat').innerHTML='';   (o.mat||[]).forEach(addFtMat);
-  $('#ftCircs').innerHTML=''; (o.circs||[]).forEach(addFtCirc);
-  $('#ftApps').innerHTML='';  (o.apps||[]).forEach(addFtApp);
   ftMajNow();
 }
 function ftRestore(){ let o; try{ o=JSON.parse(localStorage.getItem(FT_DRAFT)); }catch(e){} ftApply(o); return !!o; }
@@ -5248,10 +5154,10 @@ function resetFt(){
   ['#ftChCli','#ftChDem','#ftChRue','#ftChNpa','#ftFacCli','#ftFacDem','#ftFacRue','#ftFacNpa']
     .forEach(k=>{ const e=$(k); if(e) e.value=''; });
   $('#ftFacIdem').checked=false; $('#ftFacBloc').style.display='';
-  ['#ftJours','#ftMat','#ftCircs','#ftApps'].forEach(k=>{ $(k).innerHTML=''; });
+  ['#ftJours','#ftMat'].forEach(k=>{ $(k).innerHTML=''; });
   document.querySelectorAll('.sigpad[data-sig^="ft"]').forEach(c=>{ if(c._sig) c._sig.clear(); });
   $('#ftDate').value=todayISO();
-  addFtJour(); addFtMat(); addFtCirc(); addFtApp();
+  addFtJour(); addFtMat();
   updateFtMonteur(); ftMajNow();
 }
 function exportFtBackup(){
@@ -7110,7 +7016,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v124-arbre — Nouvelle fonction « Fiche de travail » avec aperçu en direct';
+const APP_VERSION='v125-arbre — Fiche de travail : saisie des infos, grille de contrôle imprimée vide (format d\'origine)';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -7309,8 +7215,6 @@ function init(){
   /* ===== Fiche de travail ===== */
   $('#ftAddJour').onclick=()=>addFtJour();
   $('#ftAddMat').onclick=()=>addFtMat();
-  $('#ftAddCirc').onclick=()=>addFtCirc();
-  $('#ftAddApp').onclick=()=>addFtApp();
   $('#ftGenBtn').onclick=generateFt;
   $('#ftResetBtn').onclick=resetFt;
   $('#ftFacIdem').addEventListener('change',e=>{ $('#ftFacBloc').style.display=e.target.checked?'none':''; ftMaj(); });
@@ -7321,7 +7225,7 @@ function init(){
   ['input','change'].forEach(ev=> $('#tabFt').addEventListener(ev, ftMaj));
   window.addEventListener('resize', ftEchelle);
   if(!$('#ftDate').value) $('#ftDate').value=todayISO();
-  if(!ftRestore()){ addFtJour(); addFtMat(); addFtCirc(); addFtApp(); }
+  if(!ftRestore()){ addFtJour(); addFtMat(); }
   updateFtMonteur(); ftMajNow();
 
   /* ===== Bon de régie ===== */
