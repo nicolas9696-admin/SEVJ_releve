@@ -40,7 +40,8 @@ if [ "$NEW" != "$CUR" ]; then
 fi
 
 if [ -n "$DESC" ]; then
-  DESC_ESC=$(printf '%s' "$DESC" | sed "s/'/\\'/g")
+  _q="'"; _bs='\'
+  DESC_ESC=${DESC//$_q/$_bs$_q}
   LINE="const APP_VERSION='$NEW — $DESC_ESC';" \
     awk '!d && /^const APP_VERSION=/ {print ENVIRON["LINE"]; d=1; next} {print}' \
     index.html > index.html.tmp && mv index.html.tmp index.html
