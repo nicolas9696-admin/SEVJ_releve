@@ -1,0 +1,12 @@
+# Sauvegardes locales — pas sur le site public
+SAFE/
+
+# Config de dev locale
+.claude/
+
+# Résidus Google Drive / Windows
+desktop.ini
+.tmp.drivedownload/
+.tmp.driveupload/
+Thumbs.db
+~$*
