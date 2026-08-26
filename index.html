@@ -198,7 +198,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .qunit-est{margin-bottom:10px}
 .qunit-est .qunit-h{width:100%}
 .qlocal{border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:10px; background:var(--bg)}
-.qlocal-hd{display:flex; gap:8px; align-items:center; margin-bottom:8px}
+.qlocal-hd{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap}
+.qlocal-hd .qlocal-name-custom{flex-basis:100%; order:10}
 .qlocal-hd .qlocal-name{flex:1; min-width:0}
 .qlocal-hd .qlocal-rm{flex:0 0 auto; border:none; background:var(--line); color:var(--navy);
   width:30px; height:30px; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer}
@@ -3352,9 +3353,19 @@ function addUnite(nom){
 }
 function addQLocal(u, nom){
   const lo = el('div','qlocal');
+  /* Même liste que les pièces de l'arbre (ROOM_NAMES) : un seul vocabulaire dans
+     toute l'app. Un nom qui n'y figure pas bascule sur « Autre… » + champ libre,
+     ce qui laisse les anciens relevés se recharger sans rien perdre. */
+  const connu  = nom && ROOM_NAMES.includes(nom);
+  const libre  = nom && !connu;
+  const choisi = libre ? 'Autre\u2026' : (nom || '');
   lo.innerHTML = `<div class="qlocal-hd">
       <button type="button" class="qlocal-tog" title="Replier / d\u00e9ployer"></button>
-      <input class="qlocal-name" type="text" placeholder="ex : Couloir, Chambre 1, Cuisine\u2026">
+      <select class="qlocal-name">
+        <option value="">\u2014 choisir la pi\u00e8ce \u2014</option>
+        ${ROOM_NAMES.map(n=>`<option${n===choisi?' selected':''}>${n}</option>`).join('')}
+      </select>
+      <input class="qlocal-name-custom" type="text" placeholder="Pr\u00e9ciser le nom de la pi\u00e8ce"${libre?'':' hidden'}>
       <span class="qlocal-sum"></span>
       <button type="button" class="qlocal-dup" title="Dupliquer le local">\u29c9</button>
       <button type="button" class="qlocal-rm" title="Supprimer le local">\u00d7</button>
@@ -3364,7 +3375,11 @@ function addQLocal(u, nom){
       <button type="button" class="add qadd-ligne" style="border-style:solid; font-size:13px">\uff0b Ajouter une ligne</button>
       <input class="qlocal-rem" type="text" placeholder="Remarque sur ce local (optionnel)">
     </div>`;
-  lo.querySelector('.qlocal-name').value = nom || '';
+  if(libre) lo.querySelector('.qlocal-name-custom').value = nom;
+  const qlSel = lo.querySelector('.qlocal-name'), qlLibre = lo.querySelector('.qlocal-name-custom');
+  const majNom = ()=>{ qlLibre.hidden = qlSel.value !== 'Autre\u2026'; updateQ(); scheduleSave(); };
+  qlSel.addEventListener('change', majNom);
+  qlLibre.addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
   lo.querySelector('.qlocal-tog').onclick = ()=> lo.classList.toggle('collapsed');
   lo.querySelector('.qlocal-rm').onclick  = ()=>{ lo.remove(); updateQ(); scheduleSave(); };
   lo.querySelector('.qlocal-dup').onclick = ()=>{
@@ -3373,8 +3388,7 @@ function addQLocal(u, nom){
     qFlash(copie); updateQ(); scheduleSave();
   };
   lo.querySelector('.qadd-ligne').onclick = ()=>{ qFlash(addQLigne(lo)); scheduleSave(); };
-  lo.querySelectorAll(':scope > .qlocal-hd .qlocal-name, :scope > .qlocal-body > .qlocal-rem')
-    .forEach(i=> i.addEventListener('input', ()=>{ updateQ(); scheduleSave(); }));
+  lo.querySelector('.qlocal-rem').addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
   u.querySelector('.qlocaux').appendChild(lo); updateQ();
   return lo;
 }
@@ -3485,8 +3499,16 @@ function qTabFromState(u, st){
 }
 /* ----- état d'un local / d'une unité, et reconstruction à l'identique -----
    Sert à la fois à la duplication et à la restauration du brouillon. */
+/* Nom effectif d'un local : l'option choisie, ou le texte libre si « Autre… ». */
+function qLocalNom(lo){
+  const sel = lo.querySelector('.qlocal-name');
+  const v = (sel && sel.value) || '';
+  if(v !== 'Autre\u2026') return v;
+  const c = lo.querySelector('.qlocal-name-custom');
+  return ((c && c.value) || '').trim();
+}
 function qLocalState(lo){
-  return { nom: lo.querySelector('.qlocal-name').value,
+  return { nom: qLocalNom(lo),
     rem: lo.querySelector('.qlocal-rem').value,
     collapsed: lo.classList.contains('collapsed') ? 1 : 0,
     lignes: [...lo.querySelectorAll('.qlignes .row')].map(rowState) };
@@ -3528,7 +3550,7 @@ function collectQuantites(){
     nom: (u.querySelector('.qunit-name').value||'').trim(),
     heures: parseFloat(u.querySelector('.qunit-h').value)||0,
     locaux: [...u.querySelectorAll('.qlocal')].map(lo=>({
-      nom: (lo.querySelector('.qlocal-name').value||'').trim(),
+      nom: qLocalNom(lo),
       rem: (lo.querySelector('.qlocal-rem').value||'').trim(),
       lignes: [...lo.querySelectorAll('.qlignes .row')].map(r=>{
         let p = G(r,'qposte')||'';
