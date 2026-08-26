@@ -195,6 +195,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .qunit.collapsed .qunit-hd .qunit-tog::before{transform:rotate(-45deg); margin-top:3px}
 .qunit.collapsed .qunit-body{display:none}
 .qunit-body{padding:10px}
+.qunit-est{margin-bottom:10px}
+.qunit-est .qunit-h{width:100%}
 .qlocal{border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:10px; background:var(--bg)}
 .qlocal-hd{display:flex; gap:8px; align-items:center; margin-bottom:8px}
 .qlocal-hd .qlocal-name{flex:1; min-width:0}
@@ -347,6 +349,8 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .tile-listing .ic{background:linear-gradient(135deg,#c79a2e,#8a6410)}
 .tile-ft     .ic{background:linear-gradient(135deg,#3d7ea6,#1d4a66)}
 /* ---------- Fiche de travail : aperçu (image du PDF rempli) ---------- */
+.ftwarn{margin-top:8px; padding:9px 11px; border-radius:9px; font-size:12.5px; font-weight:600;
+  color:#8a2b2b; background:#fdecec; border:1px solid #f0b9b9}
 #ftApercu{border:1px solid var(--line); border-radius:10px; background:#fff; padding:6px; text-align:center}
 #ftApercu canvas{max-width:100%; height:auto; display:block; margin:0 auto}
 #ftApercu .att{font-size:12px; color:var(--mut); padding:18px}
@@ -1230,6 +1234,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
         <textarea id="ftDesc" rows="3" placeholder="Ce qui est demandé…"></textarea>
         <label class="fld" style="margin-top:10px">Travaux effectués</label>
         <textarea id="ftTrav" rows="6" placeholder="Ce qui a été fait sur place…"></textarea>
+        <div class="ftwarn" id="ftCoupeMsg" hidden></div>
       </div>
     </section>
 
@@ -1631,12 +1636,20 @@ const $  = s => document.querySelector(s);
    local et on donne une tranche de longueur, comme le fait le programme d'offre. */
 const QPOSTES = ["Dérivation","Prise","Interrupteur","Inter / prise","Point lumineux",
                  "Armoire à pharmacie","Poussoir","Alimentation 16 A",
+                 "Disjoncteur","Disjoncteur différentiel (FI)","Parafoudre","Modification de tableau",
                  "Lave-vaisselle","Plaque de cuisson","Four","Hotte","Autre…"];
 /* Libellés courts : les colonnes du PDF ne tiennent pas avec les noms complets. */
 const QCOURT = {"Dérivation":"Dériv.","Prise":"Prises","Interrupteur":"Inter",
   "Inter / prise":"Inter/prise","Point lumineux":"Pt lum.","Armoire à pharmacie":"Pharmacie",
   "Poussoir":"Pouss.","Alimentation 16 A":"Alim. 16 A","Lave-vaisselle":"Lave-vais.",
+  "Disjoncteur":"Disj.","Disjoncteur différentiel (FI)":"Disj. FI","Parafoudre":"Parafoudre",
+  "Modification de tableau":"Modif. tab.",
   "Plaque de cuisson":"Plaque","Four":"Four","Hotte":"Hotte"};
+/* État du passage existant : ce qui décide si l'on retire dans le tube en place
+   ou si tout est à refaire. Liste volontairement courte et facile à compléter. */
+const QPASSAGE = ["Retirable dans le tube existant",
+                  "Tube Bergmann \u2014 tirage difficile",
+                  "\u00c0 faire \u00e0 neuf"];
 function qCourt(p){ return QCOURT[p] || p; }
 const el = (t,c)=>{const e=document.createElement(t); if(c)e.className=c; return e;};
 function opts(arr,sel){return arr.map(v=>`<option${v===sel?' selected':''}>${v}</option>`).join('')}
@@ -3159,6 +3172,7 @@ function autresHeures(){
   try{ t+=rlvTotal(); }catch(e){}
   try{ t+=totalDefaut(collectDefauts()); }catch(e){}
   try{ t+=totalDefaut(collectCircuits()); }catch(e){}
+  try{ t+=qHeuresTotal(collectQuantites()); }catch(e){}
   return Math.round(t*100)/100;
 }
 /* Met à jour l'affichage du total de main d'œuvre + validation */
@@ -3275,6 +3289,7 @@ function addUnite(nom){
       <button type="button" class="qunit-rm" title="Supprimer l'unité">×</button>
     </div>
     <div class="qunit-body">
+      <div class="qunit-est"><label class="fld" for="">Estimation de temps pour cette unité (h)</label><input class="qunit-h" type="number" min="0" step="0.25" placeholder="ex : 16"></div>
       <div class="qlocaux"></div>
       <button type="button" class="add qadd-local" style="border-style:solid; font-size:13px">＋ Ajouter un local</button>
     </div>`;
@@ -3282,6 +3297,7 @@ function addUnite(nom){
   u.querySelector('.qunit-tog').onclick = ()=> u.classList.toggle('collapsed');
   u.querySelector('.qunit-rm').onclick  = ()=>{ u.remove(); updateQ(); scheduleSave(); };
   u.querySelector('.qunit-name').addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
+  u.querySelector('.qunit-h').addEventListener('input', ()=>{ updateQ(); scheduleSave(); });
   u.querySelector('.qadd-local').onclick = ()=>{ addQLocal(u); scheduleSave(); };
   $('#quantites').appendChild(u); updateQ();
   return u;
@@ -3310,6 +3326,7 @@ function addQLigne(lo){
       <div><label class="fld">Poste</label><select data-f="qposte">${opts(QPOSTES)}</select></div>
       <div><label class="fld">Quantité</label><input data-f="qqte" type="number" min="0" step="1" placeholder="ex : 4"></div>
       <div><label class="fld">Tranche de longueur</label><select data-f="qtranche"><option value="">— non précisée —</option>${opts(TRANCHES)}</select></div>
+      <div><label class="fld">Passage</label><select data-f="qtube"><option value="">— non précisé —</option>${opts(QPASSAGE)}</select></div>
     </div>
     <div class="cond" data-c="qposte" style="margin-top:10px"><label class="fld">Préciser le poste</label><input data-f="qautre" type="text" placeholder="ex : détecteur de mouvement"></div>`;
   wire(r);
@@ -3326,13 +3343,14 @@ function addQLigne(lo){
 function collectQuantites(){
   return [...document.querySelectorAll('#quantites .qunit')].map(u=>({
     nom: (u.querySelector('.qunit-name').value||'').trim(),
+    heures: parseFloat(u.querySelector('.qunit-h').value)||0,
     locaux: [...u.querySelectorAll('.qlocal')].map(lo=>({
       nom: (lo.querySelector('.qlocal-name').value||'').trim(),
       rem: (lo.querySelector('.qlocal-rem').value||'').trim(),
       lignes: [...lo.querySelectorAll('.qlignes .row')].map(r=>{
         let p = G(r,'qposte')||'';
         if(p==='Autre…') p = (G(r,'qautre')||'').trim() || 'Autre poste';
-        return {poste:p, qte:parseFloat(G(r,'qqte'))||0, tranche:G(r,'qtranche')||''};
+        return {poste:p, qte:parseFloat(G(r,'qqte'))||0, tranche:G(r,'qtranche')||'', passage:G(r,'qtube')||''};
       }).filter(x=> x.poste && x.qte>0)
     })).filter(lo=> lo.nom || lo.lignes.length || lo.rem)
   })).filter(u=> u.nom || u.locaux.length);
@@ -3356,16 +3374,23 @@ function qTotauxUnite(u){
   (u.locaux||[]).forEach(lo=> (lo.lignes||[]).forEach(l=> m[l.poste] = (m[l.poste]||0) + l.qte));
   return m;
 }
-/* Longueurs : ce que l'on reporte dans le programme d'offre (X prises en 0 à 5 m). */
+/* Ce que l'on reporte dans le programme d'offre : X prises en 0 à 5 m, et dans quel
+   passage. Une ligne compte dès qu'elle précise une tranche OU un état de passage. */
 function qTranchesTotales(unites){
   const out = [];
   unites.forEach(u=> u.locaux.forEach(lo=> lo.lignes.forEach(l=>{
-    if(!l.tranche) return;
-    const f = out.find(x=> x.poste===l.poste && x.tranche===l.tranche);
-    if(f) f.qte += l.qte; else out.push({poste:l.poste, tranche:l.tranche, qte:l.qte});
+    if(!l.tranche && !l.passage) return;
+    const f = out.find(x=> x.poste===l.poste && x.tranche===l.tranche && x.passage===l.passage);
+    if(f) f.qte += l.qte;
+    else out.push({poste:l.poste, tranche:l.tranche, passage:l.passage||'', qte:l.qte});
   })));
   return out.sort((a,b)=> a.poste.localeCompare(b.poste)
-    || TRANCHES.indexOf(a.tranche) - TRANCHES.indexOf(b.tranche));
+    || TRANCHES.indexOf(a.tranche) - TRANCHES.indexOf(b.tranche)
+    || QPASSAGE.indexOf(a.passage) - QPASSAGE.indexOf(b.passage));
+}
+/* Somme des estimations saisies unité par unité. */
+function qHeuresTotal(unites){
+  return Math.round((unites||[]).reduce((a,u)=> a + (parseFloat(u.heures)||0), 0)*100)/100;
 }
 /* ----- totaux affichés ----- */
 function updateQ(){
@@ -3374,19 +3399,24 @@ function updateQ(){
     const nb = [...u.querySelectorAll('.qlignes .row')]
       .reduce((a,r)=> a + (parseFloat(G(r,'qqte'))||0), 0);
     const sp = u.querySelector('.qunit-sum');
-    if(sp) sp.textContent = nl ? nl+(nl>1?' locaux':' local')+(nb?' · '+nb+' art.':'') : '';
+    const hu = parseFloat(u.querySelector('.qunit-h').value)||0;
+    if(sp) sp.textContent = [nl ? nl+(nl>1?' locaux':' local') : '', nb ? nb+' art.' : '', hu ? hu+' h' : '']
+      .filter(Boolean).join(' · ');
   });
   const e = $('#qTotal'); if(!e) return;
   const unites = collectQuantites();
   const postes = qPostesUtilises(unites);
   const tot    = qTotauxUnite({locaux: unites.reduce((a,u)=> a.concat(u.locaux), [])});
-  e.innerHTML = postes.length
-    ? '→ Total : ' + postes.map(p=> '<b>'+tot[p]+'</b> '+qCourt(p).toLowerCase()).join(' · ')
-    : '→ Total : <b>—</b>';
+  const h = qHeuresTotal(unites);
+  e.innerHTML = (postes.length
+      ? '→ Total : ' + postes.map(p=> '<b>'+tot[p]+'</b> '+qCourt(p).toLowerCase()).join(' · ')
+      : '→ Total : <b>—</b>')
+    + (h ? '<br>→ Estimation de temps : <b>'+h+' h</b>' : '');
 }
 /* ----- état (brouillon local et sauvegarde .SEVJ) ----- */
 function qUniteState(u){
   return { nom: u.querySelector('.qunit-name').value,
+    heures: u.querySelector('.qunit-h').value,
     collapsed: u.classList.contains('collapsed') ? 1 : 0,
     locaux: [...u.querySelectorAll('.qlocal')].map(lo=>({
       nom: lo.querySelector('.qlocal-name').value,
@@ -3399,6 +3429,7 @@ function qApply(list){
   box.innerHTML = '';
   (list||[]).forEach(us=>{
     const u = addUnite(us.nom);
+    if(us.heures != null) u.querySelector('.qunit-h').value = us.heures;
     (us.locaux||[]).forEach(ls=>{
       const lo = addQLocal(u, ls.nom);
       if(ls.rem != null) lo.querySelector('.qlocal-rem').value = ls.rem;
@@ -3672,6 +3703,8 @@ function pushQuantites(L, d){
     L.push('<div class="room-block" style="border-left:5px solid #1F3B5B; padding-left:10px; margin:14px 0 4px">');
     L.push('<div class="room-title" style="color:#1F3B5B; border-bottom-color:#1F3B5B">'
          + esc(u.nom || 'Unité') + '</div>');
+    if(u.heures) L.push('<p class="obj" style="color:#666; margin:2px 0 6px">Estimation de temps : <b>'
+         + u.heures + ' h</b></p>');
     L.push('<table><tr><th>Local</th>'
          + postes.map(p=> '<th class="q">' + esc(qCourt(p)) + '</th>').join('')
          + '<th>Remarques</th></tr>');
@@ -3699,15 +3732,19 @@ function pushQuantites(L, d){
            + vals.map(v=> '<td class="q">' + (v || '—') + '</td>').join('')
            + '<td class="q"><b>' + vals.reduce((a,b)=> a+b, 0) + '</b></td></tr>');
     });
+    if(qHeuresTotal(unites)) L.push('<tr class="tot-row"><td>Estimation de temps (h)</td>'
+      + unites.map(u=> '<td class="q">' + (u.heures || '—') + '</td>').join('')
+      + '<td class="q">' + qHeuresTotal(unites) + '</td></tr>');
     L.push('</table>');
   }
   const tr = qTranchesTotales(unites);
   if(tr.length){
-    L.push('<h3>Longueurs par tranche</h3>');
+    L.push('<h3>Longueurs et passages</h3>');
     L.push('<p class="obj" style="color:#666">À reporter dans le programme d\'offre. '
          + 'Longueurs estimatives, les passages n\'ayant pas pu être mesurés.</p>');
-    L.push('<table><tr><th>Poste</th><th>Tranche</th><th class="q">Qté</th></tr>');
-    tr.forEach(x=> L.push('<tr><td>' + esc(x.poste) + '</td><td>' + esc(x.tranche)
+    L.push('<table><tr><th>Poste</th><th>Tranche</th><th>Passage</th><th class="q">Qté</th></tr>');
+    tr.forEach(x=> L.push('<tr><td>' + esc(x.poste) + '</td><td>' + esc(x.tranche || '—')
+                        + '</td><td>' + esc(x.passage || '—')
                         + '</td><td class="q">' + x.qte + '</td></tr>'));
     L.push('</table>');
   }
@@ -3742,7 +3779,12 @@ function tempsBody(d){
     dc.forEach(o=> body.push([circuitDesc(o), String(o.h||''), 'h']));
   }
   if(oi) body.push([oibtRlvDesc(oi), String(oi.total||''), 'h']);
-  if(df.length||dc.length||oi)
+  const qu=(d.quantites||[]).filter(u=> parseFloat(u.heures)>0);
+  if(qu.length){
+    body.push([{content:'Relevé par quantités — estimation', colSpan:3, styles:st}]);
+    qu.forEach(u=> body.push([u.nom||'Unité', String(u.heures), 'h']));
+  }
+  if(df.length||dc.length||oi||qu.length)
     body.push([{content:"Total temps estimé (main d'oeuvre + recherche)", styles:st},
                {content:String(grandTotalHeures(d)), styles:Object.assign({}, st, {halign:'center'})},
                {content:'h', styles:Object.assign({}, st, {halign:'center'})}]);
@@ -3853,7 +3895,8 @@ function totalHeures(d){ const t=onsiteHours(d)*(parseFloat(d.monteurs)||1); ret
 /* Main d'œuvre + temps de recherche (défaut et circuit) */
 function grandTotalHeures(d){
   const o=(d.oibtRlv&&d.oibtRlv.total)||0;
-  return Math.round(((parseFloat(totalHeures(d))||0)+totalDefaut(d.defauts)+totalDefaut(d.circuits)+o)*100)/100;
+  const q=qHeuresTotal(d.quantites);
+  return Math.round(((parseFloat(totalHeures(d))||0)+totalDefaut(d.defauts)+totalDefaut(d.circuits)+o+q)*100)/100;
 }
 /* Ligne « Remise en conformité OIBT » du tableau des temps */
 function oibtRlvDesc(o){
@@ -4158,7 +4201,10 @@ function buildPDFDoc(d, mode){
     qUn.forEach(u=>{
       if(y > H-34){ doc.addPage(); y=16; }
       doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...CLR.navy);
-      doc.text(pdfSafe(u.nom || 'Unité'), M, y+3); y+=5;
+      doc.text(pdfSafe(u.nom || 'Unité'), M, y+3);
+      if(u.heures){ doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...CLR.mut);
+        doc.text(pdfSafe('Estimation : '+u.heures+' h'), W-M, y+3, {align:'right'}); }
+      y+=5;
       const corps = u.locaux.map(lo=>{
         const t = qTotauxLocal(lo);
         return [lo.nom || '-'].concat(qPost.map(p=> t[p] ? String(t[p]) : '-')).concat([lo.rem || '']);
@@ -4184,6 +4230,9 @@ function buildPDFDoc(d, mode){
                   .concat([{content:String(vals.reduce((a,b)=> a+b, 0)),
                             styles:{fontStyle:'bold', halign:'center'}}]);
       });
+      if(qHeuresTotal(qUn)) corps.push([{content:'Estimation de temps (h)', styles:stQ}]
+        .concat(qUn.map(u=> ({content:String(u.heures||'-'), styles:Object.assign({}, stQ, {halign:'center'})})))
+        .concat([{content:String(qHeuresTotal(qUn)), styles:Object.assign({}, stQ, {halign:'center'})}]));
       const wCol = Math.max(11, (CW-42)/(qUn.length+1));
       const cs = {0:{cellWidth:42}};
       for(let i=1;i<=qUn.length+1;i++) cs[i]={cellWidth:wCol, halign:'center'};
@@ -4197,13 +4246,14 @@ function buildPDFDoc(d, mode){
     const qTr = qTranchesTotales(qUn);
     if(qTr.length){
       if(y > H-34){ doc.addPage(); y=16; }
-      heading('Longueurs par tranche');
+      heading('Longueurs et passages');
       doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
         styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
         headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
-        columnStyles:{0:{cellWidth:CW-70}, 1:{cellWidth:40, halign:'center'}, 2:{cellWidth:30, halign:'center'}},
-        head:[['Poste','Tranche','Qté']],
-        body:qTr.map(x=> [x.poste, x.tranche, String(x.qte)]), didParseCell:sanitize });
+        columnStyles:{0:{cellWidth:CW-118}, 1:{cellWidth:34, halign:'center'},
+                      2:{cellWidth:64}, 3:{cellWidth:20, halign:'center'}},
+        head:[['Poste','Tranche','Passage','Qté']],
+        body:qTr.map(x=> [x.poste, x.tranche || '-', x.passage || '-', String(x.qte)]), didParseCell:sanitize });
       y = doc.lastAutoTable.finalY + 7;
     }
   }
@@ -5236,6 +5286,9 @@ const FT_LIG={                       // bas de chaque zone (coords PDF, origine 
 };
 const FT_CASE={ avec:[79,555,88,563], sans:[315,555,324,563],
                 termine:[364,183,373,191], encours:[458,183,467,191] };
+/* Lignes qu'aucune réduction n'a pu faire tenir dans un cadre du gabarit.
+   Remplie à chaque génération, lue par l'aperçu pour avertir le monteur. */
+let _ftCoupes=[];
 let _ftGabarit=null;
 async function ftGabarit(){
   if(_ftGabarit) return _ftGabarit.slice(0);
@@ -5253,6 +5306,7 @@ function ftDateCourte(iso){
 /* Construit le PDF rempli — c'est l'original, avec les valeurs écrites dessus. */
 async function buildFtPdfBytes(d){
   const {PDFDocument, StandardFonts, rgb}=PDFLib;
+  _ftCoupes=[];
   const pdf=await PDFDocument.load(await ftGabarit());
   const font=await pdf.embedFont(StandardFonts.Helvetica);
   const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -5265,13 +5319,30 @@ async function buildFtPdfBytes(d){
   const Tmax=(txt,x,y,maxW,s,f)=>{ let t=winAnsi(txt); if(!t) return; s=s||8.5; f=f||font;
     while(t && larg(t,f,s)>maxW) t=t.slice(0,-1);
     pg.drawText(t,{x,y,size:s,font:f,color:INK}); };
-  /* bloc multiligne dans un cadre */
-  const Zone=(txt,x0,x1,yBas,yHaut,s)=>{ if(!txt) return; s=s||8.5;
-    const lignes=[]; String(txt).split(/\n/).forEach(par=>{
-      const w=wrapText(winAnsi(par), font, s, x1-x0-6);
-      if(!w.length) lignes.push(''); else lignes.push(...w); });
-    let y=yHaut-s-2;
-    for(const ln of lignes){ if(y<yBas+1) break; pg.drawText(ln,{x:x0+3,y,size:s,font,color:INK}); y-=s+2.2; } };
+  /* Bloc multiligne dans un cadre du gabarit.
+     La hauteur du cadre est imprimée sur le PDF d'origine : impossible de l'agrandir,
+     c'est donc le texte qui s'adapte. La taille descend par quarts de point jusqu'à ce
+     que TOUT tienne. Avant, les lignes en trop étaient coupées en silence : une
+     description de trois lignes n'en montrait que deux sur la fiche imprimée. */
+  const Zone=(txt,x0,x1,yBas,yHaut,s,nom)=>{ if(!txt) return; s=s||8.5;
+    const H=yHaut-yBas, W=x1-x0-6, INTER=2.2, MIN=5;
+    const decoupe=t=>{ const out=[]; String(txt).split(/\n/).forEach(par=>{
+        const w=wrapText(winAnsi(par), font, t, W);
+        if(!w.length) out.push(''); else out.push(...w); });
+      return out; };
+    /* hauteur occupée par n lignes en corps t, marges du cadre comprises */
+    const tient=(t,n)=> (n-1)*(t+INTER) + t + 3 <= H;
+    let taille=s, lignes=decoupe(taille);
+    while(taille>MIN && !tient(taille, lignes.length)){
+      taille=Math.round((taille-0.25)*4)/4;      // réduire fait aussi baisser le nombre de lignes
+      lignes=decoupe(taille);
+    }
+    let y=yHaut-taille-2, dessinees=0;
+    for(const ln of lignes){ if(y<yBas+1) break;
+      pg.drawText(ln,{x:x0+3,y,size:taille,font,color:INK}); y-=taille+INTER; dessinees++; }
+    /* Le cadre du gabarit a une hauteur fixe : au-delà, même au corps minimum, le
+       texte ne rentre pas. On le signale plutôt que de le perdre en silence. */
+    if(dessinees<lignes.length) _ftCoupes.push({zone:nom||'cadre', perdues:lignes.length-dessinees}); };
   /* coche : deux traits dans la case du formulaire */
   const Coche=c=>{ const [x0,y0,x1,y1]=c;
     pg.drawLine({start:{x:x0+1.5,y:(y0+y1)/2}, end:{x:x0+3.6,y:y0+1.6}, thickness:1.3, color:INK});
@@ -5301,9 +5372,8 @@ async function buildFtPdfBytes(d){
   if(d.sansOffre) Coche(FT_CASE.sans);
 
   /* description et travaux */
-  Zone(d.desc, FT_COL.B, FT_COL.fin, FT_LIG.desc[0], FT_LIG.desc[1]);
-  Zone(d.trav, FT_COL.B, FT_COL.fin, FT_LIG.trav[0], FT_LIG.trav[1]);
-
+  Zone(d.desc, FT_COL.B, FT_COL.fin, FT_LIG.desc[0], FT_LIG.desc[1], null, 'Description du travail à effectuer');
+  Zone(d.trav, FT_COL.B, FT_COL.fin, FT_LIG.trav[0], FT_LIG.trav[1], null, 'Travaux effectués');
   /* dates et heures : 9 colonnes de C à K */
   const colJ=[FT_COL.C,FT_COL.D,FT_COL.E,FT_COL.F,FT_COL.G,FT_COL.H,FT_COL.I,FT_COL.J,FT_COL.K,FT_COL.fin];
   d.jours.slice(0,9).forEach((j,i)=>{
@@ -5376,12 +5446,25 @@ function ftMajNow(){
 }
 /* Aperçu : le PDF réellement produit, page 1. Une seule génération à la fois — la
    dernière demande arrivée pendant un rendu est rejouée à la fin. */
+/* Avertit sous les champs quand un cadre du gabarit n'a pas pu tout contenir.
+   S'appuie sur la génération réelle : ce sont les vraies métriques de police. */
+function ftAvertirCoupe(){
+  const m=$('#ftCoupeMsg'); if(!m) return;
+  if(!_ftCoupes.length){ m.hidden=true; m.textContent=''; return; }
+  m.hidden=false;
+  m.textContent='\u26a0 Trop long pour le gabarit : '
+    + _ftCoupes.map(c=> c.perdues+' ligne'+(c.perdues>1?'s':'')+' de \u00ab '+c.zone+' \u00bb').join(', ')
+    + ' ne ser'+(_ftCoupes.reduce((a,c)=>a+c.perdues,0)>1?'ont':'a')
+    + ' pas imprim\u00e9e'+(_ftCoupes.reduce((a,c)=>a+c.perdues,0)>1?'s':'')
+    + '. Raccourcis le texte.';
+}
 async function ftApercu(d){
   const box=$('#ftApercu'); if(!box) return;
   if(_ftEnCours){ _ftRefaire=true; return; }
   _ftEnCours=true;
   try{
     const bytes=await buildFtPdfBytes(d||collectFt());
+    ftAvertirCoupe();
     const c=await ftRendPage(bytes, 1, Math.max(700, box.clientWidth*2));
     box.innerHTML=''; box.appendChild(c);
   }catch(e){
