@@ -3874,6 +3874,26 @@ function qPostesUtilises(unites){
   const extra = [...vus].filter(p=> QPOSTES.indexOf(p)<0).sort((a,b)=> a.localeCompare(b));
   return base.concat(extra);
 }
+/* Forme courte d'une tranche, pour les colonnes etroites du PDF :
+   « 0 à 5 m » -> « 0-5 », « plus de 100 m » -> « >100 ». */
+function qTrancheCourt(t){
+  return String(t||'').replace(/^plus de /, '>').replace(/ \u00e0 /, '-').replace(/ m$/, '');
+}
+/* Distances d'un poste dans un local : « 0 à 5 m \u00d74 · 10 à 20 m \u00d72 ».
+   Le tableau par unité additionne les quantités et perdait la tranche, qui n'existait
+   plus que dans le tableau des longueurs. Vide si aucune ligne du poste n'en porte. */
+function qDetailTranches(lo, poste, court){
+  const m = [];
+  (lo.lignes||[]).forEach(l=>{
+    if(l.poste!==poste || !l.tranche) return;
+    const f = m.find(x=> x.tranche===l.tranche);
+    if(f) f.qte += l.qte; else m.push({tranche:l.tranche, qte:l.qte});
+  });
+  m.sort((a,b)=> TRANCHES.indexOf(a.tranche) - TRANCHES.indexOf(b.tranche));
+  return court
+    ? m.map(x=> qTrancheCourt(x.tranche)+'\u00d7'+x.qte).join(' ')
+    : m.map(x=> x.tranche+' \u00d7'+x.qte).join(' \u00b7 ');
+}
 function qTotauxLocal(lo){
   const m = {};
   (lo.lignes||[]).forEach(l=> m[l.poste] = (m[l.poste]||0) + l.qte);
@@ -4332,7 +4352,13 @@ function pushQuantites(L, d){
     u.locaux.forEach(lo=>{
       const t = qTotauxLocal(lo);
       L.push('<tr><td>' + esc(lo.nom || '—') + '</td>'
-           + postes.map(p=> '<td class="q">' + (t[p] ? t[p] : '—') + '</td>').join('')
+           + postes.map(p=>{
+               if(!t[p]) return '<td class="q">—</td>';
+               const d = qDetailTranches(lo, p);
+               return '<td class="q">' + t[p]
+                 + (d ? '<br><span style="font-size:.82em; color:#666; font-weight:400">'
+                        + esc(d) + '</span>' : '') + '</td>';
+             }).join('')
            + '<td>' + esc(lo.rem || '') + '</td></tr>');
     });
     const tu = qTotauxUnite(u);
@@ -4888,7 +4914,11 @@ function buildPDFDoc(d, mode){
       y+=5;
       const corps = u.locaux.map(lo=>{
         const t = qTotauxLocal(lo);
-        return [lo.nom || '-'].concat(qPost.map(p=> t[p] ? String(t[p]) : '-')).concat([lo.rem || '']);
+        return [lo.nom || '-'].concat(qPost.map(p=>{
+          if(!t[p]) return '-';
+          const d = qDetailTranches(lo, p, true);   // forme courte : les colonnes sont étroites
+          return String(t[p]) + (d ? '\n' + d : '');
+        })).concat([lo.rem || '']);
       });
       const tu = qTotauxUnite(u);
       corps.push([{content:'TOTAL', styles:stQ}]
