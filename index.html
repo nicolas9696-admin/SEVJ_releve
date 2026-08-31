@@ -2240,7 +2240,8 @@ function rlvQtAdd(cont, o, state){
   if(state) fillRow(r, state);
   const maj = ()=>{ rlvQtSync(cont, o); qLigneMajAffichage(r);
     const c = cont.closest('.oibt-pt');
-    const sm = c && c.querySelector('[data-sum]'); if(sm) sm.innerHTML = rlvResume(o); };
+    const sm = c && c.querySelector('[data-sum]'); if(sm) sm.innerHTML = rlvResume(o);
+    rlvQtRepMaj(c, o); };
   r.querySelector('.rm').onclick   = ()=>{ r.remove(); maj(); };
   r.querySelector('.fold').onclick = ()=> r.classList.toggle('folded');
   r.querySelector('.tag').onclick  = ()=> r.classList.toggle('folded');
@@ -2268,6 +2269,28 @@ function rlvQtLignes(o){
     return { poste:p, qte:parseFloat(st.qqte)||0, tranche:st.qtranche||'',
              passage:st.qtube||'', amp:st.qamp||QAMP_DEFAUT };
   }).filter(x=> x.poste && x.qte>0);
+}
+/* Ce que valent les quantités d'un point, d'après le barème h/pce, en heures-homme.
+   Les postes hors barème (saisie libre, appareillage de tableau) ne comptent pas. */
+function rlvQtEstimation(o){
+  let min=0, max=0;
+  rlvQtLignes(o).forEach(l=>{ const t=QHPCE[l.poste]; if(t){ min+=l.qte*t[0]; max+=l.qte*t[1]; } });
+  return { min:Math.round(min*10)/10, max:Math.round(max*10)/10 };
+}
+/* Bandeau « reprendre l'estimation » d'un point. Le champ du point est un temps sur
+   place POUR UNE PERSONNE, que rlvHeuresPt multiplie ensuite : on divise donc avant
+   de reporter, et le bandeau montre les deux valeurs plutôt que de les laisser deviner. */
+function rlvQtRepMaj(c, o){
+  if(!c) return;
+  const box=c.querySelector('[data-qtrep]'), txt=c.querySelector('[data-qtreptxt]');
+  if(!box || !txt) return;
+  const e=rlvQtEstimation(o);
+  if(!e.max){ box.hidden=true; return; }
+  const pers=rlvPers(o), mid=Math.round((e.min+e.max)/2*10)/10;
+  const surPlace=Math.round(mid/pers*4)/4;
+  box.hidden=false;
+  txt.innerHTML='Quantit\u00e9s : <b>'+qPlage(e.min, e.max)+'</b> d\u2019apr\u00e8s le bar\u00e8me \u2192 <b>'
+    + qFmtH(surPlace)+' h</b> sur place'+(pers>1 ? ' pour '+pers+' personnes' : '');
 }
 /* Libellé d'une ligne pour l'export : l'intensité par défaut n'encombre pas la fiche. */
 function qLigneLabel(q){
@@ -2486,6 +2509,10 @@ function rlvOibtRender(){
         <div class="mat-add">
           <button type="button" class="add" data-addqt>＋ Ajouter une quantité</button>
         </div>
+        <div class="mo-reprise" data-qtrep hidden>
+          <span data-qtreptxt></span>
+          <button type="button" data-qtrepbtn>Reprendre</button>
+        </div>
         <button type="button" class="oibt-del" data-del style="margin-top:12px">Supprimer ce défaut</button>
       </div>`;
     c.querySelector('.oibt-hd').onclick=()=>{ const f=c.classList.toggle('folded');
@@ -2505,6 +2532,7 @@ function rlvOibtRender(){
           if(mk) mk.classList.toggle('mkoff', !e.checked); }
         const sm=c.querySelector('[data-sum]'); if(sm) sm.innerHTML=rlvResume(o);
         const mt=c.querySelector('[data-motot]'); if(mt) mt.innerHTML=rlvMoTxt(o);
+        rlvQtRepMaj(c, o);
         rlvOibtInfo(); scheduleSave();
       };
       e.addEventListener(chk?'change':'input', maj);
@@ -2527,6 +2555,17 @@ function rlvOibtRender(){
     });
     const qc=c.querySelector('[data-rlvqt]');
     rlvQtBuild(qc, o);
+    rlvQtRepMaj(c, o);
+    const brb=c.querySelector('[data-qtrepbtn]');
+    if(brb) brb.onclick=()=>{
+      const e=rlvQtEstimation(o); if(!e.max) return;
+      const pers=rlvPers(o), mid=Math.round((e.min+e.max)/2*10)/10;
+      o.h=String(Math.round(mid/pers*4)/4);
+      const hi=c.querySelector('[data-rd="h"]'); if(hi) hi.value=o.h;
+      const sm=c.querySelector('[data-sum]');   if(sm) sm.innerHTML=rlvResume(o);
+      const mt=c.querySelector('[data-motot]'); if(mt) mt.innerHTML=rlvMoTxt(o);
+      rlvOibtInfo(); updateMO(); scheduleSave();
+    };
     const bq=c.querySelector('[data-addqt]');
     if(bq) bq.onclick=()=>{
       const r=rlvQtAdd(qc, o);
