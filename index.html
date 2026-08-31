@@ -5627,77 +5627,97 @@ function addProtoRow(){
     <button type="button" class="fold" title="Réduire / déployer">▾</button>
     <div class="tag">Groupe</div>
     <span class="row-name-sum"></span>
-    <div class="grid" style="margin-bottom:8px">
-      <div><label class="fld">N° / Groupe [Repère]</label><input data-pf="rep" type="text" placeholder="ex : 1"></div>
-      <div><label class="fld">Type / Caract.</label><select data-pf="type">
-        <option value=""></option>
-        <optgroup label="Courbes actuelles"><option>B</option><option>C</option><option>D</option></optgroup>
-        <optgroup label="Courbes anciennes"><option>L</option><option>S</option><option>V</option></optgroup>
-        <optgroup label="Fusibles"><option>Fusible</option><option>HPC</option></optgroup>
-        <option value="Autre…">Autre…</option>
-      </select></div>
-    </div>
-    <div data-pcond="typeautre" hidden style="margin-bottom:8px">
-      <label class="fld">Préciser le type / la caractéristique</label>
-      <input data-pf="typeautre" type="text" placeholder="ex : courbe K">
-    </div>
-    <div data-pcond="fus" hidden style="margin-bottom:8px">
-      <div class="grid">
-        <div><label class="fld">Modèle de fusible</label><select data-pf="fusmod">
-          <option value=""></option><option>DI</option><option>DII</option><option>DIII</option>
+    <div class="sub">
+      <h4>Identification</h4>
+      <div class="grid" style="margin-bottom:8px">
+        <div><label class="fld">N° / Groupe [Repère]</label><input data-pf="rep" type="text" placeholder="ex : 1"></div>
+        <div><label class="fld">Type / Caract.</label><select data-pf="type">
+          <option value=""></option>
+          <optgroup label="Courbes actuelles"><option>B</option><option>C</option><option>D</option></optgroup>
+          <optgroup label="Courbes anciennes"><option>L</option><option>S</option><option>V</option></optgroup>
+          <optgroup label="Fusibles"><option>Fusible</option><option>HPC</option></optgroup>
           <option value="Autre…">Autre…</option>
         </select></div>
-        <div data-pcond="fusautre" hidden><label class="fld">Préciser le modèle</label><input data-pf="fusmodautre" type="text" placeholder="ex : NH00"></div>
+      </div>
+      <div data-pcond="typeautre" hidden style="margin-bottom:8px">
+        <label class="fld">Préciser le type / la caractéristique</label>
+        <input data-pf="typeautre" type="text" placeholder="ex : courbe K">
+      </div>
+      <div data-pcond="fus" hidden style="margin-bottom:8px">
+        <div class="grid">
+          <div><label class="fld">Modèle de fusible</label><select data-pf="fusmod">
+            <option value=""></option><option>DI</option><option>DII</option><option>DIII</option>
+            <option value="Autre…">Autre…</option>
+          </select></div>
+          <div data-pcond="fusautre" hidden><label class="fld">Préciser le modèle</label><input data-pf="fusmodautre" type="text" placeholder="ex : NH00"></div>
+        </div>
+      </div>
+      <label class="fld">Lieu / désignation [Quoi ? et où ?]</label>
+      <textarea data-pf="desig" placeholder="Lieu et description des travaux…"></textarea>
+    </div>
+
+    <div class="sub">
+      <h4>Ligne d'alimentation</h4>
+      <div class="grid">
+        <div><label class="fld">Système</label><select data-pf="syst">
+          <option value=""></option><option>TN-S</option><option>TN-C</option><option>SchIII</option>
+          <option value="Autre…">Autre…</option>
+        </select></div>
+        <div data-pcond="systautre" hidden><label class="fld">Préciser le système</label><input data-pf="systautre" type="text" placeholder="ex : TT"></div>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <div><label class="fld">Câble / fil</label><select data-pf="cf">
+          <option value=""></option><option>Câble</option><option>Fil</option>
+          <option value="Autre…">Autre…</option>
+        </select></div>
+        <div data-pcond="cfnb" hidden><label class="fld">Nombre</label><select data-pf="cfnb"><option value=""></option></select></div>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <div data-pcond="cfmm2" hidden><label class="fld">Dimension [mm²]</label><select data-pf="cfmm2">
+          <option value=""></option>${PROTO_MM2.map(v=>`<option>${v}</option>`).join('')}
+          <option value="Autre…">Autre…</option>
+        </select></div>
+        <div data-pcond="cfautre" hidden><label class="fld">Préciser</label><input data-pf="cfautre" type="text" placeholder="ex : 4x95 mm²"></div>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <div><label class="fld">Iₙ [A]</label><input data-pf="imagn" type="text" placeholder="ex : 16"></div>
+        <div></div>
       </div>
     </div>
-    <label class="fld">Lieu / désignation [Quoi ? et où ?]</label>
-    <textarea data-pf="desig" placeholder="Lieu et description des travaux…"></textarea>
-    <div class="grid" style="margin-top:8px">
-      <div><label class="fld">Système</label><select data-pf="syst">
-        <option value=""></option><option>TN-S</option><option>TN-C</option><option>SchIII</option>
-        <option value="Autre…">Autre…</option>
-      </select></div>
-      <div data-pcond="systautre" hidden><label class="fld">Préciser le système</label><input data-pf="systautre" type="text" placeholder="ex : TT"></div>
+
+    <div class="sub">
+      <h4>Contrôle visuel</h4>
+      <div class="chk"><input type="checkbox" data-pf="visuel"><label>Examen visuel OK</label></div>
+      <div class="chk"><input type="checkbox" data-pf="essais"><label>Essais fonctionnels OK</label></div>
     </div>
-    <div class="grid" style="margin-top:8px">
-      <div><label class="fld">Câble / fil</label><select data-pf="cf">
-        <option value=""></option><option>Câble</option><option>Fil</option>
-        <option value="Autre…">Autre…</option>
-      </select></div>
-      <div data-pcond="cfnb" hidden><label class="fld">Nombre</label><select data-pf="cfnb"><option value=""></option></select></div>
+
+    <div class="sub">
+      <h4>Mesures</h4>
+      <div><label class="fld">Conducteur PE — R_PE / R_LOW [Ω / ok]</label><input data-pf="pe" type="text"></div>
+      <div class="grid" style="margin-top:8px">
+        <div><label class="fld">R_iso [MΩ]</label><input data-pf="riso" type="text"></div>
+        <div><label class="fld">I_Diff / I_fuite [mA]</label><input data-pf="idiff" type="text"></div>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <div><label class="fld">Icc L-PE [A]</label><input data-pf="iccpe" type="text"></div>
+        <div><label class="fld">Icc L-N [A]</label><input data-pf="iccln" type="text"></div>
+      </div>
+      <div class="chk"><input type="checkbox" data-pf="icc066"><label>Appliquer le facteur <b>0,66</b> aux courants de court-circuit</label></div>
+      <p class="hint" data-pcond="icc066h" hidden style="margin:0 0 4px">La valeur mesurée reste affichée ; une 2ᵉ valeur (× 0,66) apparaît en plus dans l'export.</p>
     </div>
-    <div class="grid" style="margin-top:8px">
-      <div data-pcond="cfmm2" hidden><label class="fld">Dimension [mm²]</label><select data-pf="cfmm2">
-        <option value=""></option>${PROTO_MM2.map(v=>`<option>${v}</option>`).join('')}
-        <option value="Autre…">Autre…</option>
-      </select></div>
-      <div data-pcond="cfautre" hidden><label class="fld">Préciser</label><input data-pf="cfautre" type="text" placeholder="ex : 4x95 mm²"></div>
+
+    <div class="sub">
+      <h4>DDR et réseau</h4>
+      <div class="grid">
+        <div><label class="fld">DDR/RCD I_ΔN [mA]</label><input data-pf="idn" type="text"></div>
+        <div><label class="fld">Test t [ms]</label><input data-pf="test" type="text"></div>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <div class="chk"><input type="checkbox" data-pf="champ"><label>Champ tournant OK</label></div>
+        <div><label class="fld">Tension U [V]</label><input data-pf="tension" type="text"></div>
+      </div>
     </div>
-    <div class="grid" style="margin-top:8px">
-      <div><label class="fld">Iₙ [A]</label><input data-pf="imagn" type="text" placeholder="ex : 16"></div>
-      <div></div>
-    </div>
-    <div class="chk"><input type="checkbox" data-pf="visuel"><label>Examen visuel OK</label></div>
-    <div class="chk"><input type="checkbox" data-pf="essais"><label>Essais fonctionnels OK</label></div>
-    <div style="margin-top:6px"><label class="fld">Conducteur PE — R_PE / R_LOW [Ω / ok]</label><input data-pf="pe" type="text"></div>
-    <div class="grid" style="margin-top:8px">
-      <div><label class="fld">R_iso [MΩ]</label><input data-pf="riso" type="text"></div>
-      <div><label class="fld">I_Diff / I_fuite [mA]</label><input data-pf="idiff" type="text"></div>
-    </div>
-    <div class="grid" style="margin-top:8px">
-      <div><label class="fld">Icc L-PE [A]</label><input data-pf="iccpe" type="text"></div>
-      <div><label class="fld">Icc L-N [A]</label><input data-pf="iccln" type="text"></div>
-    </div>
-    <div class="chk"><input type="checkbox" data-pf="icc066"><label>Appliquer le facteur <b>0,66</b> aux courants de court-circuit</label></div>
-    <p class="hint" data-pcond="icc066h" hidden style="margin:0 0 4px">La valeur mesurée reste affichée ; une 2ᵉ valeur (× 0,66) apparaît en plus dans l'export.</p>
-    <div class="grid" style="margin-top:8px">
-      <div><label class="fld">DDR/RCD I_ΔN [mA]</label><input data-pf="idn" type="text"></div>
-      <div><label class="fld">Test t [ms]</label><input data-pf="test" type="text"></div>
-    </div>
-    <div class="grid" style="margin-top:8px">
-      <div class="chk"><input type="checkbox" data-pf="champ"><label>Champ tournant OK</label></div>
-      <div><label class="fld">Tension U [V]</label><input data-pf="tension" type="text"></div>
-    </div>`;
+`;
   r.querySelector('.rm').onclick=()=>{ r.remove(); renumberProto(); updateProtoReq(); protoSave(); };
   r.querySelector('.fold').onclick=()=>protoFold(r);
   r.querySelector('.dup').onclick=()=>duplicateProtoRow(r);
@@ -8284,7 +8304,12 @@ function init(){
   document.querySelectorAll('main section.card').forEach(card=>{
     const h=card.querySelector(':scope > h2'); if(!h) return;
     h.addEventListener('click',()=>card.classList.toggle('collapsed'));
-    if(card.closest('#tabReleve') && !card.classList.contains('req')
+    /* Même règle dans toutes les fonctions : on arrive sur une page courte plutôt
+       que sur tout le formulaire déplié. Restent ouvertes les cartes obligatoires,
+       la première de l'onglet (il faut toujours un point de départ) et l'arbre. */
+    const premiere = card.parentElement
+      && card === card.parentElement.querySelector(':scope > section.card');
+    if(!card.classList.contains('req') && !premiere
        && card.id!=='installationCard') card.classList.add('collapsed');
   });
   $('#foldAllBtn').onclick=foldAllCards;
