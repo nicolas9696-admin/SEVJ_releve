@@ -435,6 +435,13 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .row.off{opacity:.55}
 .row.off .oibt-vg{filter:grayscale(1)}
 /* matériel hors arbre : les boutons d'ajout, deux par ligne sur téléphone */
+.install-btn{display:flex; align-items:center; gap:12px; width:100%; margin:0 0 14px;
+  padding:13px 15px; border:2px dashed var(--navy2); border-radius:14px; background:var(--card);
+  color:var(--navy); text-align:left; cursor:pointer; font-family:inherit}
+.install-btn .ic{flex:0 0 auto; font-size:20px}
+.install-btn .tx{display:flex; flex-direction:column; gap:2px; min-width:0}
+.install-btn .t{font-size:14.5px; font-weight:800}
+.install-btn .d{font-size:12px; color:var(--mut); font-weight:600}
 .mat-add{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
 .mat-add .add{flex:1 1 46%; margin:0; border-style:solid; font-size:13px}
 /* le repère d'un point : une barre sur toute la largeur, à la hauteur du défaut */
@@ -724,6 +731,11 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       <span>💾 <b>Sauvegarde recommandée.</b> <span id="backupNudgeTxt"></span> Exporte un fichier <b>.SEVJ</b> (bouton « Sauvegarder » dans chaque fonction) pour ne rien perdre si tu changes ou perds ton téléphone.</span>
       <button type="button" id="backupNudgeX" aria-label="Masquer pour aujourd'hui">✕</button>
     </div>
+    <button type="button" id="installBtn" class="install-btn" hidden>
+      <span class="ic">⬇</span>
+      <span class="tx"><span class="t">Installer l’application</span>
+      <span class="d">Icône sur l’écran d’accueil, plein écran, sans barre d’adresse — et utilisable hors réseau</span></span>
+    </button>
     <div class="home-tiles">
       <button type="button" class="tile tile-releve" data-goto="releve">
         <span class="ic">📋</span>
@@ -5585,6 +5597,27 @@ function majBackupNudge(){
 }
 /* ⇕ de l'en-tête : replie ou déploie d'un coup toutes les cartes de l'onglet affiché.
    S'il en reste une d'ouverte, on replie ; sinon on déploie tout. */
+/* ===== Installer l'application ===== */
+let _invite=null;
+function appInstallee(){
+  return window.matchMedia('(display-mode: standalone)').matches
+      || window.matchMedia('(display-mode: fullscreen)').matches
+      || navigator.standalone === true;                 // Safari iOS
+}
+function estIOS(){ return /iPad|iPhone|iPod/.test(navigator.userAgent); }
+function majInstall(){
+  const b=$('#installBtn'); if(!b) return;
+  // deja installee : plus rien a proposer. Sinon : invite native, ou consigne sur iPhone.
+  b.hidden = appInstallee() ? true : !(_invite || estIOS());
+}
+async function installerApp(){
+  if(_invite){
+    _invite.prompt();
+    try{ await _invite.userChoice; }catch(e){}
+    _invite=null; majInstall(); return;
+  }
+  if(estIOS()) alert("Sur iPhone / iPad :\n\n1. Touche le bouton Partager (le carr\u00e9 avec une fl\u00e8che vers le haut)\n2. Choisis \u00ab Sur l'\u00e9cran d'accueil \u00bb\n3. Confirme avec Ajouter\n\nL'app s'ouvrira alors en plein \u00e9cran, sans barre d'adresse.");
+}
 function foldAllCards(){
   if(!$('#homeScreen').hidden) return;
   const tab=document.querySelector(TAB_EL[ACTIVE_TAB]); if(!tab) return;
@@ -8306,11 +8339,10 @@ function init(){
     h.addEventListener('click',()=>card.classList.toggle('collapsed'));
     /* Même règle dans toutes les fonctions : on arrive sur une page courte plutôt
        que sur tout le formulaire déplié. Restent ouvertes les cartes obligatoires,
-       la première de l'onglet (il faut toujours un point de départ) et l'arbre. */
+       et la première de l'onglet, pour avoir un point de départ. */
     const premiere = card.parentElement
       && card === card.parentElement.querySelector(':scope > section.card');
-    if(!card.classList.contains('req') && !premiere
-       && card.id!=='installationCard') card.classList.add('collapsed');
+    if(!card.classList.contains('req') && !premiere) card.classList.add('collapsed');
   });
   $('#foldAllBtn').onclick=foldAllCards;
   const aub=$('#addUniteBtn'); if(aub) aub.onclick=()=>{ qFlash(addUnite()); scheduleSave(); };
@@ -8590,6 +8622,15 @@ function init(){
   }
 
   // Service worker (mode hors-ligne) + mise à jour automatique
+  /* Installation. L'app est un PWA complet (manifeste + service worker) : Chrome et
+     Edge, sur Android comme sur Windows, proposent une invite native qu'on ne peut
+     declencher qu'en reponse a un geste de l'utilisateur — d'ou le bouton. Safari sur
+     iPhone n'expose aucune invite : on y explique le geste a la place. */
+  window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); _invite=e; majInstall(); });
+  window.addEventListener('appinstalled', ()=>{ _invite=null; majInstall(); });
+  const ib=$('#installBtn'); if(ib) ib.onclick=installerApp;
+  majInstall();
+
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(reg=>{
       if(reg.update) reg.update();                    // force la vérification d'une nouvelle version
