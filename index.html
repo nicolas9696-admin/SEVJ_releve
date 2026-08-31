@@ -418,6 +418,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   font-size:13.5px; font-weight:800; color:var(--navy)}
 .fold-hd .fa{margin-left:auto; color:var(--mut); font-size:12px; font-weight:700}
 .fold-bd{padding:12px 13px; border-top:1px solid var(--line); background:var(--card)}
+.oibt-cnt{background:var(--navy2); color:#fff; border-radius:20px; padding:1px 8px;
+  font-size:11px; font-weight:800; line-height:1.6}
+.oibt-cnt:empty{display:none}
+.oibt-pt .fold-blk{margin-top:10px}
 .fold-blk:not(.open) .fold-bd{display:none}
 /* défaut écarté du chiffrage : la carte reste lisible mais s'efface */
 .oibt-pt.off{opacity:.55; border-left-color:var(--mut)}
@@ -2218,7 +2222,7 @@ function rlvMatAdd(cont, o, t, state){
   const lk=r.querySelector('[data-links-list]'); if(lk){ const w=lk.closest('div'); if(w) w.style.display='none'; }
   if(state) fillRow(r, state);
   const maj=()=>{ rlvMatSync(cont, o); const c=cont.closest('.oibt-pt');
-    const sm=c && c.querySelector('[data-sum]'); if(sm) sm.innerHTML=rlvResume(o); };
+    const sm=c && c.querySelector('[data-sum]'); if(sm) sm.innerHTML=rlvResume(o); rlvCompteurs(c); };
   r.addEventListener('input', maj); r.addEventListener('change', maj);
   const btn=r.querySelector('.rm'), avant=btn.onclick;
   btn.onclick=()=>{ if(avant) avant(); maj(); };
@@ -2228,6 +2232,27 @@ function rlvMatAdd(cont, o, t, state){
    relevé par quantités, mais rattachées au défaut. Comme le matériel, elles vivent
    dans le point (o.qt) et pas seulement dans le DOM : les cartes sont reconstruites
    dès qu'un repère bouge. */
+/* Compteurs dans les titres des blocs repliables : savoir ce qu'ils contiennent
+   sans avoir à les ouvrir. */
+function rlvCompteurs(c){
+  if(!c) return;
+  const m = c.querySelectorAll('[data-rlvmat] > .row').length;
+  const q = c.querySelectorAll('[data-rlvqt] > .row').length;
+  const em = c.querySelector('[data-matcnt]'); if(em) em.textContent = m || '';
+  const eq = c.querySelector('[data-qtcnt]');  if(eq) eq.textContent = q || '';
+}
+/* Un bloc ne s'ouvre au départ que s'il contient déjà quelque chose : tout déplié,
+   une seule carte de point s'étalait sur plusieurs écrans. Le repère au rapport,
+   lui, reste fermé : on ne le touche presque jamais. */
+function rlvBlkInit(c){
+  if(!c) return;
+  rlvCompteurs(c);
+  c.querySelectorAll('.fold-blk[data-blk]').forEach(b=>{
+    const n = b.querySelectorAll('[data-rlvmat] > .row, [data-rlvqt] > .row').length;
+    b.classList.toggle('open', n>0);
+    const fa = b.querySelector('.fa'); if(fa) fa.textContent = n>0 ? '\u25be' : '\u25b8';
+  });
+}
 function rlvQtSync(cont, o){
   o.qt = [...cont.children].filter(x=> x.classList.contains('row')).map(rowState);
   scheduleSave();
@@ -2241,7 +2266,7 @@ function rlvQtAdd(cont, o, state){
   const maj = ()=>{ rlvQtSync(cont, o); qLigneMajAffichage(r);
     const c = cont.closest('.oibt-pt');
     const sm = c && c.querySelector('[data-sum]'); if(sm) sm.innerHTML = rlvResume(o);
-    rlvQtRepMaj(c, o); };
+    rlvQtRepMaj(c, o); rlvCompteurs(c); };
   r.querySelector('.rm').onclick   = ()=>{ r.remove(); maj(); };
   r.querySelector('.fold').onclick = ()=> r.classList.toggle('folded');
   r.querySelector('.tag').onclick  = ()=> r.classList.toggle('folded');
@@ -2474,49 +2499,74 @@ function rlvOibtRender(){
       </div>
       <div class="oibt-body">
         <div data-vgbox>${o.vg?`<div class="oibt-vg"><img src="${o.vg}" alt="Extrait du défaut ${esc(String(o.n||''))}"></div>`:''}</div>
-        <div class="grid-3" style="margin-top:10px">
-          <div><label class="fld">N° au rapport</label><input data-rd="n" type="text" value="${esc(String(o.n||''))}" placeholder="ex : 14"></div>
-          <div><label class="fld">Page</label><input data-rd="page" type="number" min="1" step="1" value="${esc(String(o.page||''))}"></div>
-          <div><label class="fld">Personnes</label><select data-rd="pers">${[1,2,3].map(k=>`<option value="${k}"${rlvPers(o)===k?' selected':''}>${k}</option>`).join('')}</select></div>
-        </div>
-        <div style="margin-top:10px"><label class="fld">Temps sur place (h) — pour une personne</label>
-          <input data-rd="h" type="number" min="0" step="0.25" value="${esc(o.h||'')}" placeholder="ex : 1.5"></div>
-        <div class="mo-total" data-motot style="margin-top:6px">${rlvMoTxt(o)}</div>
+
         <div style="margin-top:10px"><label class="fld">Description / lieu</label>
           <input data-rd="titre" type="text" value="${esc(o.titre||'')}" placeholder="ex : Plafonnier séjour — pas de conducteur de protection"></div>
         <div style="margin-top:10px"><label class="fld">Travaux à prévoir</label>
           <input data-rd="travaux" type="text" value="${esc(o.travaux||'')}" placeholder="ex : tirer un PE, remplacer le luminaire"></div>
-        <div class="chk"><input type="checkbox" data-rd="chiffre"${o.chiffre===false?'':' checked'}><label><b>À chiffrer</b></label></div>
-        <div class="cond${o.chiffre===false?' on':''}" data-c="motif" style="margin-top:8px">
+
+        <div class="chk" style="margin-top:6px"><input type="checkbox" data-rd="chiffre"${o.chiffre===false?'':' checked'}><label><b>À chiffrer</b></label></div>
+        <div class="cond${o.chiffre===false?' on':''}" data-c="motif" style="margin-top:4px">
           <label class="fld">Pourquoi ce défaut n'est pas chiffré</label>
           <input data-rd="motif" type="text" value="${esc(o.motif||'')}" placeholder="ex : déjà corrigé, hors mandat, à la charge du propriétaire">
         </div>
-        <div class="liais-lbl" style="margin-top:14px"><span class="lstep">⚙</span> Matériel à prévoir</div>
-        <p class="hint" style="margin:2px 0 6px">Longueurs de câble / fil (case <b>PE uniquement</b> comprise), tube, canal,
-        appareils, boîtes, disjoncteurs… Tout est additionné dans l'export sous <b>« Remise en conformité OIBT »</b>.</p>
-        <div data-rlvmat></div>
-        <div class="mat-add">
-          <button type="button" class="add" data-addrm="cable">＋ Câble / fil</button>
-          <button type="button" class="add" data-addrm="chem">＋ Tube / canal</button>
-          <button type="button" class="add" data-addrm="app">＋ Appareil</button>
-          <button type="button" class="add" data-addrm="boite">＋ Dérivation / boîte</button>
-          <button type="button" class="add" data-addrm="disj">＋ Disjoncteur</button>
+        <div class="grid" style="margin-top:6px">
+          <div><label class="fld">Personnes</label><select data-rd="pers">${[1,2,3].map(k=>`<option value="${k}"${rlvPers(o)===k?' selected':''}>${k}</option>`).join('')}</select></div>
+          <div><label class="fld">Temps sur place (h) — par personne</label>
+            <input data-rd="h" type="number" min="0" step="0.25" value="${esc(o.h||'')}" placeholder="ex : 1.5"></div>
         </div>
-        <div class="liais-lbl" style="margin-top:14px"><span class="lstep">∑</span> Relevé par quantités</div>
-        <p class="hint" style="margin:2px 0 6px">Pour compter ce point à l'article plutôt qu'à l'heure :
-        prises, dérivations, points lumineux… avec leur tranche, leur passage et leur intensité.</p>
-        <div data-rlvqt></div>
-        <div class="mat-add">
-          <button type="button" class="add" data-addqt>＋ Ajouter une quantité</button>
+        <div class="mo-total" data-motot style="margin-top:6px">${rlvMoTxt(o)}</div>
+
+        <div class="fold-blk" data-blk>
+          <div class="fold-hd" data-blkhd><span class="lstep">⚙</span> Matériel à prévoir <span class="oibt-cnt" data-matcnt></span><span class="fa">▸</span></div>
+          <div class="fold-bd">
+            <p class="hint" style="margin:0 0 8px">Longueurs de câble / fil (case <b>PE uniquement</b> comprise), tube, canal,
+            appareils, boîtes, disjoncteurs… Tout est additionné dans l'export sous <b>« Remise en conformité OIBT »</b>.</p>
+            <div data-rlvmat></div>
+            <div class="mat-add">
+              <button type="button" class="add" data-addrm="cable">＋ Câble / fil</button>
+              <button type="button" class="add" data-addrm="chem">＋ Tube / canal</button>
+              <button type="button" class="add" data-addrm="app">＋ Appareil</button>
+              <button type="button" class="add" data-addrm="boite">＋ Dérivation / boîte</button>
+              <button type="button" class="add" data-addrm="disj">＋ Disjoncteur</button>
+            </div>
+          </div>
         </div>
-        <div class="mo-reprise" data-qtrep hidden>
-          <span data-qtreptxt></span>
-          <button type="button" data-qtrepbtn>Reprendre</button>
+
+        <div class="fold-blk" data-blk>
+          <div class="fold-hd" data-blkhd><span class="lstep">∑</span> Relevé par quantités <span class="oibt-cnt" data-qtcnt></span><span class="fa">▸</span></div>
+          <div class="fold-bd">
+            <p class="hint" style="margin:0 0 8px">Pour compter ce point à l'article plutôt qu'à l'heure :
+            prises, dérivations, points lumineux… avec leur tranche, leur passage et leur intensité.</p>
+            <div data-rlvqt></div>
+            <div class="mat-add">
+              <button type="button" class="add" data-addqt>＋ Ajouter une quantité</button>
+            </div>
+            <div class="mo-reprise" data-qtrep hidden>
+              <span data-qtreptxt></span>
+              <button type="button" data-qtrepbtn>Reprendre</button>
+            </div>
+          </div>
         </div>
+
+        <div class="fold-blk" data-blk>
+          <div class="fold-hd" data-blkhd><span class="lstep">◈</span> Repère au rapport<span class="fa">▸</span></div>
+          <div class="fold-bd">
+            <div class="grid">
+              <div><label class="fld">N° au rapport</label><input data-rd="n" type="text" value="${esc(String(o.n||''))}" placeholder="ex : 14"></div>
+              <div><label class="fld">Page</label><input data-rd="page" type="number" min="1" step="1" value="${esc(String(o.page||''))}"></div>
+            </div>
+          </div>
+        </div>
+
         <button type="button" class="oibt-del" data-del style="margin-top:12px">Supprimer ce défaut</button>
       </div>`;
     c.querySelector('.oibt-hd').onclick=()=>{ const f=c.classList.toggle('folded');
       c.querySelector('.oibt-fold').textContent=f?'▸':'▾'; };
+    c.querySelectorAll('[data-blkhd]').forEach(h=>{
+      const b=h.closest('.fold-blk'), fa=h.querySelector('.fa');
+      h.onclick=()=>{ const ouv=b.classList.toggle('open'); if(fa) fa.textContent=ouv?'▾':'▸'; };
+    });
     c.querySelectorAll('[data-rd]').forEach(e=>{
       const chk=e.type==='checkbox', f=e.dataset.rd;
       // input ET change : un <select> (nombre de personnes) ne déclenche pas toujours input
@@ -2556,6 +2606,7 @@ function rlvOibtRender(){
     const qc=c.querySelector('[data-rlvqt]');
     rlvQtBuild(qc, o);
     rlvQtRepMaj(c, o);
+    rlvBlkInit(c);
     const brb=c.querySelector('[data-qtrepbtn]');
     if(brb) brb.onclick=()=>{
       const e=rlvQtEstimation(o); if(!e.max) return;
