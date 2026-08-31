@@ -2196,6 +2196,7 @@ function rlvResume(o){
   const b=[ o.chiffre===false ? ('○ non chiffré'+(o.motif?' : '+o.motif:'')) : '✓ à chiffrer' ];
   if(o.h) b.push(rlvPers(o)>1 ? (o.h+' h × '+rlvPers(o)+' = '+rlvHeuresPt(o)+' h') : (o.h+' h'));
   const nm=(o.mat||[]).length; if(nm) b.push(nm+' article'+(nm>1?'s':''));
+  const nq=rlvQtLignes(o).length; if(nq) b.push(nq+' ligne'+(nq>1?'s':'')+' de quantités');
   if(o.travaux) b.push(o.travaux.length>34 ? o.travaux.slice(0,34)+'…' : o.travaux);
   return esc(b.join('  ·  '));
 }
@@ -2222,6 +2223,57 @@ function rlvMatAdd(cont, o, t, state){
   const btn=r.querySelector('.rm'), avant=btn.onclick;
   btn.onclick=()=>{ if(avant) avant(); maj(); };
   return r;
+}
+/* Relevé par quantités attaché à un point du rapport : mêmes lignes que dans le
+   relevé par quantités, mais rattachées au défaut. Comme le matériel, elles vivent
+   dans le point (o.qt) et pas seulement dans le DOM : les cartes sont reconstruites
+   dès qu'un repère bouge. */
+function rlvQtSync(cont, o){
+  o.qt = [...cont.children].filter(x=> x.classList.contains('row')).map(rowState);
+  scheduleSave();
+}
+function rlvQtAdd(cont, o, state){
+  if(!cont) return null;
+  const r = el('div','row');
+  r.innerHTML = qLigneHTML();
+  wire(r);
+  if(state) fillRow(r, state);
+  const maj = ()=>{ rlvQtSync(cont, o); qLigneMajAffichage(r);
+    const c = cont.closest('.oibt-pt');
+    const sm = c && c.querySelector('[data-sum]'); if(sm) sm.innerHTML = rlvResume(o); };
+  r.querySelector('.rm').onclick   = ()=>{ r.remove(); maj(); };
+  r.querySelector('.fold').onclick = ()=> r.classList.toggle('folded');
+  r.querySelector('.tag').onclick  = ()=> r.classList.toggle('folded');
+  r.querySelector('.dup').onclick  = ()=>{
+    const copie = rlvQtAdd(cont, o, rowState(r));
+    r.parentNode.insertBefore(copie, r.nextSibling);
+    qFlash(copie); maj();
+  };
+  r.addEventListener('input',  maj);
+  r.addEventListener('change', maj);
+  cont.appendChild(r);
+  qLigneMajAffichage(r);
+  return r;
+}
+function rlvQtBuild(cont, o){
+  if(!cont) return;
+  cont.innerHTML='';
+  (o.qt||[]).forEach(st=> rlvQtAdd(cont, o, st));
+}
+/* Lignes d'un point, résolues pour l'export (poste libre compris). */
+function rlvQtLignes(o){
+  return (o.qt||[]).map(st=>{
+    let p = st.qposte||'';
+    if(p==='Autre\u2026') p = (st.qautre||'').trim() || 'Autre poste';
+    return { poste:p, qte:parseFloat(st.qqte)||0, tranche:st.qtranche||'',
+             passage:st.qtube||'', amp:st.qamp||QAMP_DEFAUT };
+  }).filter(x=> x.poste && x.qte>0);
+}
+/* Libellé d'une ligne pour l'export : l'intensité par défaut n'encombre pas la fiche. */
+function qLigneLabel(q){
+  const d=[q.tranche, q.passage, (q.amp && q.amp!==QAMP_DEFAUT) ? q.amp : '']
+    .filter(Boolean).join(' · ');
+  return q.poste + (d ? ' — ' + d : '');
 }
 function rlvMatBuild(cont, o){
   if(!cont) return;
@@ -2427,6 +2479,13 @@ function rlvOibtRender(){
           <button type="button" class="add" data-addrm="boite">＋ Dérivation / boîte</button>
           <button type="button" class="add" data-addrm="disj">＋ Disjoncteur</button>
         </div>
+        <div class="liais-lbl" style="margin-top:14px"><span class="lstep">∑</span> Relevé par quantités</div>
+        <p class="hint" style="margin:2px 0 6px">Pour compter ce point à l'article plutôt qu'à l'heure :
+        prises, dérivations, points lumineux… avec leur tranche, leur passage et leur intensité.</p>
+        <div data-rlvqt></div>
+        <div class="mat-add">
+          <button type="button" class="add" data-addqt>＋ Ajouter une quantité</button>
+        </div>
         <button type="button" class="oibt-del" data-del style="margin-top:12px">Supprimer ce défaut</button>
       </div>`;
     c.querySelector('.oibt-hd').onclick=()=>{ const f=c.classList.toggle('folded');
@@ -2466,6 +2525,15 @@ function rlvOibtRender(){
       const sm=c.querySelector('[data-sum]'); if(sm) sm.innerHTML=rlvResume(o);
       if(r) r.scrollIntoView({behavior:'smooth', block:'center'});
     });
+    const qc=c.querySelector('[data-rlvqt]');
+    rlvQtBuild(qc, o);
+    const bq=c.querySelector('[data-addqt]');
+    if(bq) bq.onclick=()=>{
+      const r=rlvQtAdd(qc, o);
+      rlvQtSync(qc, o);
+      const sm=c.querySelector('[data-sum]'); if(sm) sm.innerHTML=rlvResume(o);
+      if(r) r.scrollIntoView({behavior:'smooth', block:'center'});
+    };
     cont.appendChild(c);
   });
   rlvOibtInfo();
@@ -2565,7 +2633,8 @@ function collectOibtRlv(){
            ecartes:D.filter(o=>o.chiffre===false).length,
            defauts:D.map(o=>({n:o.n, page:o.page, titre:o.titre, travaux:o.travaux,
                               chiffre:o.chiffre!==false, motif:o.motif||'',
-                              h:o.h, pers:rlvPers(o), hh:rlvHeuresPt(o), vg:o.vg})) };
+                              h:o.h, pers:rlvPers(o), hh:rlvHeuresPt(o), vg:o.vg,
+                              qt:rlvQtLignes(o)})) };
 }
 /* État sérialisable (sans les extraits : ils vont dans leur propre clé) */
 function rlvOibtState(){
@@ -2575,14 +2644,15 @@ function rlvOibtState(){
                                      titre:o.titre||'',
                                      chiffre:o.chiffre!==false, motif:o.motif||'',
                                      travaux:o.travaux||'', h:o.h||'', pers:rlvPers(o),
-                                     mat:(o.mat||[]).map(m=>({t:m.t, s:m.s})) })) };
+                                     mat:(o.mat||[]).map(m=>({t:m.t, s:m.s})),
+                                     qt:(o.qt||[]).map(x=>Object.assign({}, x)) })) };
 }
 function rlvOibtApply(st){
   if(!st) return;
   const memePdf = st.file && st.file===RLVOIBT.file && RLVOIBT.vues.length;
   RLVOIBT={ file:st.file||'', pdf:memePdf?RLVOIBT.pdf:null, pages:st.pages||0,
             vues:memePdf?RLVOIBT.vues:[], bandes:memePdf?RLVOIBT.bandes:{haut:0, bas:1},
-            pts:(st.pts||[]).map(o=>Object.assign({vg:null, chiffre:true, travaux:'', h:'', y:0, page:1, mat:[]}, o)) };
+            pts:(st.pts||[]).map(o=>Object.assign({vg:null, chiffre:true, travaux:'', h:'', y:0, page:1, mat:[], qt:[]}, o)) };
   // Anciens brouillons : le titre était rempli automatiquement depuis la reconnaissance
   // de texte, aujourd'hui supprimée. On ne garde que ceux tapés à la main (titreMan).
   RLVOIBT.pts.forEach(o=>{
@@ -3522,9 +3592,10 @@ function addQLocal(u, nom){
   u.querySelector('.qlocaux').appendChild(lo); updateQ();
   return lo;
 }
-function addQLigne(lo){
-  const r = el('div','row');
-  r.innerHTML = `<button class="rm" title="Supprimer">\u00d7</button>
+/* Le markup d'une ligne de quantités. Extrait pour être réutilisé tel quel dans les
+   points du rapport OIBT : mêmes champs, même vocabulaire, un seul endroit à modifier. */
+function qLigneHTML(){
+  return `<button class="rm" title="Supprimer">\u00d7</button>
     <button type="button" class="dup" title="Dupliquer la ligne">\u29c9</button>
     <button type="button" class="fold" title="R\u00e9duire / d\u00e9ployer">\u25be</button>
     <div class="tag">Ligne</div><span class="row-name-sum"></span>
@@ -3537,6 +3608,29 @@ function addQLigne(lo){
     </div>
     <div class="cond" data-c="qposte" style="margin-top:10px"><label class="fld">Pr\u00e9ciser le poste</label><input data-f="qautre" type="text" placeholder="ex : d\u00e9tecteur de mouvement"></div>
     <div class="qest"></div>`;
+}
+/* Poste effectif d'une ligne : l'option choisie, ou le texte libre si « Autre… ». */
+function qLignePoste(r){
+  let p = G(r,'qposte')||'';
+  if(p==='Autre\u2026') p = (G(r,'qautre')||'').trim() || 'Autre poste';
+  return p;
+}
+/* Étiquette, résumé replié et temps déduit du barème, pour une ligne où qu'elle soit. */
+function qLigneMajAffichage(r){
+  const p = qLignePoste(r);
+  const tag = r.querySelector('.tag'); if(tag) tag.textContent = qCourt(p);
+  const sum = r.querySelector('.row-name-sum');
+  if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube'), G(r,'qamp')]
+    .filter(Boolean).join(' \u00b7 ');
+  const est = r.querySelector('.qest'), taux = QHPCE[p], q = parseFloat(G(r,'qqte'))||0;
+  if(est) est.textContent = taux
+    ? qFmtH(taux[0])+'\u2013'+qFmtH(taux[1])+' h/pce'
+      + (q ? '  \u2192  '+qPlage(q*taux[0], q*taux[1]) : '')
+    : '';
+}
+function addQLigne(lo){
+  const r = el('div','row');
+  r.innerHTML = qLigneHTML();
   wire(r);
   // wire() rebranche updateDef/updateCirc : ici c'est le total des quantités qu'il faut refaire.
   r.querySelector('.rm').onclick   = ()=>{ r.remove(); updateQ(); scheduleSave(); };
@@ -3877,19 +3971,7 @@ function updateQ(){
       disj ? [G(r,'tcal'), G(r,'tpol')].filter(Boolean).join(' ') : '',
       G(r,'trep')].filter(Boolean).join(' \u00b7 ');
   });
-  [...document.querySelectorAll('#quantites .qlignes .row')].forEach(r=>{
-    let p = G(r,'qposte')||'';
-    if(p==='Autre\u2026') p = (G(r,'qautre')||'').trim() || 'Autre poste';
-    const tag = r.querySelector('.tag'); if(tag) tag.textContent = qCourt(p);
-    const sum = r.querySelector('.row-name-sum');
-    if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube'), G(r,'qamp')]
-      .filter(Boolean).join(' \u00b7 ');
-    const est = r.querySelector('.qest'), taux = QHPCE[p], q = parseFloat(G(r,'qqte'))||0;
-    if(est) est.textContent = taux
-      ? qFmtH(taux[0])+'\u2013'+qFmtH(taux[1])+' h/pce'
-        + (q ? '  \u2192  '+qPlage(q*taux[0], q*taux[1]) : '')
-      : '';
-  });
+  [...document.querySelectorAll('#quantites .qlignes .row')].forEach(qLigneMajAffichage);
   [...document.querySelectorAll('#qcomp .row')].forEach(r=>{
     let d = G(r,'cdes')||'';
     if(d==='Autre\u2026') d = (G(r,'cautre')||'').trim() || 'Autre poste';
@@ -4173,6 +4255,9 @@ function pushOibtRlv(L,d){
           : (x.travaux?'<br><b>Travaux :</b> '+esc(x.travaux):'')
             + (x.pers>1?'<br><span style="color:#666">'+esc(x.h)+' h × '+x.pers+' personnes</span>':''));
     L.push(itemRowH(des, x.chiffre===false?'—':(x.hh||''), x.chiffre===false?'':'h', false));
+    (x.qt||[]).forEach(q=> L.push(itemRowH(
+      '<span style="padding-left:16px; color:#444">'+esc(qLigneLabel(q))+'</span>',
+      q.qte, 'pce', false)));
   });
   L.push(totRowH('Total remise en conformité', o.total||'', 'h'));
   L.push('</table>');
@@ -4704,14 +4789,16 @@ function buildPDFDoc(d, mode){
       +(oiR.ecartes? ', '+oiR.ecartes+' non chiffré'+(oiR.ecartes>1?'s':''):'')+'.'), CW);
     doc.text(it, M, y); y+=it.length*3.9+3;
     const stO={fontStyle:'bold', fillColor:CLR.sec, textColor:CLR.navy};
-    const corps=oiR.defauts.map(x=>{
+    const corps=[];
+    oiR.defauts.forEach(x=>{
       const ecarte = x.chiffre===false;
-      return ['N° '+x.n+'  (rapport, page '+x.page+')'
+      corps.push(['N° '+x.n+'  (rapport, page '+x.page+')'
         + (x.titre? '\n'+x.titre : '')
         + (ecarte ? '\nNon chiffré'+(x.motif? ' : '+x.motif : '')
                   : (x.travaux? '\nTravaux : '+x.travaux : '')
                     + (x.pers>1? '\n'+x.h+' h x '+x.pers+' personnes' : '')),
-        ecarte ? '-' : String(x.hh||''), ecarte ? '' : 'h'];
+        ecarte ? '-' : String(x.hh||''), ecarte ? '' : 'h']);
+      (x.qt||[]).forEach(q=> corps.push(['    '+qLigneLabel(q), String(q.qte), 'pce']));
     });
     corps.push([{content:'Total remise en conformité', styles:stO},
                 {content:String(oiR.total||''), styles:Object.assign({}, stO, {halign:'center'})},
