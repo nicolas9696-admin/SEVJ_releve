@@ -699,7 +699,11 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
    en retrait. Les retraits sont dans la feuille de style, pas en attribut. */
 /* Hierarchie : le defaut porte la bande la plus marquee, le passage une plus claire,
    la ligne reste blanche. Avant, le passage ressortait plus que son propre defaut. */
-#fiche .def-row td{background:#eaf0f6; color:var(--navy); border-top:2px solid var(--navy2)}
+#fiche .def-row td{background:var(--navy); color:#fff; font-weight:700; border-color:var(--navy)}
+#fiche .def-row b{color:#fff}
+#fiche .def-row .dest{color:rgba(255,255,255,.72); font-weight:600}
+#fiche .qt-grp td{border-left:3px solid var(--navy2)}
+#fiche .qt-row td:first-child{border-left:3px solid var(--line)}
 #fiche .qt-grp td{background:#f7fafd; color:var(--navy); font-weight:600;
   font-size:.92em; padding-left:18px; letter-spacing:.2px}
 #fiche .qt-row td:first-child{padding-left:26px; color:#4a4a4a}
@@ -1765,6 +1769,13 @@ function qTabLabel(l){
   const spec = [l.cal, l.pol].filter(Boolean).join(' ');
   return l.poste + (spec ? ' \u2014 ' + spec : '');
 }
+/* Taux d'une ligne : le barème quand le poste y figure, sinon le temps par article
+   saisi à la main. Sans lui, un poste « Autre… » ne pesait rien dans l'estimation. */
+function qTauxLigne(l){
+  if(QHPCE[l.poste]) return QHPCE[l.poste];
+  const v = parseFloat(l.hpce);
+  return v > 0 ? [v, v] : null;
+}
 function qFmtH(n){ return String(Math.round(n*10)/10).replace('.', ','); }
 function qPlage(min, max){
   if(!min && !max) return '';
@@ -1777,7 +1788,8 @@ function qEstUniteEl(u){
   [...u.querySelectorAll('.qlignes .row')].forEach(r=>{
     let p = G(r,'qposte')||'';
     if(p==='Autre\u2026') p = (G(r,'qautre')||'').trim() || 'Autre poste';
-    const q = parseFloat(G(r,'qqte'))||0, t = QHPCE[p];
+    const q = parseFloat(G(r,'qqte'))||0;
+    const t = qTauxLigne({poste:p, hpce:G(r,'qhpce')});
     if(t && q){ min += q*t[0]; max += q*t[1]; }
   });
   return { min: Math.round(min*10)/10, max: Math.round(max*10)/10 };
@@ -1788,15 +1800,18 @@ function qEstimationPostes(unites){
   /* Un poste est séparé par tranche : 40 dérivations en 0 à 5 m et 12 en 20 à 30 m
      ne se posent pas dans les mêmes conditions, les additionner masque le chantier. */
   (unites||[]).forEach(u=> u.locaux.forEach(lo=> lo.lignes.forEach(l=>{
-    const tr = l.tranche || '';
-    const f = out.find(x=> x.poste===l.poste && x.tranche===tr);
-    if(f) f.qte += l.qte; else out.push({poste:l.poste, tranche:tr, qte:l.qte});
+    const tr = l.tranche || '', t = qTauxLigne(l);
+    /* le taux entre dans la clé : deux postes libres de même nom mais de temps
+       différents restent deux lignes distinctes plutôt qu'une moyenne trompeuse */
+    let f = out.find(x=> x.poste===l.poste && x.tranche===tr && String(x.taux)===String(t));
+    if(!f){ f = {poste:l.poste, tranche:tr, taux:t, qte:0, totMin:0, totMax:0}; out.push(f); }
+    f.qte += l.qte;
+    if(t){ f.totMin += l.qte*t[0]; f.totMax += l.qte*t[1]; }
   })));
-  out.forEach(x=>{ const t = QHPCE[x.poste];
-    x.taux = t || null;
+  out.forEach(x=>{
     x.libelle = x.poste + (x.tranche ? ' \u2014 ' + x.tranche : '');
-    x.totMin = t ? Math.round(x.qte*t[0]*10)/10 : 0;
-    x.totMax = t ? Math.round(x.qte*t[1]*10)/10 : 0; });
+    x.totMin = Math.round(x.totMin*10)/10;
+    x.totMax = Math.round(x.totMax*10)/10; });
   return out.sort((a,b)=> rang(a.poste)-rang(b.poste) || a.poste.localeCompare(b.poste)
     || TRANCHES.indexOf(a.tranche) - TRANCHES.indexOf(b.tranche));
 }
@@ -2318,14 +2333,14 @@ function rlvQtLignes(o){
     let p = st.qposte||'';
     if(p==='Autre\u2026') p = (st.qautre||'').trim() || 'Autre poste';
     return { poste:p, qte:parseFloat(st.qqte)||0, tranche:st.qtranche||'',
-             passage:st.qtube||'', amp:st.qamp||QAMP_DEFAUT };
+             passage:st.qtube||'', amp:st.qamp||QAMP_DEFAUT, hpce:st.qhpce||'' };
   }).filter(x=> x.poste && x.qte>0);
 }
 /* Ce que valent les quantités d'un point, d'après le barème h/pce, en heures-homme.
    Les postes hors barème (saisie libre, appareillage de tableau) ne comptent pas. */
 function rlvQtEstimation(o){
   let min=0, max=0;
-  rlvQtLignes(o).forEach(l=>{ const t=QHPCE[l.poste]; if(t){ min+=l.qte*t[0]; max+=l.qte*t[1]; } });
+  rlvQtLignes(o).forEach(l=>{ const t=qTauxLigne(l); if(t){ min+=l.qte*t[0]; max+=l.qte*t[1]; } });
   return { min:Math.round(min*10)/10, max:Math.round(max*10)/10 };
 }
 /* Bandeau « reprendre l'estimation » d'un point. Le champ du point est un temps sur
@@ -3745,7 +3760,12 @@ function qLigneHTML(){
       <div><label class="fld">Passage</label><select data-f="qtube"><option value="">\u2014 non pr\u00e9cis\u00e9 \u2014</option>${opts(QPASSAGE)}</select></div>
       <div><label class="fld">Intensit\u00e9</label><select data-f="qamp"><option value="">${QAMP_DEFAUT} (par d\u00e9faut)</option>${opts(QAMP)}</select></div>
     </div>
-    <div class="cond" data-c="qposte" style="margin-top:10px"><label class="fld">Pr\u00e9ciser le poste</label><input data-f="qautre" type="text" placeholder="ex : d\u00e9tecteur de mouvement"></div>
+    <div class="cond" data-c="qposte" style="margin-top:10px">
+      <div class="grid">
+        <div><label class="fld">Pr\u00e9ciser le poste</label><input data-f="qautre" type="text" placeholder="ex : d\u00e9tecteur de mouvement"></div>
+        <div><label class="fld">Temps par article (h)</label><input data-f="qhpce" type="number" min="0" step="0.05" placeholder="ex : 0.8"></div>
+      </div>
+    </div>
     <div class="qest"></div>`;
 }
 /* Poste effectif d'une ligne : l'option choisie, ou le texte libre si « Autre… ». */
@@ -3761,7 +3781,8 @@ function qLigneMajAffichage(r){
   const sum = r.querySelector('.row-name-sum');
   if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube'), G(r,'qamp')]
     .filter(Boolean).join(' \u00b7 ');
-  const est = r.querySelector('.qest'), taux = QHPCE[p], q = parseFloat(G(r,'qqte'))||0;
+  const est = r.querySelector('.qest'), q = parseFloat(G(r,'qqte'))||0;
+  const taux = qTauxLigne({poste:p, hpce:G(r,'qhpce')});
   if(est) est.textContent = taux
     ? qFmtH(taux[0])+'\u2013'+qFmtH(taux[1])+' h/pce'
       + (q ? '  \u2192  '+qPlage(q*taux[0], q*taux[1]) : '')
@@ -3948,7 +3969,8 @@ function collectQuantites(){
         let p = G(r,'qposte')||'';
         if(p==='Autre…') p = (G(r,'qautre')||'').trim() || 'Autre poste';
         return {poste:p, qte:parseFloat(G(r,'qqte'))||0, tranche:G(r,'qtranche')||'',
-                passage:G(r,'qtube')||'', amp:G(r,'qamp')||QAMP_DEFAUT};
+                passage:G(r,'qtube')||'', amp:G(r,'qamp')||QAMP_DEFAUT,
+                hpce:G(r,'qhpce')||''};
       }).filter(x=> x.poste && x.qte>0)
     })).filter(lo=> lo.nom || lo.lignes.length || lo.rem),
     tableaux: [...u.querySelectorAll('.qtab')].map(t=>({
@@ -4964,7 +4986,7 @@ function buildPDFDoc(d, mode){
     const corps=[];
     oiR.defauts.forEach(x=>{
       const ecarte = x.chiffre===false;
-      const stD = {fillColor:CLR.bg, textColor:CLR.navy};
+      const stD = {fillColor:CLR.navy, textColor:[255,255,255], fontStyle:'bold'};
       corps.push([{content:'N° '+x.n+'  (rapport, page '+x.page+')'
         + (x.titre? '\n'+x.titre : '')
         + (ecarte ? '\nNon chiffré'+(x.motif? ' : '+x.motif : '')
