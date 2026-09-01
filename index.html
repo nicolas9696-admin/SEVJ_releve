@@ -697,6 +697,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #fiche .sec-row td{background:#f2f6fb; font-weight:700; color:var(--navy)}
 /* Quantites rattachees a un defaut : une bande pour le passage, puis ses lignes
    en retrait. Les retraits sont dans la feuille de style, pas en attribut. */
+/* Hierarchie : le defaut porte la bande la plus marquee, le passage une plus claire,
+   la ligne reste blanche. Avant, le passage ressortait plus que son propre defaut. */
+#fiche .def-row td{background:#eaf0f6; color:var(--navy); border-top:2px solid var(--navy2)}
 #fiche .qt-grp td{background:#f7fafd; color:var(--navy); font-weight:600;
   font-size:.92em; padding-left:18px; letter-spacing:.2px}
 #fiche .qt-row td:first-child{padding-left:26px; color:#4a4a4a}
@@ -4410,7 +4413,9 @@ function pushOibtRlv(L,d){
           ? '<br><b style="color:#b5651d">Non chiffré</b>'+(x.motif?' <span style="color:#666">— '+esc(x.motif)+'</span>':'')
           : (x.travaux?'<br><b>Travaux :</b> '+esc(x.travaux):'')
             + (x.pers>1?'<br><span style="color:#666">'+esc(x.h)+' h × '+x.pers+' personnes</span>':''));
-    L.push(itemRowH(des, x.chiffre===false?'—':(x.hh||''), x.chiffre===false?'':'h', false));
+    L.push('<tr class="def-row"><td>' + des + '</td><td class="q">'
+      + esc(String(x.chiffre===false ? '—' : (x.hh||'')))
+      + '</td><td class="u">' + (x.chiffre===false ? '' : 'h') + '</td></tr>');
     qGroupesParPassage(x.qt).forEach(g=>{
       if(g.passage) L.push('<tr class="qt-grp"><td colspan="3">'+esc(g.passage)+'</td></tr>');
       g.lignes.forEach(l=> L.push('<tr class="qt-row"><td>'+esc(qLigneLabelCourt(l))
@@ -4959,12 +4964,15 @@ function buildPDFDoc(d, mode){
     const corps=[];
     oiR.defauts.forEach(x=>{
       const ecarte = x.chiffre===false;
-      corps.push(['N° '+x.n+'  (rapport, page '+x.page+')'
+      const stD = {fillColor:CLR.bg, textColor:CLR.navy};
+      corps.push([{content:'N° '+x.n+'  (rapport, page '+x.page+')'
         + (x.titre? '\n'+x.titre : '')
         + (ecarte ? '\nNon chiffré'+(x.motif? ' : '+x.motif : '')
                   : (x.travaux? '\nTravaux : '+x.travaux : '')
                     + (x.pers>1? '\n'+x.h+' h x '+x.pers+' personnes' : '')),
-        ecarte ? '-' : String(x.hh||''), ecarte ? '' : 'h']);
+          styles:stD},
+        {content:ecarte ? '-' : String(x.hh||''), styles:Object.assign({}, stD, {halign:'center'})},
+        {content:ecarte ? '' : 'h', styles:Object.assign({}, stD, {halign:'center'})}]);
       /* Bande de passage sur toute la largeur, puis ses lignes en retrait. Le retrait
          passe par cellPadding et non par des espaces devant le texte. */
       const stG = {fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold',
