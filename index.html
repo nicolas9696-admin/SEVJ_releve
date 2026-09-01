@@ -4859,7 +4859,12 @@ function setExportMode(m){
 
 /* ---- PDF direct (jsPDF), pagination propre, pas de page blanche ---- */
 const CLR={navy:[31,59,91], navy2:[62,97,136], bg:[234,240,246], line:[201,212,224], sec:[242,246,251], ink:[43,43,43], mut:[110,110,110], danger:[176,42,42]};
-function pdfSafe(s){ return String(s==null?'':s).replace(/[—–]/g,'-').replace(/→/g,'->').replace(/œ/g,'oe').replace(/[’‘]/g,"'").replace(/⚠/g,'/!\\'); }
+/* Un seul caractere absent de la police standard fait basculer jsPDF en UTF-16 et
+   corrompt TOUTE la chaine, pas seulement ce caractere : elle ressort avec des
+   octets nuls intercales. D'ou ces garde-fous, a completer plutot qu'a contourner. */
+function pdfSafe(s){ return String(s==null?'':s).replace(/[—–]/g,'-').replace(/→/g,'->').replace(/œ/g,'oe').replace(/[’‘]/g,"'").replace(/⚠/g,'/!\\')
+  .replace(/[─-╿]/g,'-')                 // semi-graphiques : traits d'arbre, cadres
+  .replace(/[⧉▸▾∑⬇]/g,''); }   // pictogrammes d'interface, hors document
 /* Construit les lignes autoTable d'un agrégat (nom affiché entre parenthèses) */
 function aggToBody(agg, rawCables, rawChemins, rawApps, rawBoites, rawDisj){
   const secStyle={fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
@@ -4979,30 +4984,39 @@ function buildPDFDoc(d, mode){
       doc.setDrawColor(...rc); doc.setLineWidth(0.6); doc.line(M, y+4.7, W-M, y+4.7);
       y+=8;
       drawTable(body); y+=5;
-      /* Arbre d'alimentation : une colonne, les niveaux rendus par le retrait. */
+      /* Arbre d'alimentation : un titre fin, pas de grille. Une grille sur un arbre
+         hachait la lecture ; ici le retrait et les connecteurs suffisent, et les
+         câbles s'alignent à droite au lieu de flotter derrière le libellé. */
       const deps=(room.departs||[]).filter(d=> (d.tree||[]).length);
       if(deps.length){
         const lignes=[];
         deps.forEach(d=>{
           const p=d.prot;
-          lignes.push({txt: p ? [p.name,p.ptype,p.courbe,p.amp].filter(Boolean).join(' - ')
-                              : 'Sans depart attribue', prof:0, dep:true});
+          lignes.push({txt: p ? [p.name,p.ptype,p.courbe,p.amp].filter(Boolean).join(' \u00b7 ')
+                              : 'Sans d\u00e9part attribu\u00e9', prof:0, dep:true, spec:''});
           const noeud=(n,prof)=>{
-            const spec=arbreLigneCable(n);
-            lignes.push({txt:(n.label||'(sans nom)')+(spec?'   '+spec:''), prof});
+            lignes.push({txt:n.label||'(sans nom)', prof, spec:arbreLigneCable(n)});
             (n.children||[]).forEach(c=> noeud(c, prof+1));
           };
           d.tree.forEach(n=> noeud(n,1));
         });
         if(y>H-30){ doc.addPage(); y=16; }
-        doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
-          styles:{fontSize:8, cellPadding:1.4, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
-          headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
-          head:[['Alimentation']],
-          body:lignes.map(l=> [{content:l.txt, styles:Object.assign(
-            {cellPadding:{top:1.3, right:1.7, bottom:1.3, left:3 + l.prof*5}},
-            l.dep ? {fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'} : {})}]),
-          columnStyles:{0:{cellWidth:CW}}, didParseCell:sanitize });
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...CLR.navy);
+        doc.text('Alimentation', M, y+3); y+=4.8;
+        doc.setDrawColor(...CLR.line); doc.setLineWidth(0.2); doc.line(M, y, W-M, y); y+=1.5;
+        doc.autoTable({ startY:y, theme:'plain', margin:{left:M,right:M},
+          styles:{fontSize:8.5, textColor:CLR.ink,
+                  cellPadding:{top:1.1, bottom:1.1, left:0, right:0}},
+          body:lignes.map(l=> [
+            {content:l.txt,   // le retrait porte la hierarchie : pas de trait d'arbre ici
+             styles:{cellPadding:{top:1.1, bottom:1.1, right:2,
+                                  left: l.dep ? 0 : 1 + (l.prof-1)*6},
+                     fontStyle: l.dep ? 'bold' : 'normal',
+                     textColor: l.dep ? CLR.navy2 : CLR.ink}},
+            {content:l.spec||'', styles:{halign:'right', textColor:CLR.mut, fontSize:8}}
+          ]),
+          columnStyles:{0:{cellWidth:CW-62}, 1:{cellWidth:62}},
+          didParseCell:sanitize });
         y=doc.lastAutoTable.finalY+5;
       }
     });
