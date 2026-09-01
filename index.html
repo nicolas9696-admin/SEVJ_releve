@@ -1776,15 +1776,20 @@ function qEstUniteEl(u){
 /* Le tableau « Estimation par poste » : quantit\u00e9 relev\u00e9e x taux. */
 function qEstimationPostes(unites){
   const out = [], rang = p => { const i = QPOSTES.indexOf(p); return i<0 ? 999 : i; };
+  /* Un poste est séparé par tranche : 40 dérivations en 0 à 5 m et 12 en 20 à 30 m
+     ne se posent pas dans les mêmes conditions, les additionner masque le chantier. */
   (unites||[]).forEach(u=> u.locaux.forEach(lo=> lo.lignes.forEach(l=>{
-    const f = out.find(x=> x.poste===l.poste);
-    if(f) f.qte += l.qte; else out.push({poste:l.poste, qte:l.qte});
+    const tr = l.tranche || '';
+    const f = out.find(x=> x.poste===l.poste && x.tranche===tr);
+    if(f) f.qte += l.qte; else out.push({poste:l.poste, tranche:tr, qte:l.qte});
   })));
   out.forEach(x=>{ const t = QHPCE[x.poste];
     x.taux = t || null;
+    x.libelle = x.poste + (x.tranche ? ' \u2014 ' + x.tranche : '');
     x.totMin = t ? Math.round(x.qte*t[0]*10)/10 : 0;
     x.totMax = t ? Math.round(x.qte*t[1]*10)/10 : 0; });
-  return out.sort((a,b)=> rang(a.poste)-rang(b.poste) || a.poste.localeCompare(b.poste));
+  return out.sort((a,b)=> rang(a.poste)-rang(b.poste) || a.poste.localeCompare(b.poste)
+    || TRANCHES.indexOf(a.tranche) - TRANCHES.indexOf(b.tranche));
 }
 function qEstimationTotale(unites){
   const l = qEstimationPostes(unites);
@@ -4443,19 +4448,22 @@ function pushQuantites(L, d){
   });
   if(unites.length > 1){
     const tots = unites.map(qTotauxUnite);
+    const avecH = !!qHeuresTotal(unites);
+    /* Unités en lignes, postes en colonnes. L'inverse débordait de la page dès huit
+       appartements : les noms d'unité sont longs et leur nombre est libre, alors que
+       les postes sont courts et en nombre borné. */
     L.push('<h3>Récapitulatif général</h3>');
-    L.push('<table><tr><th>Poste</th>'
-         + unites.map(u=> '<th class="q">' + esc(u.nom || '—') + '</th>').join('')
-         + '<th class="q">Total</th></tr>');
-    postes.forEach(p=>{
-      const vals = tots.map(t=> t[p] || 0);
-      L.push('<tr><td>' + esc(p) + '</td>'
-           + vals.map(v=> '<td class="q">' + (v || '—') + '</td>').join('')
-           + '<td class="q"><b>' + vals.reduce((a,b)=> a+b, 0) + '</b></td></tr>');
+    L.push('<table><tr><th>Unité</th>'
+         + postes.map(p=> '<th class="q">' + esc(qCourt(p)) + '</th>').join('')
+         + (avecH ? '<th class="q">Est. (h)</th>' : '') + '</tr>');
+    unites.forEach((u,i)=>{
+      L.push('<tr><td>' + esc(u.nom || '—') + '</td>'
+           + postes.map(p=> '<td class="q">' + (tots[i][p] || '—') + '</td>').join('')
+           + (avecH ? '<td class="q">' + (u.heures || '—') + '</td>' : '') + '</tr>');
     });
-    if(qHeuresTotal(unites)) L.push('<tr class="tot-row"><td>Estimation de temps (h)</td>'
-      + unites.map(u=> '<td class="q">' + (u.heures || '—') + '</td>').join('')
-      + '<td class="q">' + qHeuresTotal(unites) + '</td></tr>');
+    L.push('<tr class="tot-row"><td>TOTAL</td>'
+         + postes.map(p=> '<td class="q">' + tots.reduce((a,t)=> a + (t[p]||0), 0) + '</td>').join('')
+         + (avecH ? '<td class="q">' + qHeuresTotal(unites) + '</td>' : '') + '</tr>');
     L.push('</table>');
   }
   const est = qEstimationPostes(unites).filter(x=> x.taux);
@@ -4465,7 +4473,7 @@ function pushQuantites(L, d){
     L.push('<p class="obj" style="color:#666">Temps par article appliqu\u00e9 aux quantit\u00e9s relev\u00e9es. '
          + 'Fourchette indicative, hors d\u00e9placement et hors travaux de tableau.</p>');
     L.push('<table><tr><th>Poste</th><th class="q">Qt\u00e9</th><th class="q">h/pce</th><th class="q">Total (h)</th></tr>');
-    est.forEach(x=> L.push('<tr><td>' + esc(x.poste) + '</td>'
+    est.forEach(x=> L.push('<tr><td>' + esc(x.libelle) + '</td>'
       + '<td class="q">' + x.qte + '</td>'
       + '<td class="q">' + qFmtH(x.taux[0]) + '\u2013' + qFmtH(x.taux[1]) + '</td>'
       + '<td class="q">' + qFmtH(x.totMin) + '\u2013' + qFmtH(x.totMax) + '</td></tr>'));
@@ -5014,22 +5022,23 @@ function buildPDFDoc(d, mode){
       if(y > H-34){ doc.addPage(); y=16; }
       heading('Récapitulatif général');
       const tots = qUn.map(qTotauxUnite);
-      const corps = qPost.map(p=>{
-        const vals = tots.map(t=> t[p] || 0);
-        return [p].concat(vals.map(v=> v ? String(v) : '-'))
-                  .concat([{content:String(vals.reduce((a,b)=> a+b, 0)),
-                            styles:{fontStyle:'bold', halign:'center'}}]);
-      });
-      if(qHeuresTotal(qUn)) corps.push([{content:'Estimation de temps (h)', styles:stQ}]
-        .concat(qUn.map(u=> ({content:String(u.heures||'-'), styles:Object.assign({}, stQ, {halign:'center'})})))
-        .concat([{content:String(qHeuresTotal(qUn)), styles:Object.assign({}, stQ, {halign:'center'})}]));
-      const wCol = Math.max(11, (CW-42)/(qUn.length+1));
-      const cs = {0:{cellWidth:42}};
-      for(let i=1;i<=qUn.length+1;i++) cs[i]={cellWidth:wCol, halign:'center'};
+      const avecH = !!qHeuresTotal(qUn);
+      /* Unités en lignes : à huit appartements, les avoir en colonnes débordait. */
+      const corps = qUn.map((u,i)=> [u.nom || '-']
+        .concat(qPost.map(p=> tots[i][p] ? String(tots[i][p]) : '-'))
+        .concat(avecH ? [String(u.heures||'-')] : []));
+      corps.push([{content:'TOTAL', styles:stQ}]
+        .concat(qPost.map(p=> ({content:String(tots.reduce((a,t)=> a+(t[p]||0), 0)),
+                                styles:Object.assign({}, stQ, {halign:'center'})})))
+        .concat(avecH ? [{content:String(qHeuresTotal(qUn)), styles:Object.assign({}, stQ, {halign:'center'})}] : []));
+      const nCol = qPost.length + (avecH ? 1 : 0);
+      const wNom = 40, wCol = Math.max(9, (CW-wNom)/nCol);
+      const cs = {0:{cellWidth:wNom}};
+      for(let i=1;i<=nCol;i++) cs[i]={cellWidth:wCol, halign:'center'};
       doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
         styles:{fontSize:8, cellPadding:1.4, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
         headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
-        head:[['Poste'].concat(qUn.map(u=> u.nom || '-')).concat(['Total'])],
+        head:[['Unité'].concat(qPost.map(qCourt)).concat(avecH ? ['Est. (h)'] : [])],
         columnStyles:cs, body:corps, didParseCell:sanitize });
       y = doc.lastAutoTable.finalY + 5;
     }
@@ -5039,7 +5048,7 @@ function buildPDFDoc(d, mode){
       heading('Estimation par poste');
       const tot = qEstimationTotale(qUn);
       const stE = {fontStyle:'bold', fillColor:CLR.bg, textColor:CLR.navy};
-      const corps = qEst.map(x=> [x.poste, String(x.qte),
+      const corps = qEst.map(x=> [x.libelle, String(x.qte),
         qFmtH(x.taux[0])+'-'+qFmtH(x.taux[1]), qFmtH(x.totMin)+'-'+qFmtH(x.totMax)]);
       corps.push([{content:'Total estim\u00e9', styles:stE}, {content:'', styles:stE},
                   {content:'', styles:stE},
