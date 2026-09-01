@@ -2334,6 +2334,29 @@ function rlvQtRepMaj(c, o){
   txt.innerHTML='Quantit\u00e9s : <b>'+qPlage(e.min, e.max)+'</b> d\u2019apr\u00e8s le bar\u00e8me \u2192 <b>'
     + qFmtH(surPlace)+' h</b> sur place'+(pers>1 ? ' pour '+pers+' personnes' : '');
 }
+/* Regroupe les lignes d'un point par passage, en fusionnant les identiques.
+   Sur un rapport chargé, chaque ligne repetait « Tube Bergmann — tirage difficile »
+   et deux saisies du même article s'empilaient au lieu de s'additionner : quinze
+   lignes presque semblables sous un seul défaut. */
+function qGroupesParPassage(lignes){
+  const groupes = [];
+  (lignes||[]).forEach(l=>{
+    let g = groupes.find(x=> x.passage === (l.passage||''));
+    if(!g){ g = {passage:l.passage||'', lignes:[]}; groupes.push(g); }
+    const f = g.lignes.find(x=> x.poste===l.poste && x.tranche===l.tranche && x.amp===l.amp);
+    if(f) f.qte += l.qte; else g.lignes.push(Object.assign({}, l));
+  });
+  const rang = p => { const i = QPOSTES.indexOf(p); return i<0 ? 999 : i; };
+  groupes.forEach(g=> g.lignes.sort((a,b)=> rang(a.poste)-rang(b.poste)
+    || a.poste.localeCompare(b.poste)
+    || TRANCHES.indexOf(a.tranche) - TRANCHES.indexOf(b.tranche)));
+  return groupes;
+}
+/* Libellé sans le passage : il est déjà sorti en tête de son groupe. */
+function qLigneLabelCourt(l){
+  const d = [l.tranche, (l.amp && l.amp!==QAMP_DEFAUT) ? l.amp : ''].filter(Boolean).join(' \u00b7 ');
+  return l.poste + (d ? ' \u2014 ' + d : '');
+}
 /* Libellé d'une ligne pour l'export : l'intensité par défaut n'encombre pas la fiche. */
 function qLigneLabel(q){
   const d=[q.tranche, q.passage, (q.amp && q.amp!==QAMP_DEFAUT) ? q.amp : '']
@@ -4382,9 +4405,15 @@ function pushOibtRlv(L,d){
           : (x.travaux?'<br><b>Travaux :</b> '+esc(x.travaux):'')
             + (x.pers>1?'<br><span style="color:#666">'+esc(x.h)+' h × '+x.pers+' personnes</span>':''));
     L.push(itemRowH(des, x.chiffre===false?'—':(x.hh||''), x.chiffre===false?'':'h', false));
-    (x.qt||[]).forEach(q=> L.push(itemRowH(
-      '<span style="padding-left:16px; color:#444">'+esc(qLigneLabel(q))+'</span>',
-      q.qte, 'pce', false)));
+    qGroupesParPassage(x.qt).forEach(g=>{
+      if(g.passage) L.push(itemRowH(
+        '<span style="padding-left:16px; color:#666; font-style:italic">'+esc(g.passage)+'</span>',
+        '', '', false));
+      const dec = g.passage ? 30 : 16;
+      g.lignes.forEach(l=> L.push(itemRowH(
+        '<span style="padding-left:'+dec+'px; color:#444">'+esc(qLigneLabelCourt(l))+'</span>',
+        l.qte, 'pce', false)));
+    });
   });
   L.push(totRowH('Total remise en conformité', o.total||'', 'h'));
   L.push('</table>');
@@ -4934,7 +4963,11 @@ function buildPDFDoc(d, mode){
                   : (x.travaux? '\nTravaux : '+x.travaux : '')
                     + (x.pers>1? '\n'+x.h+' h x '+x.pers+' personnes' : '')),
         ecarte ? '-' : String(x.hh||''), ecarte ? '' : 'h']);
-      (x.qt||[]).forEach(q=> corps.push(['    '+qLigneLabel(q), String(q.qte), 'pce']));
+      qGroupesParPassage(x.qt).forEach(g=>{
+        if(g.passage) corps.push(['   '+g.passage, '', '']);
+        const dec = g.passage ? '      ' : '   ';
+        g.lignes.forEach(l=> corps.push([dec+qLigneLabelCourt(l), String(l.qte), 'pce']));
+      });
     });
     corps.push([{content:'Total remise en conformité', styles:stO},
                 {content:String(oiR.total||''), styles:Object.assign({}, stO, {halign:'center'})},
