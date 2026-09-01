@@ -2378,13 +2378,14 @@ function qGroupesParPassage(lignes){
 }
 /* Libellé sans le passage : il est déjà sorti en tête de son groupe. */
 function qLigneLabelCourt(l){
-  const d = [l.tranche, (l.amp && l.amp!==QAMP_DEFAUT) ? l.amp : ''].filter(Boolean).join(' \u00b7 ');
+  const d = [l.tranche, l.amp || QAMP_DEFAUT].filter(Boolean).join(' \u00b7 ');
   return l.poste + (d ? ' \u2014 ' + d : '');
 }
-/* Libellé d'une ligne pour l'export : l'intensité par défaut n'encombre pas la fiche. */
+/* Libellé complet d'une ligne. L'intensité retenue est toujours écrite, y compris la
+   valeur par défaut : sans elle, impossible de savoir si le circuit est bien en 13 A
+   ou si la question n'a simplement pas été posée. */
 function qLigneLabel(q){
-  const d=[q.tranche, q.passage, (q.amp && q.amp!==QAMP_DEFAUT) ? q.amp : '']
-    .filter(Boolean).join(' · ');
+  const d=[q.tranche, q.passage, q.amp || QAMP_DEFAUT].filter(Boolean).join(' · ');
   return q.poste + (d ? ' — ' + d : '');
 }
 function rlvMatBuild(cont, o){
@@ -3779,8 +3780,8 @@ function qLigneMajAffichage(r){
   const p = qLignePoste(r);
   const tag = r.querySelector('.tag'); if(tag) tag.textContent = qCourt(p);
   const sum = r.querySelector('.row-name-sum');
-  if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube'), G(r,'qamp')]
-    .filter(Boolean).join(' \u00b7 ');
+  if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube'),
+    G(r,'qamp') || QAMP_DEFAUT].filter(Boolean).join(' \u00b7 ');
   const est = r.querySelector('.qest'), q = parseFloat(G(r,'qqte'))||0;
   const taux = qTauxLigne({poste:p, hpce:G(r,'qhpce')});
   if(est) est.textContent = taux
@@ -4031,7 +4032,6 @@ function qTotauxUnite(u){
 function qTranchesTotales(unites){
   const out = [];
   unites.forEach(u=> u.locaux.forEach(lo=> lo.lignes.forEach(l=>{
-    if(!l.tranche && !l.passage && l.amp===QAMP_DEFAUT) return;
     const f = out.find(x=> x.poste===l.poste && x.tranche===l.tranche
                         && x.passage===l.passage && x.amp===l.amp);
     if(f) f.qte += l.qte;
@@ -4571,7 +4571,7 @@ function pushQuantites(L, d){
   }
   const tr = qTranchesTotales(unites);
   if(tr.length){
-    L.push('<h3>Longueurs et passages</h3>');
+    L.push('<h3>Détail des lignes</h3>');
     L.push('<p class="obj" style="color:#666">À reporter dans le programme d\'offre. '
          + 'Longueurs estimatives, les passages n\'ayant pas pu être mesurés.</p>');
     L.push('<table><tr><th>Poste</th><th>Tranche</th><th>Passage</th><th class="q">Intensité</th><th class="q">Qté</th></tr>');
@@ -5178,7 +5178,7 @@ function buildPDFDoc(d, mode){
     const qTr = qTranchesTotales(qUn);
     if(qTr.length){
       if(y > H-34){ doc.addPage(); y=16; }
-      heading('Longueurs et passages');
+      heading('Détail des lignes');
       doc.autoTable({ startY:y, theme:'grid', margin:{left:M,right:M},
         styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink},
         headStyles:{fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1},
