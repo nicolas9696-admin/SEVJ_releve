@@ -695,6 +695,12 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #fiche .kv td:first-child{width:34%; background:#EAF0F6; color:var(--navy); font-weight:600}
 #fiche td.q{width:60px; text-align:center} #fiche td.u{width:64px; text-align:center}
 #fiche .sec-row td{background:#f2f6fb; font-weight:700; color:var(--navy)}
+/* Quantites rattachees a un defaut : une bande pour le passage, puis ses lignes
+   en retrait. Les retraits sont dans la feuille de style, pas en attribut. */
+#fiche .qt-grp td{background:#f7fafd; color:var(--navy); font-weight:600;
+  font-size:.92em; padding-left:18px; letter-spacing:.2px}
+#fiche .qt-row td:first-child{padding-left:26px; color:#4a4a4a}
+#fiche .qt-row td{background:#fcfdfe}
 #fiche .tot-row td{background:#eef3f9; font-weight:700; color:var(--navy); border-top:1.5px solid var(--navy2)}
 #fiche ul{margin:6px 0; padding-left:20px} #fiche li{margin:3px 0}
 #fiche .sig{margin-top:22px; font-size:13px} #fiche .sig b{color:var(--navy)}
@@ -4406,13 +4412,9 @@ function pushOibtRlv(L,d){
             + (x.pers>1?'<br><span style="color:#666">'+esc(x.h)+' h × '+x.pers+' personnes</span>':''));
     L.push(itemRowH(des, x.chiffre===false?'—':(x.hh||''), x.chiffre===false?'':'h', false));
     qGroupesParPassage(x.qt).forEach(g=>{
-      if(g.passage) L.push(itemRowH(
-        '<span style="padding-left:16px; color:#666; font-style:italic">'+esc(g.passage)+'</span>',
-        '', '', false));
-      const dec = g.passage ? 30 : 16;
-      g.lignes.forEach(l=> L.push(itemRowH(
-        '<span style="padding-left:'+dec+'px; color:#444">'+esc(qLigneLabelCourt(l))+'</span>',
-        l.qte, 'pce', false)));
+      if(g.passage) L.push('<tr class="qt-grp"><td colspan="3">'+esc(g.passage)+'</td></tr>');
+      g.lignes.forEach(l=> L.push('<tr class="qt-row"><td>'+esc(qLigneLabelCourt(l))
+        +'</td><td class="q">'+l.qte+'</td><td class="u">pce</td></tr>'));
     });
   });
   L.push(totRowH('Total remise en conformité', o.total||'', 'h'));
@@ -4963,10 +4965,16 @@ function buildPDFDoc(d, mode){
                   : (x.travaux? '\nTravaux : '+x.travaux : '')
                     + (x.pers>1? '\n'+x.h+' h x '+x.pers+' personnes' : '')),
         ecarte ? '-' : String(x.hh||''), ecarte ? '' : 'h']);
+      /* Bande de passage sur toute la largeur, puis ses lignes en retrait. Le retrait
+         passe par cellPadding et non par des espaces devant le texte. */
+      const stG = {fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold',
+                   cellPadding:{top:1.4, right:1.7, bottom:1.4, left:5}};
+      const stL = {cellPadding:{top:1.7, right:1.7, bottom:1.7, left:8}};
       qGroupesParPassage(x.qt).forEach(g=>{
-        if(g.passage) corps.push(['   '+g.passage, '', '']);
-        const dec = g.passage ? '      ' : '   ';
-        g.lignes.forEach(l=> corps.push([dec+qLigneLabelCourt(l), String(l.qte), 'pce']));
+        if(g.passage) corps.push([{content:g.passage, colSpan:3, styles:stG}]);
+        g.lignes.forEach(l=> corps.push([
+          {content:qLigneLabelCourt(l), styles:g.passage ? stL : undefined},
+          String(l.qte), 'pce']));
       });
     });
     corps.push([{content:'Total remise en conformité', styles:stO},
