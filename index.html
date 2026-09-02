@@ -6454,6 +6454,12 @@ async function buildFtPdfBytes(d){
   /* le monteur est pré-imprimé dans le modèle : on masque avant d'écrire */
   pg.drawRectangle({x:FT_COL.I+1.5, y:579.2, width:FT_COL.fin-FT_COL.I-3, height:11, color:BLANC});
   Tmax(d.monteur, FT_COL.I+4, 582, FT_COL.fin-FT_COL.I-8);
+  /* Le gabarit d'origine porte deja une marque dans une des cases : sans effacer,
+     la fiche sortait avec « Avec offre » ET « Sans offre » coches. On blanchit
+     strictement l'interieur — le contour imprime est preserve — puis on coche. */
+  const Vide=c=>{ const [x0,y0,x1,y1]=c;
+    pg.drawRectangle({x:x0+0.9, y:y0+0.9, width:(x1-x0)-1.8, height:(y1-y0)-1.8, color:BLANC}); };
+  [FT_CASE.avec, FT_CASE.sans, FT_CASE.termine, FT_CASE.encours].forEach(Vide);
   if(d.avecOffre) Coche(FT_CASE.avec);
   if(d.sansOffre) Coche(FT_CASE.sans);
 
