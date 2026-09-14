@@ -65,4 +65,5 @@ if git diff --cached --quiet; then echo "Rien a commiter."; exit 0; fi
 git commit -q -m "$V_SW — $MSG"
 git push -q origin main
 echo "Pousse. GitHub Pages rebuild en ~1 min."
-echo "Sur le telephone : bouton Reinitialiser pour forcer $V_SW."
+echo "Sur le telephone : l'app se met a jour seule (verification au demarrage puis chaque minute)."
+echo "Fermer puis rouvrir l'app suffit. NE PAS utiliser Reinitialiser pour mettre a jour : il vide le releve."

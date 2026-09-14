@@ -414,6 +414,9 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 #oibtVue, #rlvOibtVue{display:flex; flex-direction:column; gap:14px}
 /* bloc dépliable (le rapport dans le relevé) : fermé par défaut, on ouvre au besoin */
 .fold-blk{border:1px solid var(--line); border-radius:12px; margin:12px 0 0; overflow:hidden; background:var(--rowbg)}
+.oibt-date{display:flex; align-items:center; gap:10px; margin:2px 0 8px}
+.oibt-date .fld{margin:0; white-space:nowrap}
+.oibt-date input{flex:0 1 180px}
 .fold-hd{display:flex; align-items:center; gap:9px; padding:11px 13px; cursor:pointer; user-select:none;
   font-size:13.5px; font-weight:800; color:var(--navy)}
 .fold-hd .fa{margin-left:auto; color:var(--mut); font-size:12px; font-weight:700}
@@ -5543,7 +5546,10 @@ const REG_CATS  = ["Travaux supplémentaires","Raccordement","Contrôle","Adapta
 const REG_UNITS = ["h","pce","forfait","m"];
 const REGIE = {logo:null, band:null, deco:null};   // dataURLs (préchargées)
 const REGIE_RATIO = {logo:381/520, band:95/1200, deco:319/360};
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+/* Date du jour en heure LOCALE. toISOString() donne la date UTC : entre minuit et
+   1 h (2 h en été) en Suisse, elle renvoyait la veille. */
+function todayISO(){ const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
 /* Préchargement des images officielles en JPEG sur fond blanc (rendues sur page blanche
    dans le PDF) → PDF léger. La transparence n'est pas nécessaire ici. */
@@ -7632,6 +7638,8 @@ function oibtRender(){
           <button type="button" class="oibt-addcirc" data-o="addcirc">＋ Ajouter un circuit</button>
         </div>
         <div class="chk"><input type="checkbox" data-o="ok"${p.ok?' checked':''}><label><b>Corrigé</b></label></div>
+        <div class="oibt-date"><label class="fld">Corrigé le</label>
+          <input data-o="byDate" type="date" value="${esc(p.byDate||'')}"></div>
         <div class="chk"><input type="checkbox" data-o="cli"${p.cli?' checked':''}><label>Fait par le client</label></div>
         <label class="fld">Remarque / mesure</label>
         <textarea data-o="rem" placeholder="ex : câble remplacé, 500 MΩ mesuré">${esc(p.rem||'')}</textarea>
@@ -7713,7 +7721,21 @@ function oibtRender(){
     // Estampille le point avec le collaborateur CONNECTÉ au moment où il le valide (coche
     // « Corrigé » ou signe). Chaque point garde ainsi le nom de celui qui l'a réellement fait,
     // même si un collègue reprend le rapport plus tard avec son propre compte.
-    const stampBy=()=>{ if(currentUser){ p.by=currentUser.name; p.byIni=currentUser.ini; if(!p.byDate) p.byDate=todayISO(); refreshBy(); } };
+    const stampBy=()=>{ if(currentUser){ p.by=currentUser.name; p.byIni=currentUser.ini; if(!p.byDate) p.byDate=todayISO(); refreshBy();
+      const di=d.querySelector('[data-o="byDate"]'); if(di) di.value=p.byDate; } };
+    /* La date de correction se fixait au PREMIER « Corrigé » coché ou à la première
+       signature, puis ne bougeait plus : un point coché en août mais réellement fait en
+       septembre sortait daté d'août sur l'avis de suppression, sans moyen de le corriger.
+       Elle est désormais modifiable, point par point, par celui qui a validé le point. */
+    const inDate=d.querySelector('[data-o="byDate"]');
+    if(inDate){
+      inDate.disabled=oibtLocked(p);
+      inDate.addEventListener('change',()=>{
+        if(oibtLocked(p)){ inDate.value=p.byDate||''; return; }
+        p.byDate=inDate.value||todayISO(); inDate.value=p.byDate;
+        refreshBy(); refreshSum(); oibtSave();
+      });
+    }
     d.querySelector('[data-o="ok"]').onchange=e=>{ if(oibtLocked(p)){ e.target.checked=p.ok; return; } p.ok=e.target.checked; if(p.ok) stampBy(); d.classList.toggle('done',p.ok); oibtProgress(); oibtSave(); updateOibtReq(); refreshSum(); };
     d.querySelector('[data-o="cli"]').onchange=e=>{ if(oibtLocked(p)){ e.target.checked=!!p.cli; return; } p.cli=e.target.checked; oibtSave(); refreshSum(); };
     d.querySelector('[data-o="rem"]').addEventListener('input',e=>{ if(oibtLocked(p)){ e.target.value=p.rem||''; return; } p.rem=e.target.value; oibtSave(); });
@@ -8453,9 +8475,14 @@ function restoreDraft(){
 }
 /* Vide le brouillon — mais PAS la session « rester connecté » : « Réinitialiser » sert à
    repartir d'un formulaire vide, pas à déconnecter le monteur. */
-function clearDraft(){ try{ Object.keys(localStorage)
-  .filter(k=>k.indexOf('sevj_')===0 && k!==SESSION_KEY)
-  .forEach(k=>localStorage.removeItem(k)); }catch(e){} }
+/* Vide le brouillon du RELEVE, et lui seul. L'ancienne version effacait toutes les cles
+   « sevj_ » : un « Reinitialiser » dans le releve detruisait aussi le rapport OIBT en
+   cours (points, dates, remarques), la fiche de travail, le protocole, le rapport de
+   mesures... Chaque fonction a son propre bouton pour se vider. La session
+   « rester connecte » n'est jamais touchee. */
+function clearDraftReleve(){ try{
+  [DRAFT, DRAFT_PHOTOS, DRAFT_PIMG, DRAFT_OIBTVG].forEach(k=> localStorage.removeItem(k));
+}catch(e){} }
 
 /* ===== Sauvegarde / restauration manuelle (.json, données + photos) ===== */
 function exportBackup(){
@@ -8574,8 +8601,10 @@ function init(){
   $('#dupClose').onclick=closeDup;
   $('#dupOverlay').addEventListener('click', e=>{ if(e.target.id==='dupOverlay') closeDup(); });
   $('#resetBtn').onclick=async ()=>{
-    if(!confirm('Vider le formulaire et recharger la dernière version de l’app ?')) return;
-    clearDraft();
+    if(!confirm('Vider le relevé en cours et recharger la dernière version de l’app ?\n\n'
+      + 'Seul le relevé est effacé : la fiche de travail, le protocole, le rapport de mesures '
+      + 'et le rapport OIBT ne sont pas touchés.')) return;
+    clearDraftReleve();
     try{ if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); } }catch(e){}
     try{ if(navigator.serviceWorker){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); } }catch(e){}
     location.reload();
