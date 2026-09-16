@@ -206,6 +206,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .qunit-calc .qunit-calc-use{border:1px solid var(--line); background:#fff; color:var(--navy);
   border-radius:7px; padding:4px 9px; font-size:11.5px; font-weight:700; cursor:pointer}
 .qest{margin-top:8px; font-size:11.5px; font-weight:600; color:var(--navy2)}
+/* une ligne d'alimentation : on doit voir la structure du circuit en saisissant */
+.chk-tete{margin-top:8px; font-size:13px; font-weight:600; color:var(--navy)}
+.row.ligne-tete{border-left-color:var(--navy); background:#f4f8fc}
+.row.ligne-tete > .tag{background:var(--navy)}
 .qest:empty{display:none}
 .qunit-est .qunit-h{width:100%}
 .qlocal{border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:10px; background:var(--bg)}
@@ -723,6 +727,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
   width:8px; height:8px; background:var(--rc,#1F3B5B)}
 #fiche ul.arbre li.nd-pt .nd-l::before{border-radius:50%}
 #fiche .arbre-c{margin-left:auto; color:#666; font-size:.9em; white-space:nowrap}
+#fiche .circ-loc td{background:var(--navy); color:#fff; font-weight:700; border-color:var(--navy)}
+#fiche .circ-tete td{background:#f2f6fb; color:var(--navy); font-weight:700}
+#fiche .circ-row td:first-child{padding-left:26px; color:#4a4a4a}
+#fiche .circ-row td{background:#fcfdfe}
 #fiche .def-row td{background:var(--navy); color:#fff; font-weight:700; border-color:var(--navy)}
 #fiche .def-row b{color:#fff}
 #fiche .def-row .dest{color:rgba(255,255,255,.72); font-weight:600}
@@ -1843,6 +1851,22 @@ function qEstimationTotale(unites){
   const l = qEstimationPostes(unites);
   return { min: Math.round(l.reduce((a,x)=> a+x.totMin, 0)*10)/10,
            max: Math.round(l.reduce((a,x)=> a+x.totMax, 0)*10)/10 };
+}
+/* Circuits d'un local. Une ligne cochée « tête de circuit » ouvre un circuit ; les
+   suivantes lui sont rattachées jusqu'à la prochaine tête. L'ordre de saisie est
+   conservé tel quel : c'est lui qui porte le sens, l'alimentation puis ce qu'elle
+   dessert. Les lignes saisies avant toute tête forment un groupe sans alimentation. */
+function qCircuits(lo){
+  const out = []; let cur = null;
+  (lo.lignes||[]).forEach(l=>{
+    if(l.tete){ cur = {tete:l, lignes:[]}; out.push(cur); return; }
+    if(!cur){ cur = {tete:null, lignes:[]}; out.push(cur); }
+    cur.lignes.push(l);
+  });
+  return out;
+}
+function qAuMoinsUnCircuit(unites){
+  return (unites||[]).some(u=> (u.locaux||[]).some(lo=> (lo.lignes||[]).some(l=> l.tete)));
 }
 function qCourt(p){ return QCOURT[p] || p; }
 const el = (t,c)=>{const e=document.createElement(t); if(c)e.className=c; return e;};
@@ -3785,6 +3809,7 @@ function qLigneHTML(){
       <div><label class="fld">Passage</label><select data-f="qtube"><option value="">\u2014 non pr\u00e9cis\u00e9 \u2014</option>${opts(QPASSAGE)}</select></div>
       <div><label class="fld">Intensit\u00e9</label><select data-f="qamp"><option value="">${QAMP_DEFAUT} (par d\u00e9faut)</option>${opts(QAMP)}</select></div>
     </div>
+    <div class="chk chk-tete"><input type="checkbox" data-f="qtete"><span>\u26a1 T\u00eate de circuit (alimentation)</span></div>
     <div class="cond" data-c="qposte" style="margin-top:10px">
       <div class="grid">
         <div><label class="fld">Pr\u00e9ciser le poste</label><input data-f="qautre" type="text" placeholder="ex : d\u00e9tecteur de mouvement"></div>
@@ -3802,6 +3827,7 @@ function qLignePoste(r){
 /* Étiquette, résumé replié et temps déduit du barème, pour une ligne où qu'elle soit. */
 function qLigneMajAffichage(r){
   const p = qLignePoste(r);
+  r.classList.toggle('ligne-tete', !!G(r,'qtete'));   // la structure se voit pendant la saisie
   const tag = r.querySelector('.tag'); if(tag) tag.textContent = qCourt(p);
   const sum = r.querySelector('.row-name-sum');
   if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube'),
@@ -3995,7 +4021,7 @@ function collectQuantites(){
         if(p==='Autre…') p = (G(r,'qautre')||'').trim() || 'Autre poste';
         return {poste:p, qte:parseFloat(G(r,'qqte'))||0, tranche:G(r,'qtranche')||'',
                 passage:G(r,'qtube')||'', amp:G(r,'qamp')||QAMP_DEFAUT,
-                hpce:G(r,'qhpce')||''};
+                hpce:G(r,'qhpce')||'', tete:!!G(r,'qtete')};
       }).filter(x=> x.poste && x.qte>0)
     })).filter(lo=> lo.nom || lo.lignes.length || lo.rem),
     tableaux: [...u.querySelectorAll('.qtab')].map(t=>({
@@ -4517,6 +4543,32 @@ function pushOibtRlv(L,d){
 }
 /* Relevé par quantités : un tableau par unité (locaux x postes) avec sa ligne TOTAL,
    puis le récapitulatif croisé et le détail des longueurs à reporter dans l'offre. */
+/* Le détail circuit par circuit, dans l'ordre du relevé. Les tableaux de synthèse
+   agrègent par poste et perdent forcément cet ordre : c'est ici qu'on le restitue. */
+function pushCircuits(L, unites){
+  if(!qAuMoinsUnCircuit(unites)) return;
+  L.push('<h3>Par circuit</h3>');
+  L.push('<p class="obj" style="color:#666">Chaque alimentation suivie de ce qu\'elle dessert, '
+       + 'dans l\'ordre du relev\u00e9.</p>');
+  L.push('<table><tr><th>D\u00e9signation</th><th class="q">Qt\u00e9</th><th class="u">Unit\u00e9</th></tr>');
+  (unites||[]).forEach(u=>{
+    (u.locaux||[]).forEach(lo=>{
+      const circs = qCircuits(lo);
+      if(!circs.length) return;
+      L.push('<tr class="circ-loc"><td colspan="3">'
+        + esc([u.nom, lo.nom].filter(Boolean).join(' \u00b7 ') || 'Local') + '</td></tr>');
+      circs.forEach(c=>{
+        if(c.tete) L.push('<tr class="circ-tete"><td>' + esc(qLigneLabel(c.tete))
+          + '</td><td class="q">' + c.tete.qte + '</td><td class="u">pce</td></tr>');
+        else if(c.lignes.length) L.push('<tr class="circ-tete"><td>Sans alimentation rattach\u00e9e</td>'
+          + '<td class="q"></td><td class="u"></td></tr>');
+        c.lignes.forEach(l=> L.push('<tr class="circ-row"><td>' + esc(qLigneLabel(l))
+          + '</td><td class="q">' + l.qte + '</td><td class="u">pce</td></tr>'));
+      });
+    });
+  });
+  L.push('</table>');
+}
 function pushQuantites(L, d){
   const unites = d.quantites || [];
   const postes = qPostesUtilises(unites);
@@ -4584,6 +4636,7 @@ function pushQuantites(L, d){
          + (avecH ? '<td class="q">' + qHeuresTotal(unites) + '</td>' : '') + '</tr>');
     L.push('</table>');
   }
+  pushCircuits(L, unites);
   const est = qEstimationPostes(unites).filter(x=> x.taux);
   if(est.length){
     const tot = qEstimationTotale(unites);
@@ -5227,6 +5280,29 @@ function buildPDFDoc(d, mode){
         head:[['Unité'].concat(qPost.map(qCourt)).concat(avecH ? ['Est. (h)'] : [])],
         columnStyles:cs, body:corps, didParseCell:sanitize });
       y = doc.lastAutoTable.finalY + 5;
+    }
+    if(qAuMoinsUnCircuit(qUn)){
+      if(y > H-34){ doc.addPage(); y=16; }
+      heading('Par circuit');
+      const stLoc = {fillColor:CLR.navy, textColor:[255,255,255], fontStyle:'bold'};
+      const stTet = {fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold'};
+      const stLig = {cellPadding:{top:1.7, right:1.7, bottom:1.7, left:8}};
+      const corps = [];
+      qUn.forEach(u=> (u.locaux||[]).forEach(lo=>{
+        const circs = qCircuits(lo);
+        if(!circs.length) return;
+        corps.push([{content:[u.nom, lo.nom].filter(Boolean).join(' - ') || 'Local',
+                     colSpan:3, styles:stLoc}]);
+        circs.forEach(c=>{
+          if(c.tete) corps.push([{content:qLigneLabel(c.tete), styles:stTet},
+            {content:String(c.tete.qte), styles:Object.assign({}, stTet, {halign:'center'})},
+            {content:'pce', styles:Object.assign({}, stTet, {halign:'center'})}]);
+          else if(c.lignes.length) corps.push([{content:'Sans alimentation rattach\u00e9e', colSpan:3, styles:stTet}]);
+          c.lignes.forEach(l=> corps.push([{content:qLigneLabel(l), styles:stLig},
+            String(l.qte), 'pce']));
+        });
+      }));
+      drawTable(corps); y = doc.lastAutoTable.finalY + 5;
     }
     const qEst = qEstimationPostes(qUn).filter(x=> x.taux);
     if(qEst.length){
