@@ -2386,7 +2386,8 @@ function rlvQtLignes(o){
     let p = st.qposte||'';
     if(p==='Autre\u2026') p = (st.qautre||'').trim() || 'Autre poste';
     return { poste:p, qte:parseFloat(st.qqte)||0, tranche:st.qtranche||'',
-             passage:st.qtube||'', amp:st.qamp||QAMP_DEFAUT, hpce:st.qhpce||'' };
+             passage:st.qtube||'', amp:st.qamp||QAMP_DEFAUT, hpce:st.qhpce||'',
+             tete:!!st.qtete };
   }).filter(x=> x.poste && x.qte>0);
 }
 /* Ce que valent les quantités d'un point, d'après le barème h/pce, en heures-homme.
@@ -4541,11 +4542,25 @@ function pushOibtRlv(L,d){
     L.push('<tr class="def-row"><td>' + des + '</td><td class="q">'
       + esc(String(x.chiffre===false ? '—' : (x.hh||'')))
       + '</td><td class="u">' + (x.chiffre===false ? '' : 'h') + '</td></tr>');
-    qGroupesParPassage(x.qt).forEach(g=>{
-      if(g.passage) L.push('<tr class="qt-grp"><td colspan="3">'+esc(g.passage)+'</td></tr>');
-      g.lignes.forEach(l=> L.push('<tr class="qt-row"><td>'+esc(qLigneLabelCourt(l))
-        +'</td><td class="q">'+l.qte+'</td><td class="u">pce</td></tr>'));
-    });
+    /* Si le point declare des tetes de circuit, c'est l'ordre du releve qui fait foi :
+       l'alimentation puis ce qu'elle dessert. Sans tete, on garde le regroupement par
+       passage, qui reste le plus lisible pour une liste d'articles isoles. */
+    if((x.qt||[]).some(l=> l.tete)){
+      qCircuits({lignes:x.qt}).forEach(c=>{
+        if(c.tete) L.push('<tr class="qt-grp"><td>'+esc(qLigneLabel(c.tete))
+          +'</td><td class="q">'+c.tete.qte+'</td><td class="u">pce</td></tr>');
+        else if(c.lignes.length) L.push('<tr class="qt-grp"><td colspan="3">'
+          +'Sans alimentation rattach\u00e9e</td></tr>');
+        c.lignes.forEach(l=> L.push('<tr class="qt-row"><td>'+esc(qLigneLabel(l))
+          +'</td><td class="q">'+l.qte+'</td><td class="u">pce</td></tr>'));
+      });
+    } else {
+      qGroupesParPassage(x.qt).forEach(g=>{
+        if(g.passage) L.push('<tr class="qt-grp"><td colspan="3">'+esc(g.passage)+'</td></tr>');
+        g.lignes.forEach(l=> L.push('<tr class="qt-row"><td>'+esc(qLigneLabelCourt(l))
+          +'</td><td class="q">'+l.qte+'</td><td class="u">pce</td></tr>'));
+      });
+    }
   });
   L.push(totRowH('Total remise en conformité', o.total||'', 'h'));
   L.push('</table>');
@@ -5185,12 +5200,24 @@ function buildPDFDoc(d, mode){
       const stG = {fillColor:CLR.sec, textColor:CLR.navy, fontStyle:'bold',
                    cellPadding:{top:1.4, right:1.7, bottom:1.4, left:5}};
       const stL = {cellPadding:{top:1.7, right:1.7, bottom:1.7, left:8}};
-      qGroupesParPassage(x.qt).forEach(g=>{
-        if(g.passage) corps.push([{content:g.passage, colSpan:3, styles:stG}]);
-        g.lignes.forEach(l=> corps.push([
-          {content:qLigneLabelCourt(l), styles:g.passage ? stL : undefined},
-          String(l.qte), 'pce']));
-      });
+      if((x.qt||[]).some(l=> l.tete)){
+        qCircuits({lignes:x.qt}).forEach(c=>{
+          if(c.tete) corps.push([{content:qLigneLabel(c.tete), styles:stG},
+            {content:String(c.tete.qte), styles:Object.assign({}, stG, {halign:'center'})},
+            {content:'pce', styles:Object.assign({}, stG, {halign:'center'})}]);
+          else if(c.lignes.length) corps.push([{content:'Sans alimentation rattach\u00e9e',
+            colSpan:3, styles:stG}]);
+          c.lignes.forEach(l=> corps.push([{content:qLigneLabel(l), styles:stL},
+            String(l.qte), 'pce']));
+        });
+      } else {
+        qGroupesParPassage(x.qt).forEach(g=>{
+          if(g.passage) corps.push([{content:g.passage, colSpan:3, styles:stG}]);
+          g.lignes.forEach(l=> corps.push([
+            {content:qLigneLabelCourt(l), styles:g.passage ? stL : undefined},
+            String(l.qte), 'pce']));
+        });
+      }
     });
     corps.push([{content:'Total remise en conformité', styles:stO},
                 {content:String(oiR.total||''), styles:Object.assign({}, stO, {halign:'center'})},
