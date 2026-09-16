@@ -126,6 +126,10 @@ textarea{min-height:70px; resize:vertical}
 /* Outils par article : réduire + dupliquer (à gauche de la corbeille) */
 .row .dup{position:absolute; top:8px; right:42px; border:none; background:#e2ecf5; color:var(--navy);
   width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center}
+.row .tete{position:absolute; top:8px; right:110px; border:none; background:#eef2f6; color:var(--navy2);
+  width:28px; height:28px; border-radius:8px; font-size:14px; cursor:pointer; line-height:1;
+  display:flex; align-items:center; justify-content:center}
+.row .tete.on{background:var(--navy); color:#fff}
 .row .fold{position:absolute; top:8px; right:76px; border:none; background:#eef2f6; color:var(--navy2);
   width:28px; height:28px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; line-height:1}
 .row.proto-row > .tag,.row.proto-row > .row-name-sum{cursor:pointer; user-select:none}   /* ruban cliquable */
@@ -134,7 +138,7 @@ textarea{min-height:70px; resize:vertical}
 .row.folded > *{display:none!important}
 .row.folded > .tag{display:inline-block!important; margin-bottom:0}
 .row.folded > .row-name-sum{display:inline!important}
-.row.folded > .rm,.row.folded > .dup,.row.folded > .fold{display:flex!important}
+.row.folded > .rm,.row.folded > .dup,.row.folded > .fold,.row.folded > .tete{display:flex!important}
 :root[data-theme="dark"] .row .dup{background:#22303d}
 :root[data-theme="dark"] .row .fold{background:#1c2732}
 .dup-flash{animation:dupflash 1.3s ease}
@@ -2366,6 +2370,7 @@ function rlvQtAdd(cont, o, state){
   };
   r.addEventListener('input',  maj);
   r.addEventListener('change', maj);
+  qWireTete(r, maj);
   cont.appendChild(r);
   qLigneMajAffichage(r);
   return r;
@@ -3801,6 +3806,7 @@ function qLigneHTML(){
   return `<button class="rm" title="Supprimer">\u00d7</button>
     <button type="button" class="dup" title="Dupliquer la ligne">\u29c9</button>
     <button type="button" class="fold" title="R\u00e9duire / d\u00e9ployer">\u25be</button>
+    <button type="button" class="tete" title="T\u00eate de circuit (alimentation)">\u26a1</button>
     <div class="tag">Ligne</div><span class="row-name-sum"></span>
     <div class="grid">
       <div><label class="fld">Poste</label><select data-f="qposte">${opts(QPOSTES)}</select></div>
@@ -3825,9 +3831,19 @@ function qLignePoste(r){
   return p;
 }
 /* Étiquette, résumé replié et temps déduit du barème, pour une ligne où qu'elle soit. */
+/* Le bouton ⚡ de l'en-tête bascule la même case que le bloc déplié. Il existe parce
+   que la case ne se voit que ligne ouverte : marquer vingt alimentations obligeait à
+   déplier vingt lignes. */
+function qWireTete(r, apres){
+  const b = r.querySelector('.tete'), cb = r.querySelector('[data-f="qtete"]');
+  if(!b || !cb) return;
+  b.onclick = ()=>{ cb.checked = !cb.checked; qLigneMajAffichage(r); if(apres) apres(); };
+}
 function qLigneMajAffichage(r){
   const p = qLignePoste(r);
-  r.classList.toggle('ligne-tete', !!G(r,'qtete'));   // la structure se voit pendant la saisie
+  const tete = !!G(r,'qtete');
+  r.classList.toggle('ligne-tete', tete);            // la structure se voit pendant la saisie
+  const bt = r.querySelector('.tete'); if(bt) bt.classList.toggle('on', tete);
   const tag = r.querySelector('.tag'); if(tag) tag.textContent = qCourt(p);
   const sum = r.querySelector('.row-name-sum');
   if(sum) sum.textContent = [G(r,'qqte'), G(r,'qtranche'), G(r,'qtube'),
@@ -3856,6 +3872,7 @@ function addQLigne(lo){
     i.addEventListener('input',  ()=>{ updateQ(); scheduleSave(); });
     i.addEventListener('change', ()=>{ updateQ(); scheduleSave(); });
   });
+  qWireTete(r, ()=>{ updateQ(); scheduleSave(); });
   lo.querySelector('.qlignes').appendChild(r); updateQ();
   return r;
 }
