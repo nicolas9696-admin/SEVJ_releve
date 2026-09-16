@@ -126,6 +126,23 @@ textarea{min-height:70px; resize:vertical}
 /* Outils par article : réduire + dupliquer (à gauche de la corbeille) */
 .row .dup{position:absolute; top:8px; right:42px; border:none; background:#e2ecf5; color:var(--navy);
   width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center}
+/* Monter / descendre : deux demi-hauteurs empilees, pour ne pas allonger la rangee
+   de boutons — six boutons de front ne tiennent pas sur un telephone. */
+.row .mv{position:absolute; right:76px; border:none; background:#eef2f6; color:var(--navy2);
+  width:28px; height:13px; border-radius:5px; font-size:8px; cursor:pointer; padding:0;
+  display:flex; align-items:center; justify-content:center; line-height:1}
+.row .mv.up{top:8px}
+.row .mv.dn{top:23px}
+.row .mv:active{background:var(--navy2); color:#fff}
+/* Le libelle et le resume s'arretent avant la rangee de boutons : sur un telephone ils
+   passaient dessous et devenaient illisibles. */
+.row-q > .tag{cursor:pointer; max-width:calc(100% - 150px)}
+/* Ligne repliée : on réserve la place de la rangée de boutons par un padding, plutôt
+   que de borner la largeur du résumé. Celui-ci est en display:inline imposé par une
+   règle générique en !important, et un élément inline ignore max-width. Les boutons
+   sont en position absolue : le padding ne les déplace pas. */
+.row-q > .tag{cursor:pointer}
+.row-q.folded{padding-right:150px}
 .row .tete{position:absolute; top:8px; right:110px; border:none; background:#eef2f6; color:var(--navy2);
   width:28px; height:28px; border-radius:8px; font-size:14px; cursor:pointer; line-height:1;
   display:flex; align-items:center; justify-content:center}
@@ -138,7 +155,8 @@ textarea{min-height:70px; resize:vertical}
 .row.folded > *{display:none!important}
 .row.folded > .tag{display:inline-block!important; margin-bottom:0}
 .row.folded > .row-name-sum{display:inline!important}
-.row.folded > .rm,.row.folded > .dup,.row.folded > .fold,.row.folded > .tete{display:flex!important}
+.row.folded > .rm,.row.folded > .dup,.row.folded > .fold,.row.folded > .tete,
+.row.folded > .mv{display:flex!important}
 :root[data-theme="dark"] .row .dup{background:#22303d}
 :root[data-theme="dark"] .row .fold{background:#1c2732}
 .dup-flash{animation:dupflash 1.3s ease}
@@ -2352,7 +2370,7 @@ function rlvQtSync(cont, o){
 }
 function rlvQtAdd(cont, o, state){
   if(!cont) return null;
-  const r = el('div','row');
+  const r = el('div','row row-q');
   r.innerHTML = qLigneHTML();
   wire(r);
   if(state) fillRow(r, state);
@@ -2360,9 +2378,8 @@ function rlvQtAdd(cont, o, state){
     const c = cont.closest('.oibt-pt');
     const sm = c && c.querySelector('[data-sum]'); if(sm) sm.innerHTML = rlvResume(o);
     rlvQtRepMaj(c, o); rlvCompteurs(c); };
-  r.querySelector('.rm').onclick   = ()=>{ r.remove(); maj(); };
-  r.querySelector('.fold').onclick = ()=> r.classList.toggle('folded');
-  r.querySelector('.tag').onclick  = ()=> r.classList.toggle('folded');
+  r.querySelector('.rm').onclick  = ()=>{ r.remove(); maj(); };
+  r.querySelector('.tag').onclick = ()=> r.classList.toggle('folded');   // l'étiquette replie
   r.querySelector('.dup').onclick  = ()=>{
     const copie = rlvQtAdd(cont, o, rowState(r));
     r.parentNode.insertBefore(copie, r.nextSibling);
@@ -2371,6 +2388,7 @@ function rlvQtAdd(cont, o, state){
   r.addEventListener('input',  maj);
   r.addEventListener('change', maj);
   qWireTete(r, maj);
+  qWireMove(r, maj);
   cont.appendChild(r);
   qLigneMajAffichage(r);
   return r;
@@ -3806,8 +3824,9 @@ function addQLocal(u, nom){
 function qLigneHTML(){
   return `<button class="rm" title="Supprimer">\u00d7</button>
     <button type="button" class="dup" title="Dupliquer la ligne">\u29c9</button>
-    <button type="button" class="fold" title="R\u00e9duire / d\u00e9ployer">\u25be</button>
     <button type="button" class="tete" title="T\u00eate de circuit (alimentation)">\u26a1</button>
+    <button type="button" class="mv up" title="Monter la ligne">\u25b2</button>
+    <button type="button" class="mv dn" title="Descendre la ligne">\u25bc</button>
     <div class="tag">Ligne</div><span class="row-name-sum"></span>
     <div class="grid">
       <div><label class="fld">Poste</label><select data-f="qposte">${opts(QPOSTES)}</select></div>
@@ -3840,6 +3859,21 @@ function qWireTete(r, apres){
   if(!b || !cb) return;
   b.onclick = ()=>{ cb.checked = !cb.checked; qLigneMajAffichage(r); if(apres) apres(); };
 }
+/* Monter / descendre une ligne. Depuis que l'ordre porte le circuit — l'alimentation
+   puis ce qu'elle dessert — il faut pouvoir le corriger sans tout ressaisir. L'ordre du
+   DOM est la source : collectQuantites et rlvQtSync relisent les lignes dans cet ordre. */
+function qWireMove(r, apres){
+  const bouge = sens => {
+    const p = r.parentNode; if(!p) return;
+    if(sens < 0){ const av = r.previousElementSibling; if(av) p.insertBefore(r, av); }
+    else        { const ap = r.nextElementSibling;     if(ap) p.insertBefore(ap, r); }
+    r.scrollIntoView({block:'nearest'});
+    if(apres) apres();
+  };
+  const u = r.querySelector('.mv.up'), d = r.querySelector('.mv.dn');
+  if(u) u.onclick = ()=> bouge(-1);
+  if(d) d.onclick = ()=> bouge(1);
+}
 function qLigneMajAffichage(r){
   const p = qLignePoste(r);
   const tete = !!G(r,'qtete');
@@ -3857,13 +3891,12 @@ function qLigneMajAffichage(r){
     : '';
 }
 function addQLigne(lo){
-  const r = el('div','row');
+  const r = el('div','row row-q');
   r.innerHTML = qLigneHTML();
   wire(r);
   // wire() rebranche updateDef/updateCirc : ici c'est le total des quantités qu'il faut refaire.
-  r.querySelector('.rm').onclick   = ()=>{ r.remove(); updateQ(); scheduleSave(); };
-  r.querySelector('.fold').onclick = ()=> r.classList.toggle('folded');
-  r.querySelector('.tag').onclick  = ()=> r.classList.toggle('folded');
+  r.querySelector('.rm').onclick  = ()=>{ r.remove(); updateQ(); scheduleSave(); };
+  r.querySelector('.tag').onclick = ()=> r.classList.toggle('folded');   // l'étiquette replie
   r.querySelector('.dup').onclick  = ()=>{
     const copie = addQLigne(lo); fillRow(copie, rowState(r));
     r.parentNode.insertBefore(copie, r.nextSibling);
@@ -3874,6 +3907,7 @@ function addQLigne(lo){
     i.addEventListener('change', ()=>{ updateQ(); scheduleSave(); });
   });
   qWireTete(r, ()=>{ updateQ(); scheduleSave(); });
+  qWireMove(r, ()=>{ updateQ(); scheduleSave(); });
   lo.querySelector('.qlignes').appendChild(r); updateQ();
   return r;
 }
