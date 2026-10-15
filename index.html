@@ -4772,7 +4772,12 @@ function pushTemps(L,d){
     dc.forEach(o=> L.push(itemRow(circuitDesc(o), o.h||'', 'h')));
   }
   if(oi) L.push(itemRow(oibtRlvDesc(oi), oi.total||'', 'h'));
-  if(df.length||dc.length||oi) L.push(totRowH("Total temps estimé (main d'œuvre + recherche)", grandTotalHeures(d), 'h'));
+  const qu=(d.quantites||[]).filter(u=> parseFloat(u.heures)>0);
+  if(qu.length){
+    L.push(secRow(qTempsTitre(d)));
+    qu.forEach(u=> L.push(itemRow(u.nom||'Unité', u.heures, 'h')));
+  }
+  if(df.length||dc.length||oi||qu.length) L.push(totRowH("Total temps estimé (main d'œuvre + recherche)", grandTotalHeures(d), 'h'));
   L.push('</table>');
 }
 /* Mêmes lignes, version autoTable (PDF) */
@@ -4791,7 +4796,7 @@ function tempsBody(d){
   if(oi) body.push([oibtRlvDesc(oi), String(oi.total||''), 'h']);
   const qu=(d.quantites||[]).filter(u=> parseFloat(u.heures)>0);
   if(qu.length){
-    body.push([{content:'Relevé par quantités — estimation', colSpan:3, styles:st}]);
+    body.push([{content:qTempsTitre(d), colSpan:3, styles:st}]);
     qu.forEach(u=> body.push([u.nom||'Unité', String(u.heures), 'h']));
   }
   if(df.length||dc.length||oi||qu.length)
@@ -4902,10 +4907,18 @@ function heuresParJour(d){return d.vendredi?7.75:8.5;}
 function onsiteHours(d){ return (parseFloat(d.jours)||0)*heuresParJour(d) + (parseFloat(d.dureeH)||0); }
 /* Total de main d'œuvre (heures-homme) = durée sur site × personnes */
 function totalHeures(d){ const t=onsiteHours(d)*(parseFloat(d.monteurs)||1); return t? Math.round(t*100)/100 : ''; }
+/* Heures du relevé par quantités qui entrent dans le total. Le bouton « Reprendre
+   l'estimation » les reporte dans la main d'œuvre sur site : dès qu'elle est remplie,
+   on ne les ajoute plus, sinon elles compteraient deux fois. */
+function qHeuresAuTotal(d){ return parseFloat(totalHeures(d)) ? 0 : qHeuresTotal(d.quantites); }
+function qTempsTitre(d){
+  return qHeuresAuTotal(d) ? 'Relevé par quantités — estimation'
+    : "Relevé par quantités — estimation (pour information, non additionnée à la main d'œuvre)";
+}
 /* Main d'œuvre + temps de recherche (défaut et circuit) */
 function grandTotalHeures(d){
   const o=(d.oibtRlv&&d.oibtRlv.total)||0;
-  const q=qHeuresTotal(d.quantites);
+  const q=qHeuresAuTotal(d);
   return Math.round(((parseFloat(totalHeures(d))||0)+totalDefaut(d.defauts)+totalDefaut(d.circuits)+o+q)*100)/100;
 }
 /* Ligne « Remise en conformité OIBT » du tableau des temps */
@@ -8664,7 +8677,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v158-arbre — Protocole : autorisation générale d\'installer';
+const APP_VERSION='v159-arbre — Total des temps : relevé par quantités compté une seule fois';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
