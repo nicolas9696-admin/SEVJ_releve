@@ -1270,8 +1270,6 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
     <section class="card">
       <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span> Autorisation &amp; contrôle</h2>
       <div class="body">
-        <p class="hint" style="margin:0 0 4px">Le <b>type d'autorisation d'installer limitée</b> (Art. 13 / 14 / 15 / 14.4-15.4) apparaît dans l'export avec des cases vides, à cocher à la main une fois le document imprimé ou transféré.</p>
-
         <h4 style="margin:16px 0 6px; color:var(--navy)">Exécuteur des travaux (OIBT Art. 24 — Première vérification)</h4>
         <div class="grid">
           <div><label class="fld" for="pExecNom">Nom</label><input id="pExecNom" type="text" autocomplete="off"></div>
@@ -6153,14 +6151,6 @@ function protoSystCf(x, sep){ return [protoSystLabel(x), protoCableLabel(x)].fil
 /* Protocole — partie câble / fil : le nombre de conducteurs dépend du type */
 const PROTO_CF_NB = { 'Câble':['3x','4x','5x'], 'Fil':['2x','3x','4x','5x'] };
 const PROTO_MM2   = [1, 1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70];
-/* Type d'autorisation d'installer limitée — cases laissées vides dans l'export,
-   à cocher à la main une fois le document imprimé / transféré. */
-const ARTS_LIST=[
-  {n:'Art. 13',      t:"travaux effectués sur des installations propres à l'entreprise"},
-  {n:'Art. 14',      t:'travaux effectués sur des installations spéciales'},
-  {n:'Art. 15',      t:'autorisation de raccordement'},
-  {n:'14.4 / 15.4',  t:'travaux de maintenance et de réparation sans autorisation'},
-];
 /* Libellé « Type / Caract. » pour l'export (courbe ou fusible + modèle, saisie libre incluse) */
 function protoTypeLabel(x){
   let t = x.type==='Autre…' ? (x.typeautre||'Autre') : (x.type||'');
@@ -6353,8 +6343,6 @@ function buildProtoFiche(d){
   L.push('</table></div>');
   if(d.rows.some(x=>x.icc066))
     L.push('<p class="obj" style="color:#666"><b>Facteur 0,66 :</b> pour les groupes concernés, la 2ᵉ valeur indiquée sous le courant de court-circuit (Icc L-PE / Icc L-N) correspond à la valeur mesurée <b>multipliée par 0,66</b>.</p>');
-  L.push(`<h3>Type d'autorisation d'installer limitée</h3>`);
-  L.push('<ul style="list-style:none; padding-left:0">'+ARTS_LIST.map(a=>`<li style="margin:4px 0">☐ <b>${esc(a.n)}</b> — ${esc(a.t)}</li>`).join('')+'</ul>');
   L.push('<h3>Signatures</h3><div class="sig-grid sig-sm">');
   L.push(`<div class="sc"><div style="font-size:12px;color:#666">Exécuteur des travaux (OIBT Art. 24 — Première vérification) — ${esc(d.execNom||d.monteur||'—')}</div>${d.sigProto?`<img src="${d.sigProto}">`:'<div class="empty-sig"></div>'}<div style="font-size:11px;color:#666;margin-top:3px">Le ${esc(d.execDate?frDate(d.execDate):'')}</div></div>`);
   L.push(`<div class="sc"><div style="font-size:12px;color:#666">Personne titulaire d'une autorisation d'installer limitée — ${esc(d.ctrlNom||'—')}</div><div class="empty-sig"></div><div style="font-size:11px;color:#666;margin-top:3px">${esc(d.ctrlDate?('Le '+d.ctrlDate):'Nom · Date · Signature')}</div></div>`);
@@ -6407,23 +6395,8 @@ function buildProtoPDF(d){
     doc.text(pdfSafe("pour les groupes concernés, la 2e valeur indiquée sous Icc L-PE / Icc L-N correspond à la valeur mesurée multipliée par 0,66."), M+lw, y);
     y+=6;
   }
-  // Type d'autorisation : cases vides, à cocher à la main après impression / transfert
-  if(y>H-34){ doc.addPage(); y=16; }
-  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
-  doc.text(pdfSafe("Type d'autorisation d'installer limitée :"), M, y); y+=5;
-  doc.setFontSize(8);
-  ARTS_LIST.forEach((a,i)=>{
-    const x = M + (i%2)*((CW)/2);          // 2 colonnes
-    if(i%2===0 && i>0) y+=4.6;
-    doc.setDrawColor(...CLR.ink); doc.setLineWidth(0.25);
-    doc.rect(x, y-2.9, 3.2, 3.2);          // case à cocher vide
-    doc.setFont('helvetica','bold'); doc.setTextColor(...CLR.navy);
-    doc.text(pdfSafe(a.n), x+4.8, y);
-    const lw=doc.getTextWidth(pdfSafe(a.n))+6.5;
-    doc.setFont('helvetica','normal'); doc.setTextColor(...CLR.ink);
-    doc.text(pdfSafe('— '+a.t), x+lw, y);
-  });
-  y+=8;
+  if(y>H-30){ doc.addPage(); y=16; }
+  y+=2;
   // Signatures : exécuteur (avec image) + organe de contrôle
   const colW=(CW-10)/2, sigH=14, sigImgW=52;
   doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
