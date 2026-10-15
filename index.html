@@ -1281,7 +1281,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
           <button type="button" class="sig-clear" data-clear="proto">Effacer</button>
         </div>
 
-        <h4 style="margin:16px 0 6px; color:var(--navy)">Personne titulaire d'une autorisation d'installer limitée</h4>
+        <h4 style="margin:16px 0 6px; color:var(--navy)">Personne titulaire d'une autorisation générale d'installer</h4>
         <p class="hint">Signée à la main une fois le document transféré ou imprimé.</p>
         <div class="grid">
           <div><label class="fld" for="pCtrlNom">Nom</label><input id="pCtrlNom" type="text" autocomplete="off"></div>
@@ -6345,7 +6345,7 @@ function buildProtoFiche(d){
     L.push('<p class="obj" style="color:#666"><b>Facteur 0,66 :</b> pour les groupes concernés, la 2ᵉ valeur indiquée sous le courant de court-circuit (Icc L-PE / Icc L-N) correspond à la valeur mesurée <b>multipliée par 0,66</b>.</p>');
   L.push('<h3>Signatures</h3><div class="sig-grid sig-sm">');
   L.push(`<div class="sc"><div style="font-size:12px;color:#666">Exécuteur des travaux (OIBT Art. 24 — Première vérification) — ${esc(d.execNom||d.monteur||'—')}</div>${d.sigProto?`<img src="${d.sigProto}">`:'<div class="empty-sig"></div>'}<div style="font-size:11px;color:#666;margin-top:3px">Le ${esc(d.execDate?frDate(d.execDate):'')}</div></div>`);
-  L.push(`<div class="sc"><div style="font-size:12px;color:#666">Personne titulaire d'une autorisation d'installer limitée — ${esc(d.ctrlNom||'—')}</div><div class="empty-sig"></div><div style="font-size:11px;color:#666;margin-top:3px">${esc(d.ctrlDate?('Le '+d.ctrlDate):'Nom · Date · Signature')}</div></div>`);
+  L.push(`<div class="sc"><div style="font-size:12px;color:#666">Personne titulaire d'une autorisation générale d'installer — ${esc(d.ctrlNom||'—')}</div><div class="empty-sig"></div><div style="font-size:11px;color:#666;margin-top:3px">${esc(d.ctrlDate?('Le '+d.ctrlDate):'Nom · Date · Signature')}</div></div>`);
   L.push('</div>');
   return L.join('');
 }
@@ -6401,7 +6401,7 @@ function buildProtoPDF(d){
   const colW=(CW-10)/2, sigH=14, sigImgW=52;
   doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
   doc.text(pdfSafe('Exécuteur des travaux (OIBT Art. 24 — Première vérification) - '+(d.execNom||d.monteur||'-')), M, y);
-  doc.text(pdfSafe("Personne titulaire d'une autorisation d'installer limitée - "+(d.ctrlNom||'-')), M+colW+10, y);
+  doc.text(pdfSafe("Personne titulaire d'une autorisation générale d'installer - "+(d.ctrlNom||'-')), M+colW+10, y);
   y+=2;
   if(d.sigProto){ try{ doc.addImage(d.sigProto,'PNG', M, y, sigImgW, sigH); }catch(e){} }
   doc.setDrawColor(...CLR.ink); doc.setLineWidth(0.2);
