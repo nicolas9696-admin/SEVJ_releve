@@ -218,6 +218,15 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .qunit.collapsed .qunit-body{display:none}
 .qunit-body{padding:10px}
 body:not(.sch3) .sch3-only{display:none}
+.tabn{border:1px solid var(--line, #d9dee5); border-left:5px solid #1F3B5B; border-radius:10px; padding:10px; margin:0 0 12px; background:#fff}
+.tabn-hd{display:flex; gap:8px; align-items:center}
+.tabn-hd .tabn-nom{flex:1; min-width:0; font-weight:700}
+.tabn-hd button{flex:0 0 auto; border:none; background:#e6ecf3; color:#1F3B5B; border-radius:8px; padding:8px 11px; font-size:15px; cursor:pointer}
+.tabn-sum{font-size:12px; color:#1F3B5B; font-weight:600; margin-top:6px}
+.tabn.collapsed .tabn-body{display:none}
+.tabn-body h5{margin:14px 0 6px; color:#1F3B5B; font-size:13px; text-transform:uppercase; letter-spacing:.03em}
+.tabn-body .grid3{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+.tabn .row .c-off{display:none}
 .mo-reprise{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;
   padding:9px 11px; border-radius:9px; background:#eef4fb; border:1px solid #cfe0f2; font-size:12.5px}
 .mo-reprise #moRepriseTxt{flex:1; min-width:180px; color:var(--navy)}
@@ -1038,6 +1047,18 @@ body:not(.sch3) .sch3-only{display:none}
           <button class="add" id="toggleAllBtn" style="border-style:solid; margin:0; flex:0 0 auto; width:auto; padding:12px 14px" title="Tout replier / déployer">⇕</button>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Tableau à prévoir : place disponible + composition détaillée -->
+  <section class="card" id="tabNeufCard">
+    <h2><span class="n"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h3"/><path d="M14 15h2v3h-2z"/></svg></span> Tableau</h2>
+    <div class="body">
+      <p class="hint">Le <b>tableau à prévoir</b> : la <b>place disponible</b> (hauteur, largeur, profondeur maximales),
+      les <b>plaquettes compteur</b> et la <b>composition</b> appareil par appareil (courbe, In, pôles, DDR).
+      L'export en fait une fiche claire par tableau, plus un récapitulatif pour la commande.</p>
+      <div id="tabNeufs"></div>
+      <button type="button" class="add" id="addTabNeufBtn" style="border-style:solid; margin-top:4px">＋ Ajouter un tableau</button>
     </div>
   </section>
 
@@ -2250,6 +2271,206 @@ function addDefaut(){
     <div style="margin-top:10px"><label class="fld">Remarque / valeur mesurée (optionnel)</label><input data-f="dnote" type="text" placeholder="ex : Riso 0.02 MΩ entre L1 et PE"></div>`;
   wire(r); $('#defauts').appendChild(r); updateDef();
 }
+/* ===== Tableau à prévoir =====
+   Une carte par tableau : place disponible, alimentation, plaquettes compteur, puis la
+   composition ligne par ligne. Les champs d'une ligne ne s'affichent que s'ils ont un
+   sens pour l'appareil choisi (une courbe pour un disjoncteur, pas pour un parafoudre). */
+const TN_APP = ["Disjoncteur","Disjoncteur + DDR (FI/LS)","Interrupteur différentiel (DDR)",
+  "Interrupteur principal","Coupe-surintensité","Parafoudre","Contacteur","Télérupteur",
+  "Minuterie","Horloge","Relais / commande","Bornes / répartiteur","Prise de tableau (T13)","Autre…"];
+const TN_COURBE = ["B","C","D","K"];
+const TN_IN = ["2","4","6","10","13","16","20","25","32","40","50","63","80","100","125"];
+const TN_DDR = ["10 mA","30 mA","100 mA","300 mA"];
+const TN_DDRT = ["A","F","B","AC"];
+const TN_MONTAGE = ["Encastré","Semi-encastré","Apparent","Armoire au sol"];
+const TN_CPT = ["Monophasé","Triphasé","Triphasé + télécommande (TC)","Double tarif","Plaquette vide (réserve)"];
+/* quels champs pour quel appareil */
+function tnChamps(a){
+  const disj = a==="Disjoncteur" || a==="Disjoncteur + DDR (FI/LS)";
+  return { courbe:disj, inn: disj || ["Interrupteur différentiel (DDR)","Interrupteur principal",
+             "Coupe-surintensité","Contacteur"].indexOf(a)>=0,
+           pol: a!=="Bornes / répartiteur" && a!=="Prise de tableau (T13)",
+           ddr: a==="Disjoncteur + DDR (FI/LS)" || a==="Interrupteur différentiel (DDR)",
+           autre: a==="Autre…" };
+}
+function tnApplyCond(r){
+  const c=tnChamps(G(r,'tnapp'));
+  r.querySelectorAll('[data-tn]').forEach(e=> e.classList.toggle('c-off', !c[e.dataset.tn]));
+}
+/* « Disjoncteur C13 1LN — DDR 30 mA type A » : c'est ce libellé qui regroupe la commande */
+function tnLigneLabel(l){
+  const c=tnChamps(l.app);
+  let s = l.app==="Autre…" ? (l.autre||'Autre appareil') : l.app;
+  const sp=[];
+  if(c.courbe && (l.courbe||l.inn)) sp.push((l.courbe||'')+(l.inn||''));
+  else if(c.inn && l.inn) sp.push(l.inn+' A');
+  if(c.pol && l.pol) sp.push(l.pol);
+  if(sp.length) s+=' '+sp.join(' ');
+  if(c.ddr) s+=' — DDR '+(l.ddr||'30 mA')+(l.ddrt?' type '+l.ddrt:'');
+  return s;
+}
+function tnMajSum(t){
+  const st=tnCollectUn(t), sm=t.querySelector('.tabn-sum'); if(!sm) return;
+  sm.textContent=tnResume(st);
+}
+function tnResume(st){
+  const b=[];
+  const dim=[st.hmax,st.lmax,st.pmax];
+  if(dim.some(Boolean)) b.push('H '+(st.hmax||'?')+' × L '+(st.lmax||'?')+' × P '+(st.pmax||'?')+' mm');
+  const nd=st.lignes.filter(l=> tnChamps(l.app).courbe).reduce((a,l)=>a+l.qte,0);
+  const nf=st.lignes.filter(l=> tnChamps(l.app).ddr).reduce((a,l)=>a+l.qte,0);
+  if(nd) b.push(nd+' disjoncteur'+(nd>1?'s':''));
+  if(nf) b.push(nf+' avec DDR');
+  if(st.nbcpt) b.push(st.nbcpt+' plaquette'+(st.nbcpt>1?'s':'')+' compteur');
+  return b.join(' · ');
+}
+function addTabNeuf(st){
+  const t=el('div','tabn');
+  t.innerHTML=`<div class="tabn-hd">
+      <input class="tabn-nom" data-h="nom" type="text" placeholder="Nom du tableau (ex : TAB principal, TAB étage)">
+      <button type="button" data-tnfold title="Replier / déployer">▾</button>
+      <button type="button" data-tndup title="Dupliquer le tableau">⧉</button>
+      <button type="button" data-tnrm title="Supprimer le tableau">×</button>
+    </div>
+    <div class="tabn-sum"></div>
+    <div class="tabn-body">
+      <div style="margin-top:8px"><label class="fld">Emplacement</label><input data-h="loc" type="text" placeholder="ex : couloir d'entrée, niche sous l'escalier"></div>
+      <h5>Place disponible (maximum)</h5>
+      <div class="grid3">
+        <div><label class="fld">Hauteur max (mm)</label><input data-h="hmax" type="number" min="0" step="10" inputmode="numeric" placeholder="ex : 900"></div>
+        <div><label class="fld">Largeur max (mm)</label><input data-h="lmax" type="number" min="0" step="10" inputmode="numeric" placeholder="ex : 600"></div>
+        <div><label class="fld">Profondeur max (mm)</label><input data-h="pmax" type="number" min="0" step="10" inputmode="numeric" placeholder="ex : 150"></div>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <div><label class="fld">Montage</label><select data-h="montage"><option value="">— non précisé —</option>${opts(TN_MONTAGE)}</select></div>
+        <div><label class="fld">Alimentation / introduction</label><input data-h="alim" type="text" placeholder="ex : 5×10 mm², coupe-surintensité 3×40 A"></div>
+      </div>
+      <h5>Plaquettes compteur</h5>
+      <div class="grid">
+        <div><label class="fld">Nombre de plaquettes</label><input data-h="nbcpt" type="number" min="0" step="1" inputmode="numeric" placeholder="ex : 1"></div>
+        <div><label class="fld">Type</label><select data-h="typecpt"><option value="">— non précisé —</option>${opts(TN_CPT)}</select></div>
+      </div>
+      <h5>Composition</h5>
+      <div class="tnlignes"></div>
+      <button type="button" class="add" data-tnadd style="border-style:solid; font-size:13px">＋ Ajouter un appareil</button>
+      <h5>Divers</h5>
+      <div class="grid">
+        <div><label class="fld">Réserve (modules libres)</label><input data-h="reserve" type="number" min="0" step="1" inputmode="numeric" placeholder="ex : 6"></div>
+        <div><label class="fld">Remarque</label><input data-h="rem" type="text" placeholder="ex : porte vitrée, serrure"></div>
+      </div>
+    </div>`;
+  const maj=()=>{ tnMajSum(t); scheduleSave(); };
+  t.querySelectorAll('[data-h]').forEach(i=>{ i.addEventListener('input',maj); i.addEventListener('change',maj); });
+  t.querySelector('[data-tnadd]').onclick=()=>{ tnAddLigne(t); maj(); };
+  t.querySelector('[data-tnrm]').onclick=()=>{ if(confirm('Supprimer ce tableau ?')){ t.remove(); scheduleSave(); } };
+  t.querySelector('[data-tnfold]').onclick=()=>{ const f=t.classList.toggle('collapsed'); t.querySelector('[data-tnfold]').textContent=f?'▸':'▾'; };
+  t.querySelector('[data-tndup]').onclick=()=>{ const c=addTabNeuf(tnState(t)); t.parentNode.insertBefore(c, t.nextSibling); scheduleSave(); };
+  $('#tabNeufs').appendChild(t);
+  if(st){
+    t.querySelectorAll('[data-h]').forEach(i=>{ if(st[i.dataset.h]!=null) i.value=st[i.dataset.h]; });
+    (st.lignes||[]).forEach(x=> tnAddLigne(t, x));
+    if(st.collapsed){ t.classList.add('collapsed'); t.querySelector('[data-tnfold]').textContent='▸'; }
+  }
+  tnMajSum(t);
+  return t;
+}
+function tnAddLigne(t, st){
+  const r=el('div','row');
+  r.innerHTML=`<button type="button" class="rm" title="Supprimer">×</button>
+    <div class="tag">Appareil</div>
+    <div class="grid">
+      <div><label class="fld">Appareil</label><select data-f="tnapp">${opts(TN_APP)}</select></div>
+      <div><label class="fld">Quantité</label><input data-f="tnqte" type="number" min="0" step="1" inputmode="numeric" placeholder="ex : 8"></div>
+    </div>
+    <div data-tn="autre" style="margin-top:8px"><label class="fld">Préciser l'appareil</label><input data-f="tnautre" type="text" placeholder="ex : relais de délestage"></div>
+    <div class="grid3" style="margin-top:8px">
+      <div data-tn="courbe"><label class="fld">Courbe</label><select data-f="tncourbe"><option value="">—</option>${opts(TN_COURBE)}</select></div>
+      <div data-tn="inn"><label class="fld">In (A)</label><select data-f="tninn"><option value="">—</option>${opts(TN_IN)}</select></div>
+      <div data-tn="pol"><label class="fld">Pôles</label><select data-f="tnpol"><option value="">—</option>${opts(QPOLES)}</select></div>
+    </div>
+    <div class="grid" data-tn="ddr" style="margin-top:8px">
+      <div><label class="fld">DDR — sensibilité</label><select data-f="tnddr">${opts(TN_DDR)}</select></div>
+      <div><label class="fld">DDR — type</label><select data-f="tnddrt"><option value="">— non précisé —</option>${opts(TN_DDRT)}</select></div>
+    </div>
+    <div style="margin-top:8px"><label class="fld">Repère / départ</label><input data-f="tnrep" type="text" placeholder="ex : F1–F8, prises chambres"></div>`;
+  r.querySelector('[data-f="tnddr"]').value='30 mA';     // le cas courant ; 10 / 100 / 300 mA à choisir
+  if(st) Object.entries(st).forEach(([f,v])=>{ const e=r.querySelector('[data-f="'+f+'"]'); if(e) e.value=v; });
+  tnApplyCond(r);
+  const maj=()=>{ tnApplyCond(r); tnMajSum(t); scheduleSave(); };
+  r.querySelectorAll('select, input').forEach(i=>{ i.addEventListener('input',maj); i.addEventListener('change',maj); });
+  r.querySelector('.rm').onclick=()=>{ r.remove(); tnMajSum(t); scheduleSave(); };
+  t.querySelector('.tnlignes').appendChild(r);
+  return r;
+}
+function tnState(t){
+  const o={collapsed: t.classList.contains('collapsed')?1:0};
+  t.querySelectorAll('[data-h]').forEach(i=> o[i.dataset.h]=i.value);
+  o.lignes=[...t.querySelectorAll('.tnlignes .row')].map(r=>{ const x={};
+    r.querySelectorAll('[data-f]').forEach(e=> x[e.dataset.f]=e.value); return x; });
+  return o;
+}
+/* Ce qui part dans la fiche : seulement les champs utiles à l'appareil choisi */
+function tnCollectUn(t){
+  const h=k=>{ const e=t.querySelector('[data-h="'+k+'"]'); return e?e.value.trim():''; };
+  return { nom:h('nom'), loc:h('loc'), hmax:h('hmax'), lmax:h('lmax'), pmax:h('pmax'),
+    montage:h('montage'), alim:h('alim'), nbcpt:parseInt(h('nbcpt'),10)||0, typecpt:h('typecpt'),
+    reserve:h('reserve'), rem:h('rem'),
+    lignes:[...t.querySelectorAll('.tnlignes .row')].map(r=>{
+      const a=G(r,'tnapp'), c=tnChamps(a);
+      return { app:a, qte:parseFloat(G(r,'tnqte'))||0, autre:c.autre?G(r,'tnautre'):'',
+               courbe:c.courbe?G(r,'tncourbe'):'', inn:c.inn?G(r,'tninn'):'', pol:c.pol?G(r,'tnpol'):'',
+               ddr:c.ddr?G(r,'tnddr'):'', ddrt:c.ddr?G(r,'tnddrt'):'', rep:G(r,'tnrep') };
+    }).filter(l=> l.app && l.qte>0) };
+}
+function collectTabNeufs(){
+  return [...document.querySelectorAll('#tabNeufs .tabn')].map(tnCollectUn)
+    .filter(x=> x.nom||x.loc||x.hmax||x.lmax||x.pmax||x.alim||x.nbcpt||x.lignes.length||x.rem);
+}
+/* Récapitulatif commande : appareils identiques additionnés, tous tableaux confondus */
+function tnRecap(tabs){
+  const m=new Map();
+  tabs.forEach(t=> t.lignes.forEach(l=>{ const k=tnLigneLabel(l); m.set(k,(m.get(k)||0)+l.qte); }));
+  tabs.forEach(t=>{ if(t.nbcpt){ const k='Plaquette compteur'+(t.typecpt?' — '+t.typecpt:''); m.set(k,(m.get(k)||0)+t.nbcpt); } });
+  return [...m.entries()].map(([label,qte])=>({label,qte}));
+}
+function tnTitre(t,i){ return 'Tableau '+(i+1)+(t.nom?' — '+t.nom:'')+(t.loc?' · '+t.loc:''); }
+function tnInfos(t){
+  const dim = (t.hmax||t.lmax||t.pmax)
+    ? 'Hauteur '+(t.hmax?t.hmax+' mm':'—')+'  ×  Largeur '+(t.lmax?t.lmax+' mm':'—')+'  ×  Profondeur '+(t.pmax?t.pmax+' mm':'—') : '';
+  return [['Place disponible (max.)', dim||'—'], ['Montage', t.montage||'—'],
+          ['Alimentation / introduction', t.alim||'—'],
+          ['Plaquettes compteur', t.nbcpt ? t.nbcpt+(t.typecpt?' × '+t.typecpt:'') : '—'],
+          ['Réserve', t.reserve ? t.reserve+' modules libres' : '—']]
+    .concat(t.rem?[['Remarque', t.rem]]:[]);
+}
+function tnColonnes(l){
+  const c=tnChamps(l.app);
+  return [String(l.qte), l.app==="Autre…"?(l.autre||'Autre appareil'):l.app,
+    c.courbe?(l.courbe||'—'):'', c.inn?(l.inn?l.inn+' A':'—'):'', c.pol?(l.pol||'—'):'',
+    c.ddr?((l.ddr||'30 mA')+(l.ddrt?' · type '+l.ddrt:'')):'Non', l.rep||''];
+}
+function pushTabNeufs(L,d){
+  const tabs=d.tabNeufs||[]; if(!tabs.length) return;
+  L.push('<h3>Tableau à prévoir</h3>');
+  tabs.forEach((t,i)=>{
+    L.push('<div class="room-title" style="color:#1F3B5B;border-bottom-color:#1F3B5B">'+esc(tnTitre(t,i))+'</div>');
+    L.push('<table>'+tnInfos(t).map(([k,v])=>'<tr><td style="width:38%"><b>'+esc(k)+'</b></td><td>'+esc(v)+'</td></tr>').join('')+'</table>');
+    if(t.lignes.length){
+      L.push('<table style="margin-top:6px"><tr><th class="q">Qté</th><th>Appareil</th><th class="q">Courbe</th><th class="q">In</th><th class="q">Pôles</th><th>DDR</th><th>Repère / départ</th></tr>');
+      t.lignes.forEach(l=>{ const c=tnColonnes(l);
+        L.push('<tr><td class="q"><b>'+esc(c[0])+'</b></td><td>'+esc(c[1])+'</td><td class="q">'+esc(c[2])+'</td><td class="q">'+esc(c[3])+'</td><td class="q">'+esc(c[4])+'</td><td>'+esc(c[5])+'</td><td>'+esc(c[6])+'</td></tr>'); });
+      L.push('</table>');
+    } else L.push('<p class="empty">Composition non saisie.</p>');
+    const r=tnResume(t); if(r) L.push('<p class="obj" style="color:#1F3B5B"><b>En bref :</b> '+esc(r)+'</p>');
+  });
+  const rc=tnRecap(tabs);
+  if(rc.length){
+    L.push('<h3>Tableau — récapitulatif pour la commande</h3><table><tr><th>Article</th><th class="q">Qté</th></tr>');
+    rc.forEach(x=> L.push('<tr><td>'+esc(x.label)+'</td><td class="q"><b>'+x.qte+'</b></td></tr>'));
+    L.push('</table>');
+  }
+}
+
 /* ===== Recherche de circuit (repérage) — jumelle de la recherche de défaut ===== */
 function addCircuit(){
   const r = el('div','row');
@@ -4380,7 +4601,7 @@ function collect(){
     tabAmiante:$('#tabAmiante').checked,
     protections, rooms, rem, defauts:collectDefauts(), circuits:collectCircuits(),
     quantites:collectQuantites(), qcomp:collectQComp(), qbilan:qBilanHeures(collectQuantites()),
-    qSch3:qSch3On(),
+    qSch3:qSch3On(), tabNeufs:collectTabNeufs(),
     oibtRlv:collectOibtRlv(), user:currentUser
   };
 }
@@ -4444,6 +4665,9 @@ function buildFiche(d, mode){
       else L.push('<p class="empty">Image du schéma non jointe.</p>');
     });
   }
+
+  /* ---- Tableau à prévoir ---- */
+  pushTabNeufs(L, d);
 
   /* ---- Remise en conformité OIBT (rapport de contrôle importé) ---- */
   pushOibtRlv(L, d);
@@ -5259,6 +5483,48 @@ function buildPDFDoc(d, mode){
       });
       y+=2;
     });
+  }
+
+  /* Tableau à prévoir : une fiche par tableau, puis le récapitulatif pour la commande */
+  const tnTabs=d.tabNeufs||[];
+  if(tnTabs.length){
+    heading('Tableau à prévoir');
+    const stT={fillColor:CLR.bg, textColor:CLR.navy, fontStyle:'bold', lineColor:CLR.line, lineWidth:0.1};
+    const base={theme:'grid', margin:{left:M,right:M}, didParseCell:sanitize,
+      styles:{fontSize:9, cellPadding:1.7, lineColor:CLR.line, lineWidth:0.1, textColor:CLR.ink, valign:'top'}, headStyles:stT};
+    tnTabs.forEach((t,i)=>{
+      if(y>H-50){ doc.addPage(); y=16; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...CLR.navy);
+      doc.text(pdfSafe(tnTitre(t,i)), M, y+3);
+      doc.setDrawColor(...CLR.navy); doc.setLineWidth(0.6); doc.line(M, y+4.7, W-M, y+4.7);
+      y+=7;
+      doc.autoTable(Object.assign({}, base, { startY:y,
+        columnStyles:{0:{cellWidth:58, fontStyle:'bold', textColor:CLR.navy}, 1:{cellWidth:CW-58}},
+        body:tnInfos(t) }));
+      y=doc.lastAutoTable.finalY+2;
+      if(t.lignes.length){
+        doc.autoTable(Object.assign({}, base, { startY:y,
+          head:[['Qté','Appareil','Courbe','In','Pôles','DDR','Repère / départ']],
+          columnStyles:{0:{cellWidth:12, halign:'center', fontStyle:'bold'}, 1:{cellWidth:52},
+            2:{cellWidth:15, halign:'center'}, 3:{cellWidth:14, halign:'center'}, 4:{cellWidth:15, halign:'center'},
+            5:{cellWidth:30}, 6:{cellWidth:CW-138}},
+          body:t.lignes.map(tnColonnes) }));
+        y=doc.lastAutoTable.finalY+2;
+      }
+      const rs=tnResume(t);
+      if(rs){ doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...CLR.navy);
+        const tx=doc.splitTextToSize(pdfSafe('En bref : '+rs), CW); doc.text(tx, M, y+3); y+=tx.length*3.9+2; }
+      y+=4;
+    });
+    const rc=tnRecap(tnTabs);
+    if(rc.length){
+      if(y>H-34){ doc.addPage(); y=16; }
+      heading('Tableau - récapitulatif pour la commande');
+      doc.autoTable(Object.assign({}, base, { startY:y, head:[['Article','Qté']],
+        columnStyles:{0:{cellWidth:CW-24}, 1:{cellWidth:24, halign:'center', fontStyle:'bold'}},
+        body:rc.map(x=>[x.label, String(x.qte)]) }));
+      y=doc.lastAutoTable.finalY+5;
+    }
   }
 
   /* Remise en conformité OIBT (rapport de contrôle importé) */
@@ -8522,6 +8788,7 @@ function draftObject(){
   d.remarques=[...document.querySelectorAll('#remarques .row')].map(rowState);
   d.defauts=[...document.querySelectorAll('#defauts .row')].map(rowState);
   d.rechCircuits=[...document.querySelectorAll('#circuits .row')].map(rowState);
+  d.tabNeufs=[...document.querySelectorAll('#tabNeufs .tabn')].map(tnState);
   d.materiel=[...document.querySelectorAll('#materiel > .row')].map(r=>({t:r.dataset.mt, s:rowState(r)}));
   // sans les extraits (base64) : ils vont dans leur propre clé, et hors du marqueur PDF
   d.oibtRlv=rlvOibtState();
@@ -8566,6 +8833,10 @@ function applyDraft(d){
   if(Array.isArray(d.defauts)){
     $('#defauts').innerHTML='';
     d.defauts.forEach(state=>{ addDefaut(); fillRow(document.querySelector('#defauts .row:last-child'), state); });
+  }
+  if(Array.isArray(d.tabNeufs)){
+    $('#tabNeufs').innerHTML='';
+    d.tabNeufs.forEach(st=> addTabNeuf(st));
   }
   if(Array.isArray(d.rechCircuits)){
     $('#circuits').innerHTML='';
@@ -8724,7 +8995,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v160-arbre — Option suppression du schéma III';
+const APP_VERSION='v161-arbre — Nouveau chapitre Tableau';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -8763,6 +9034,7 @@ function init(){
   const mrb=$('#moRepriseBtn'); if(mrb) mrb.onclick=reprendreEstimation;
   ['#qImprevus','#qRetenue'].forEach(sel=>{ const e=$(sel);
     if(e) e.addEventListener('input', ()=>{ updateQ(); scheduleSave(); }); });
+  const atn=$('#addTabNeufBtn'); if(atn) atn.onclick=()=>{ qFlash(addTabNeuf()); scheduleSave(); };
   const qs3=$('#qSch3'); if(qs3) qs3.addEventListener('change', ()=>{
     updateQ(); rlvOibtRender(); rlvOibtInfo(); scheduleSave(); });
   updateQ();
