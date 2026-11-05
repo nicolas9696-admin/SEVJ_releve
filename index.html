@@ -217,6 +217,7 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
 .qunit.collapsed .qunit-hd .qunit-tog::before{transform:rotate(-45deg); margin-top:3px}
 .qunit.collapsed .qunit-body{display:none}
 .qunit-body{padding:10px}
+body:not(.sch3) .sch3-only{display:none}
 .mo-reprise{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;
   padding:9px 11px; border-radius:9px; background:#eef4fb; border:1px solid #cfe0f2; font-size:12.5px}
 .mo-reprise #moRepriseTxt{flex:1; min-width:180px; color:var(--navy)}
@@ -1048,6 +1049,10 @@ input.auto{background:var(--bg); color:var(--navy); font-weight:700}
       postes <b>local par local</b> et on donne une <b>tranche de longueur</b> au lieu d'une mesure. Deux niveaux :
       une <b>unité</b> (appartement, étage, zone…) contient ses <b>locaux</b>. L'export produit un tableau par
       unité avec sa ligne TOTAL, un récapitulatif général et le détail des longueurs par tranche.</p>
+      <div class="chk"><input id="qSch3" type="checkbox"><label for="qSch3"><b>Option : suppression du schéma III</b></label></div>
+      <p class="hint sch3-only" style="margin:2px 0 10px">Ce relevé est chiffré <b>à part, en option</b> : il ne s'ajoute pas
+      au total de la remise en conformité. Dans le rapport OIBT, coche sur chaque défaut concerné
+      <b>« Réglé par la suppression du schéma III »</b> : il compte dans l'offre sans l'option, et sort de celle avec.</p>
       <div id="quantites"></div>
       <div style="display:flex; gap:8px; margin-top:4px">
         <button class="add" id="addUniteBtn" style="border-style:solid; margin:0; flex:1">＋ Ajouter une unité (appartement, étage, zone…)</button>
@@ -2307,6 +2312,7 @@ function rlvMoTxt(o){
 }
 function rlvResume(o){
   const b=[ o.chiffre===false ? ('○ non chiffré'+(o.motif?' : '+o.motif:'')) : '✓ à chiffrer' ];
+  if(o.chiffre!==false && o.sch3 && qSch3On()) b.push('réglé par suppr. sch. III');
   if(o.h) b.push(rlvPers(o)>1 ? (o.h+' h × '+rlvPers(o)+' = '+rlvHeuresPt(o)+' h') : (o.h+' h'));
   const nm=(o.mat||[]).length; if(nm) b.push(nm+' article'+(nm>1?'s':''));
   const nq=rlvQtLignes(o).length; if(nq) b.push(nq+' ligne'+(nq>1?'s':'')+' de quantités');
@@ -2645,6 +2651,7 @@ function rlvOibtRender(){
           <label class="fld">Pourquoi ce défaut n'est pas chiffré</label>
           <input data-rd="motif" type="text" value="${esc(o.motif||'')}" placeholder="ex : déjà corrigé, hors mandat, à la charge du propriétaire">
         </div>
+        <div class="chk sch3-only" style="margin-top:6px"><input type="checkbox" data-rd="sch3"${o.sch3?' checked':''}><label>Réglé par la suppression du schéma III (option)</label></div>
         <div class="grid" style="margin-top:6px">
           <div><label class="fld">Personnes</label><select data-rd="pers">${[1,2,3].map(k=>`<option value="${k}"${rlvPers(o)===k?' selected':''}>${k}</option>`).join('')}</select></div>
           <div><label class="fld">Temps sur place (h) — par personne</label>
@@ -2711,7 +2718,7 @@ function rlvOibtRender(){
         if(f==='n') { o.nMan=true; const b=c.querySelector('[data-num]'); if(b) b.textContent=e.value||'?'; }
         if(f==='titre'){ const l=c.querySelector('[data-lieu]'); if(l) l.textContent=e.value||('Page '+(o.page||'?'));
           const rs=c.querySelector('.oibt-res'); if(rs) rs.textContent=e.value?'':'— à décrire —'; }
-        if(chk){ c.classList.toggle('off', !e.checked);
+        if(chk && f==='chiffre'){ c.classList.toggle('off', !e.checked);
           const mo=c.querySelector('[data-c="motif"]'); if(mo) mo.classList.toggle('on', !e.checked);
           const mk=document.querySelector('#rlvOibtVue .oibt-mk[data-pid="'+o._id+'"]');
           if(mk) mk.classList.toggle('mkoff', !e.checked); }
@@ -2857,7 +2864,7 @@ function collectOibtRlv(){
            retenus:D.filter(o=>o.chiffre!==false).length,
            ecartes:D.filter(o=>o.chiffre===false).length,
            defauts:D.map(o=>({n:o.n, page:o.page, titre:o.titre, travaux:o.travaux,
-                              chiffre:o.chiffre!==false, motif:o.motif||'',
+                              chiffre:o.chiffre!==false, motif:o.motif||'', sch3:!!o.sch3,
                               h:o.h, pers:rlvPers(o), hh:rlvHeuresPt(o), vg:o.vg,
                               qt:rlvQtLignes(o)})) };
 }
@@ -2867,7 +2874,7 @@ function rlvOibtState(){
            avecVg: !$('#rlvOibtVg') || $('#rlvOibtVg').checked,
            pts:RLVOIBT.pts.map(o=>({ n:o.n, nMan:!!o.nMan, page:o.page, y:o.y, fin:!!o.fin, manuel:!!o.manuel,
                                      titre:o.titre||'',
-                                     chiffre:o.chiffre!==false, motif:o.motif||'',
+                                     chiffre:o.chiffre!==false, motif:o.motif||'', sch3:!!o.sch3,
                                      travaux:o.travaux||'', h:o.h||'', pers:rlvPers(o),
                                      mat:(o.mat||[]).map(m=>({t:m.t, s:m.s})),
                                      qt:(o.qt||[]).map(x=>Object.assign({}, x)) })) };
@@ -3612,7 +3619,7 @@ function updateReprise(){
   const box = $('#moReprise'), txt = $('#moRepriseTxt');
   if(!box || !txt) return;
   const v = qValeurRetenue();
-  if(!v){ box.hidden = true; return; }
+  if(!v || qSch3On()){ box.hidden = true; return; }   // en option, l'estimation reste à part
   const pers = parseFloat($('#monteurs').value) || 1;
   const surSite = Math.round(v.h/pers*4)/4;
   box.hidden = false;
@@ -4260,6 +4267,7 @@ function updateQ(){
     const sum = r.querySelector('.row-name-sum');
     if(sum) sum.textContent = [G(r,'cmin'), G(r,'cmax')].filter(Boolean).join('\u2013') + (G(r,'cmin')||G(r,'cmax') ? ' h' : '');
   });
+  document.body.classList.toggle('sch3', qSch3On());
   const e = $('#qTotal'); if(!e) return;
   const unites = collectQuantites();
   const postes = qPostesUtilises(unites);
@@ -4372,6 +4380,7 @@ function collect(){
     tabAmiante:$('#tabAmiante').checked,
     protections, rooms, rem, defauts:collectDefauts(), circuits:collectCircuits(),
     quantites:collectQuantites(), qcomp:collectQComp(), qbilan:qBilanHeures(collectQuantites()),
+    qSch3:qSch3On(),
     oibtRlv:collectOibtRlv(), user:currentUser
   };
 }
@@ -4570,6 +4579,7 @@ function pushOibtRlv(L,d){
       + (x.chiffre===false
           ? '<br><b style="color:#b5651d">Non chiffré</b>'+(x.motif?' <span style="color:#666">— '+esc(x.motif)+'</span>':'')
           : (x.travaux?'<br><b>Travaux :</b> '+esc(x.travaux):'')
+            + (x.sch3 && d.qSch3?'<br><b style="color:#1F3B5B">Réglé par la suppression du schéma III (option)</b>':'')
             + (x.pers>1?'<br><span style="color:#666">'+esc(x.h)+' h × '+x.pers+' personnes</span>':''));
     L.push('<tr class="def-row"><td>' + des + '</td><td class="q">'
       + esc(String(x.chiffre===false ? '—' : (x.hh||'')))
@@ -4638,7 +4648,7 @@ function pushQuantites(L, d){
   const postes = qPostesUtilises(unites);
   /* un relevé peut ne contenir que des tableaux (immeuble où seul le TAB est repris) */
   if(!postes.length && !qTousTableaux(unites).length) return;
-  L.push('<h3>Relevé par quantités</h3>');
+  L.push('<h3>'+(d.qSch3?'Option : suppression du schéma III — relevé par quantités':'Relevé par quantités')+'</h3>');
   L.push('<p class="obj" style="color:#666">Relevé compté local par local, sans mesure de détail. '
        + 'Les longueurs sont données par tranches et restent estimatives.</p>');
   unites.forEach(u=>{
@@ -4772,12 +4782,20 @@ function pushTemps(L,d){
     dc.forEach(o=> L.push(itemRow(circuitDesc(o), o.h||'', 'h')));
   }
   if(oi) L.push(itemRow(oibtRlvDesc(oi), oi.total||'', 'h'));
-  const qu=(d.quantites||[]).filter(u=> parseFloat(u.heures)>0);
+  const s3=sch3Option(d);
+  const qu=s3 ? [] : (d.quantites||[]).filter(u=> parseFloat(u.heures)>0);
   if(qu.length){
     L.push(secRow(qTempsTitre(d)));
     qu.forEach(u=> L.push(itemRow(u.nom||'Unité', u.heures, 'h')));
   }
-  if(df.length||dc.length||oi||qu.length) L.push(totRowH("Total temps estimé (main d'œuvre + recherche)", grandTotalHeures(d), 'h'));
+  if(s3) L.push(totRowH('Total sans suppression du schéma III', grandTotalHeures(d), 'h'));
+  else if(df.length||dc.length||oi||qu.length) L.push(totRowH("Total temps estimé (main d'œuvre + recherche)", grandTotalHeures(d), 'h'));
+  if(s3){
+    L.push(secRow('Option : suppression du schéma III'));
+    L.push(itemRow('Relevé par quantités — '+s3.src, s3.h, 'h'));
+    if(s3.regles.length) L.push(itemRow('Défauts OIBT réglés par la suppression ('+sch3Regles(s3)+')', '−'+s3.hRegles, 'h'));
+    L.push(totRowH('Total avec suppression du schéma III', s3.avec, 'h'));
+  }
   L.push('</table>');
 }
 /* Mêmes lignes, version autoTable (PDF) */
@@ -4794,15 +4812,23 @@ function tempsBody(d){
     dc.forEach(o=> body.push([circuitDesc(o), String(o.h||''), 'h']));
   }
   if(oi) body.push([oibtRlvDesc(oi), String(oi.total||''), 'h']);
-  const qu=(d.quantites||[]).filter(u=> parseFloat(u.heures)>0);
+  const s3=sch3Option(d);
+  const qu=s3 ? [] : (d.quantites||[]).filter(u=> parseFloat(u.heures)>0);
   if(qu.length){
     body.push([{content:qTempsTitre(d), colSpan:3, styles:st}]);
     qu.forEach(u=> body.push([u.nom||'Unité', String(u.heures), 'h']));
   }
-  if(df.length||dc.length||oi||qu.length)
-    body.push([{content:"Total temps estimé (main d'oeuvre + recherche)", styles:st},
-               {content:String(grandTotalHeures(d)), styles:Object.assign({}, st, {halign:'center'})},
+  const tot=(lbl,v)=> body.push([{content:lbl, styles:st},
+               {content:String(v), styles:Object.assign({}, st, {halign:'center'})},
                {content:'h', styles:Object.assign({}, st, {halign:'center'})}]);
+  if(s3) tot('Total sans suppression du schéma III', grandTotalHeures(d));
+  else if(df.length||dc.length||oi||qu.length) tot("Total temps estimé (main d'oeuvre + recherche)", grandTotalHeures(d));
+  if(s3){
+    body.push([{content:'Option : suppression du schéma III', colSpan:3, styles:st}]);
+    body.push(['Relevé par quantités — '+s3.src, String(s3.h), 'h']);
+    if(s3.regles.length) body.push(['Défauts OIBT réglés par la suppression ('+sch3Regles(s3)+')', '-'+s3.hRegles, 'h']);
+    tot('Total avec suppression du schéma III', s3.avec);
+  }
   return body;
 }
 function row2(k,v){return `<tr><td>${k}</td><td>${v}</td></tr>`;}
@@ -4910,7 +4936,26 @@ function totalHeures(d){ const t=onsiteHours(d)*(parseFloat(d.monteurs)||1); ret
 /* Heures du relevé par quantités qui entrent dans le total. Le bouton « Reprendre
    l'estimation » les reporte dans la main d'œuvre sur site : dès qu'elle est remplie,
    on ne les ajoute plus, sinon elles compteraient deux fois. */
-function qHeuresAuTotal(d){ return parseFloat(totalHeures(d)) ? 0 : qHeuresTotal(d.quantites); }
+function qHeuresAuTotal(d){ return d.qSch3 || parseFloat(totalHeures(d)) ? 0 : qHeuresTotal(d.quantites); }
+/* ----- Option « suppression du schéma III » -----
+   Le relevé par quantités chiffre alors le recâblage, à part de la remise en conformité.
+   Offre de base : main d'œuvre + recherches + défauts OIBT retenus. Avec l'option : on
+   ajoute le relevé et on retire les défauts OIBT que le recâblage règle de lui-même. */
+function qSch3On(){ const e=$('#qSch3'); return !!(e && e.checked); }
+function sch3Option(d){
+  if(!d.qSch3) return null;
+  const b=d.qbilan||{};
+  let h=0, src='';
+  if(b.retenue){ h=b.retenue; src='valeur de travail retenue'; }
+  else if(b.totMax){ h=Math.round((b.totMin+b.totMax)/2*4)/4; src='milieu de '+qFmtH(b.totMin)+'–'+qFmtH(b.totMax)+' h'; }
+  else { h=qHeuresTotal(d.quantites); src='estimation par unité'; }
+  const regles=((d.oibtRlv&&d.oibtRlv.defauts)||[]).filter(x=> x.chiffre!==false && x.sch3);
+  const hRegles=Math.round(regles.reduce((a,x)=> a+(parseFloat(x.hh)||0), 0)*100)/100;
+  if(!h && !regles.length) return null;
+  return { h, src, regles, hRegles,
+           avec:Math.round((grandTotalHeures(d)-hRegles+h)*100)/100 };
+}
+function sch3Regles(o){ return o.regles.map(x=>'N° '+x.n).join(', '); }
 function qTempsTitre(d){
   return qHeuresAuTotal(d) ? 'Relevé par quantités — estimation'
     : "Relevé par quantités — estimation (pour information, non additionnée à la main d'œuvre)";
@@ -5236,6 +5281,7 @@ function buildPDFDoc(d, mode){
         + (x.titre? '\n'+x.titre : '')
         + (ecarte ? '\nNon chiffré'+(x.motif? ' : '+x.motif : '')
                   : (x.travaux? '\nTravaux : '+x.travaux : '')
+                    + (x.sch3 && d.qSch3? '\nRéglé par la suppression du schéma III (option)' : '')
                     + (x.pers>1? '\n'+x.h+' h x '+x.pers+' personnes' : '')),
           styles:stD},
         {content:ecarte ? '-' : String(x.hh||''), styles:Object.assign({}, stD, {halign:'center'})},
@@ -5292,7 +5338,7 @@ function buildPDFDoc(d, mode){
   const qTabs = qTousTableaux(qUn);
   if(qPost.length || qTabs.length){
     if(y > H-40){ doc.addPage(); y=16; }
-    heading('Relevé par quantités');
+    heading(d.qSch3 ? 'Option : suppression du schéma III - relevé par quantités' : 'Relevé par quantités');
     doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(...CLR.mut);
     const qIntro = doc.splitTextToSize(pdfSafe("Relevé compté local par local, sans mesure de détail. Les longueurs sont données par tranches et restent estimatives."), CW);
     doc.text(qIntro, M, y); y += qIntro.length*3.9 + 3;
@@ -8426,7 +8472,7 @@ const DRAFT='sevj_draft_arbre_v1', DRAFT_PHOTOS='sevj_draft_photos_arbre_v1', DR
    du brouillon — comme les photos — pour ne pas faire exploser le quota localStorage. */
 const DRAFT_OIBTVG='sevj_draft_oibtvg_arbre_v1';
 const D_SIMPLE=['#chantier','#objet','#lieu','#date','#jours','#monteurs','#dureeH','#qImprevus','#qRetenue'];
-const D_CHECK=['#vendredi','#apprenti','#tabAmiante'];
+const D_CHECK=['#vendredi','#apprenti','#tabAmiante','#qSch3'];
 let _saveT=null;
 function scheduleSave(){ clearTimeout(_saveT); _saveT=setTimeout(saveDraft,500); }
 function rowState(r){ const o={}; r.querySelectorAll('[data-f]').forEach(e=>{ o[e.dataset.f]= e.type==='checkbox'?e.checked:e.value; }); if(r.classList.contains('folded')) o.__folded=1; return o; }
@@ -8512,6 +8558,7 @@ function applyDraft(d){
   if(!d) return false;
   D_SIMPLE.forEach(s=>{ if(d.simple&&d.simple[s]!=null) $(s).value=d.simple[s]; });
   D_CHECK.forEach(s=>{ if(d.checks&&d.checks[s]!=null) $(s).checked=d.checks[s]; });
+  document.body.classList.toggle('sch3', qSch3On());
   if(Array.isArray(d.remarques)){
     $('#remarques').innerHTML='';
     d.remarques.forEach(state=>{ addRemarque(); fillRow(document.querySelector('#remarques .row:last-child'), state); });
@@ -8677,7 +8724,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v159-arbre — Total des temps : relevé par quantités compté une seule fois';
+const APP_VERSION='v160-arbre — Option suppression du schéma III';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -8716,6 +8763,8 @@ function init(){
   const mrb=$('#moRepriseBtn'); if(mrb) mrb.onclick=reprendreEstimation;
   ['#qImprevus','#qRetenue'].forEach(sel=>{ const e=$(sel);
     if(e) e.addEventListener('input', ()=>{ updateQ(); scheduleSave(); }); });
+  const qs3=$('#qSch3'); if(qs3) qs3.addEventListener('change', ()=>{
+    updateQ(); rlvOibtRender(); rlvOibtInfo(); scheduleSave(); });
   updateQ();
   const apb=$('#addProtBtn'); if(apb) apb.onclick=()=>{ addProtection(); scheduleSave(); };
 
