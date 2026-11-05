@@ -1387,6 +1387,7 @@ body:not(.sch3) .sch3-only{display:none}
         </div>
         <div class="chk" style="margin-top:10px"><input id="ftAvecOffre" type="checkbox"><label for="ftAvecOffre">Avec offre</label></div>
         <div class="chk"><input id="ftSansOffre" type="checkbox"><label for="ftSansOffre">Sans offre</label></div>
+        <div style="margin-top:8px"><label class="fld" for="ftNoOffre">N° d'offre</label><input id="ftNoOffre" type="text" placeholder="ex : OF-26-0315" autocomplete="off"></div>
       </div>
     </section>
 
@@ -6807,7 +6808,7 @@ function collectFt(){
     ch, fac, idem,
     chef:$('#ftChef').value.trim(), monteur:$('#ftMonteur').value.trim(),
     appr:$('#ftAppr').value.trim(), km:$('#ftKm').value.trim(),
-    avecOffre:$('#ftAvecOffre').checked, sansOffre:$('#ftSansOffre').checked,
+    avecOffre:$('#ftAvecOffre').checked, sansOffre:$('#ftSansOffre').checked, noOffre:$('#ftNoOffre').value.trim(),
     termine:$('#ftTermine').checked, enCours:$('#ftEnCours').checked,
     desc:$('#ftDesc').value, trav:$('#ftTrav').value,
     jours, mat,
@@ -6919,6 +6920,8 @@ async function buildFtPdfBytes(d){
     pg.drawRectangle({x:x0+0.9, y:y0+0.9, width:(x1-x0)-1.8, height:(y1-y0)-1.8, color:BLANC}); };
   [FT_CASE.avec, FT_CASE.sans, FT_CASE.termine, FT_CASE.encours].forEach(Vide);
   if(d.avecOffre) Coche(FT_CASE.avec);
+  /* n° d'offre : sur la ligne de la case, après le libellé « Avec offre », avant « Sans offre » */
+  if(d.noOffre) Tmax('N° offre : '+d.noOffre, 132, 555.5, 305-132, 8.5, bold);
   if(d.sansOffre) Coche(FT_CASE.sans);
 
   /* description et travaux */
@@ -7066,7 +7069,7 @@ async function generateFt(){
 }
 
 /* --- persistance (sans les données client ni les signatures) --- */
-const FT_SIMPLE=['#ftDate','#ftAffaire','#ftChantier','#ftChef','#ftMonteur','#ftAppr','#ftKm',
+const FT_SIMPLE=['#ftDate','#ftAffaire','#ftChantier','#ftChef','#ftMonteur','#ftAppr','#ftKm','#ftNoOffre',
                  '#ftDesc','#ftTrav'];
 const FT_CHK=['#ftAvecOffre','#ftSansOffre','#ftTermine','#ftEnCours'];
 function ftState(){
@@ -8995,7 +8998,7 @@ function importPDF(file){
 }
 
 /* ================= Init ================= */
-const APP_VERSION='v161-arbre — Nouveau chapitre Tableau';
+const APP_VERSION='v162-arbre — Fiche de travail : n° d\'offre';
 /* ---- Thème clair/sombre ---- */
 const THEME_KEY='sevj_theme';
 function applyTheme(t){ const dark=t==='dark'; document.documentElement.setAttribute('data-theme', dark?'dark':'light');
@@ -9217,6 +9220,8 @@ function init(){
   const paire=(a,b)=>{ $(a).addEventListener('change',()=>{ if($(a).checked) $(b).checked=false; ftMaj(); });
                        $(b).addEventListener('change',()=>{ if($(b).checked) $(a).checked=false; ftMaj(); }); };
   paire('#ftAvecOffre','#ftSansOffre'); paire('#ftTermine','#ftEnCours');
+  // un n° d'offre saisi, c'est forcément « Avec offre »
+  $('#ftNoOffre').addEventListener('input',e=>{ if(e.target.value.trim()){ $('#ftAvecOffre').checked=true; $('#ftSansOffre').checked=false; } });
   ftRemplitListes();
   $('#ftBackupExport').onclick=exportFtBackup;
   $('#ftBackupImportBtn').onclick=()=>$('#ftBackupImport').click();
